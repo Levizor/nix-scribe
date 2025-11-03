@@ -1,0 +1,25 @@
+name: 💡 Feature request
+description: Suggest a new idea or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your suggestion! Please fill out the section below.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: "Add support for ... module"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Write important details for this request
