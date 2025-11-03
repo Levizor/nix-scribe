@@ -1,0 +1,24 @@
+[project]
+name = "nix-scribe"
+version = "0.1.0"
+description = "Reverse-engineer your system state into NixOS config."
+authors = [
+    {name = "Levizor",email = "levizor@disroot.org"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "cappa (>=0.30.4,<0.31.0)"
+]
+
+[dependency-groups]
+dev = [
+    "pytest (>=8.4.2,<9.0.0)",
+    "ruff (>=0.14.3,<0.15.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
