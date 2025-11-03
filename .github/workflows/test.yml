@@ -1,0 +1,24 @@
+name: Pytest Unit Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python, Poetry and Dependencies
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.13
+          poetry-version: 2.2.1
+          install-args: --with dev
+
+      - name: Run Pytest
+        run: poetry run pytest
