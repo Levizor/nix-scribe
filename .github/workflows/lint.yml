@@ -1,0 +1,37 @@
+name: Lint & Format Checks (Ruff)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.13
+          poetry-version: 2.2.1
+          install-args: --with dev
+
+      - name: Apply Linting Fixes
+        run: poetry run ruff check . --fix
+
+      - name: Apply Formatting
+        run: poetry run ruff format .
+
+      - name: Commit and Push Fixes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: Apply automated formatting and linting fixes"
+          commit_user_name: 'github-actions[bot]'
+          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_author: 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'
