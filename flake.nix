@@ -19,6 +19,8 @@
           shellHook = ''
             echo "Done ✅"
           '';
+
+          PYTHONPATH = ".";
         };
       }
     );
