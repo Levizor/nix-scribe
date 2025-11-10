@@ -1,7 +1,7 @@
 import pytest
 
-from src.writer.syntax_builder import NixSyntaxBuilder
-from src.writer.value import nix_with, raw, to_nix
+from writer.syntax_builder import NixSyntaxBuilder
+from writer.value import nix_with, raw, to_nix
 
 
 @pytest.fixture()
@@ -13,7 +13,7 @@ def test_write_nix_block(writer: NixSyntaxBuilder):
     data = {
         "networking": {"NetworkManager.enable": True, "firewall.enable": True},
         "security": {"sudo": {"wheelNeedsPassword": False}},
-        "environment.systemPackages": nix_with("pkgs", ["vim", "curl"])
+        "environment.systemPackages": nix_with("pkgs", ["vim", "curl"]),
     }
 
     writer.write_dict(data)

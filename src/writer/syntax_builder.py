@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from io import StringIO
 
-from src.arguments import args
-from src.writer.value import combination, to_nix
+from arguments import args
+from writer.value import combination, to_nix
 
 
 class NixSyntaxBuilder:
@@ -14,10 +14,10 @@ class NixSyntaxBuilder:
     def _indent(self, flag: bool) -> str:
         return self.indent * self.level if flag else ""
 
-    def _write(self, text="", indent = True):
+    def _write(self, text="", indent=True):
         self.buffer.write(f"{self._indent(indent)}{text}")
 
-    def _writeln(self, line="", indent = True):
+    def _writeln(self, line="", indent=True):
         if line:
             self._write(line, indent=indent)
         self.buffer.write("\n")
@@ -52,16 +52,15 @@ class NixSyntaxBuilder:
             for line in comment.splitlines():
                 self._writeln(f"# {line}")
 
-
     @contextmanager
-    def block(self, header="", surrounding="{}", indent = False):
-        self._writeln(f"{header}{surrounding[:int(len(surrounding)/2)]}", indent)
+    def block(self, header="", surrounding="{}", indent=False):
+        self._writeln(f"{header}{surrounding[: int(len(surrounding) / 2)]}", indent)
         self.level += 1
         try:
             yield
         finally:
             self.level -= 1
-            self._write(f"{surrounding[int(len(surrounding)/2):]}")
+            self._write(f"{surrounding[int(len(surrounding) / 2) :]}")
 
     def gettext(self):
         return self.buffer.getvalue()

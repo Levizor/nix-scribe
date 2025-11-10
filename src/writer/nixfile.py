@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.writer.option_block import BaseOptionBlock
-from src.writer.syntax_builder import NixSyntaxBuilder
-from src.writer.value import raw
+from writer.option_block import BaseOptionBlock
+from writer.syntax_builder import NixSyntaxBuilder
+from writer.value import raw
 
 
 class NixFile(BaseOptionBlock):
