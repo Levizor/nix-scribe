@@ -1,7 +1,7 @@
 import pytest
 
-from src.writer.syntax_builder import NixSyntaxBuilder
-from src.writer.value import nix_with, raw, to_nix
+from writer.syntax_builder import NixSyntaxBuilder
+from writer.value import nix_with, raw, to_nix
 
 
 @pytest.fixture()
@@ -13,7 +13,7 @@ def test_write_nix_block(writer: NixSyntaxBuilder):
     data = {
         "networking": {"NetworkManager.enable": True, "firewall.enable": True},
         "security": {"sudo": {"wheelNeedsPassword": False}},
-        "environment.systemPackages": nix_with("pkgs", ["vim", "curl"])
+        "environment.systemPackages": nix_with("pkgs", ["vim", "curl"]),
     }
 
     writer.write_dict(data)
@@ -73,35 +73,3 @@ def test_write_dict_empty(writer: NixSyntaxBuilder):
     nix_text = writer.gettext()
     print(nix_text)
     assert nix_text == ""
-
-
-@pytest.mark.xfail
-def test_write_function(writer: NixSyntaxBuilder):
-    writer.write_function("my_function", ["pkgs", "lib"], {"package": "pkgs.hello"})
-    nix_text = writer.gettext()
-    print(nix_text)
-    assert (
-        nix_text
-        == """\
-my_function = { pkgs, lib }: {
-  package = pkgs.hello;
-};
-"""
-    )
-
-
-@pytest.mark.xfail
-def test_write_imports(writer: NixSyntaxBuilder):
-    writer.add_import("./my-module.nix")
-    writer.add_import("<nixpkgs>")
-    nix_text = writer.gettext()
-    print(nix_text)
-    assert (
-        nix_text
-        == """\
-imports = [
-  ./my-module.nix
-  <nixpkgs>
-];
-"""
-    )

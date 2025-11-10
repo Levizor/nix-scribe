@@ -5,7 +5,7 @@ from typing import Annotated
 import cappa
 from cappa import Arg
 
-from src.writer.modularization import ModularizationLevel
+from writer.modularization import ModularizationLevel
 
 
 @cappa.command(name="nix-scribe")
@@ -30,6 +30,9 @@ class CLIArguments:
 
     verbose: Annotated[bool, Arg(short="-v", help="Increase verbosity")] = False
 
-    no_comment: Annotated[bool, Arg(long="--no-comment", help="Don't write comments to the output files")] = False
+    no_comment: Annotated[
+        bool, Arg(long="--no-comment", help="Don't write comments to the output files")
+    ] = False
+
 
 args = cappa.parse(CLIArguments)

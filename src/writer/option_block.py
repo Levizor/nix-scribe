@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from src.writer.syntax_builder import NixSyntaxBuilder
+from writer.syntax_builder import NixSyntaxBuilder
 
 
 class BaseOptionBlock(ABC):
@@ -19,6 +19,7 @@ class BaseOptionBlock(ABC):
     def render(builder: NixSyntaxBuilder) -> None:
         pass
 
+
 class SimpleOptionBlock(BaseOptionBlock):
     """
     Logical partition of a specific part of generated configuration:
@@ -28,7 +29,13 @@ class SimpleOptionBlock(BaseOptionBlock):
         networking.filewall.enable = true;
     """
 
-    def __init__(self, name: str, description: str | None = None, data: dict[str, Any] | None = None, arguments: set[str] | None = None):
+    def __init__(
+        self,
+        name: str,
+        description: str | None = None,
+        data: dict[str, Any] | None = None,
+        arguments: set[str] | None = None,
+    ):
         super().__init__(name, description, arguments)
         self.data = {} if data is None else data
 
@@ -37,7 +44,6 @@ class SimpleOptionBlock(BaseOptionBlock):
 
     def __getitem__(self, key) -> Any:
         return self.data.__getitem__(key)
-
 
     def render(self, builder: NixSyntaxBuilder):
         """

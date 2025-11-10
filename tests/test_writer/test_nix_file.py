@@ -1,13 +1,14 @@
 import pytest
 
-from src.writer.nixfile import NixFile
-from src.writer.option_block import SimpleOptionBlock
-from src.writer.value import raw
+from writer.nixfile import NixFile
+from writer.option_block import SimpleOptionBlock
+from writer.value import raw
 
 
 @pytest.fixture()
 def file():
     return NixFile("configuration.nix")
+
 
 def test_file_writing(file: NixFile):
     file.description = "Generated with nix-scribe test"
@@ -15,18 +16,19 @@ def test_file_writing(file: NixFile):
     file.imports = [raw("./hardware-configuration.nix")]
 
     firewall = SimpleOptionBlock(
-        name = "networking/firewall",
-        description = "sets up firewall options"
+        name="networking/firewall", description="sets up firewall options"
     )
     firewall["networking.firewall.enable"] = True
     firewall["networking.firewall.settings"] = {
         "something": True,
-        "something.nothing": "Hello"
+        "something.nothing": "Hello",
     }
 
     file.add_option_block(firewall)
 
-    assert file.gettext() == """\
+    assert (
+        file.gettext()
+        == """\
 # Generated with nix-scribe test
 {
 
@@ -44,19 +46,24 @@ def test_file_writing(file: NixFile):
 
 }\
 """
-    file.add_option_block(SimpleOptionBlock(
-        name = "networkmanager",
-        description="NetworkManager configuration",
-        data = {
-            "networking.networkmanager": {
-                "enable": True,
-                "plugins": [raw("pkgs.networkmanager-openvpn")]
-            }
-        },
-        arguments=["pkgs"]
-    ))
+    )
+    file.add_option_block(
+        SimpleOptionBlock(
+            name="networkmanager",
+            description="NetworkManager configuration",
+            data={
+                "networking.networkmanager": {
+                    "enable": True,
+                    "plugins": [raw("pkgs.networkmanager-openvpn")],
+                }
+            },
+            arguments=["pkgs"],
+        )
+    )
 
-    assert file.gettext() == """\
+    assert (
+        file.gettext()
+        == """\
 # Generated with nix-scribe test
 {pkgs, ...}:
 {
@@ -82,3 +89,4 @@ def test_file_writing(file: NixFile):
   };
 
 }"""
+    )
