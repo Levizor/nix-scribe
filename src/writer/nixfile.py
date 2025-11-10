@@ -34,7 +34,7 @@ class NixFile(BaseOptionBlock):
         if len(self.arguments) > 0:
             builder._writeln(f"{{{', '.join([*self.arguments, '...'])}}}:")
 
-        with builder.block(semicolon=False):
+        with builder.block():
             if len(self.imports) > 0:
                 builder._writeln()
                 builder.write_attr("imports", self.imports)

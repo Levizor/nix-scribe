@@ -11,49 +11,57 @@ class NixSyntaxBuilder:
         self.buffer = StringIO()
         self.level = 0
 
-    def _indent_level(self):
-        return self.indent * self.level
+    def _indent(self, flag: bool) -> str:
+        return self.indent * self.level if flag else ""
 
-    def _writeln(self, line=""):
+    def _write(self, text="", indent = True):
+        self.buffer.write(f"{self._indent(indent)}{text}")
+
+    def _writeln(self, line="", indent = True):
         if line:
-            self.buffer.write(f"{self._indent_level()}{line}\n")
-        else:
-            self.buffer.write("\n")
+            self._write(line, indent=indent)
+        self.buffer.write("\n")
 
-    def write_comment(self, comment: str):
-        if not args.no_comment:
-            for line in comment.splitlines():
-                self._writeln(f"# {line}")
-
-    def write_attr(self, key, value):
+    def _write_value(self, value):
         if isinstance(value, dict):
-            with self.block(f"{key} = "):
+            with self.block():
                 for k, v in value.items():
                     self.write_attr(k, v)
         elif isinstance(value, combination):
-            pass
-
+            for inner_value in value:
+                self._write_value(inner_value)
         elif isinstance(value, list):
-            with self.block(f"{key} = ", surrounding="[]"):
-                for line in value:
-                    self._writeln(to_nix(line))
+            with self.block(surrounding="[]"):
+                for inner_value in value:
+                    self._writeln(inner_value)
         else:
-            self._writeln(f"{key} = {to_nix(value)};")
+            self._write(f"{to_nix(value)}", indent=False)
+
+    def write_attr(self, key, value):
+        self._write(f"{key} = ")
+        self._write_value(value)
+        self._writeln(";", indent=False)
 
     def write_dict(self, data: dict):
         for key, value in data.items():
             self.write_attr(key, value)
             self._writeln()
 
+    def write_comment(self, comment: str):
+        if not args.no_comment:
+            for line in comment.splitlines():
+                self._writeln(f"# {line}")
+
+
     @contextmanager
-    def block(self, header="", semicolon=True, surrounding="{}"):
-        self._writeln(f"{header}{surrounding[:int(len(surrounding)/2)]}")
+    def block(self, header="", surrounding="{}", indent = False):
+        self._writeln(f"{header}{surrounding[:int(len(surrounding)/2)]}", indent)
         self.level += 1
         try:
             yield
         finally:
             self.level -= 1
-            self._writeln(f"{surrounding[int(len(surrounding)/2):]}{';' if semicolon else ''}")
+            self._write(f"{surrounding[int(len(surrounding)/2):]}")
 
     def gettext(self):
         return self.buffer.getvalue()

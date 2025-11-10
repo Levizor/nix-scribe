@@ -13,3 +13,10 @@ def to_nix(value) -> str:
 class raw(str):
     def __new__(cls, value):
         return super().__new__(cls, value)
+
+class combination(list):
+    def __new__(cls, value):
+        return super().__new__(cls, value)
+
+def nix_with(with_attr: str, value) -> combination:
+    return combination([raw(f"with {with_attr}; "), value])
