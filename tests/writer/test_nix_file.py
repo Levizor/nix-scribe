@@ -42,7 +42,7 @@ def test_file_writing(file: NixFile):
     something.nothing = "Hello";
   };
 
-}
+}\
 """
     file.add_option_block(SimpleOptionBlock(
         name = "networkmanager",
@@ -81,5 +81,4 @@ def test_file_writing(file: NixFile):
     ];
   };
 
-}
-"""
+}"""
