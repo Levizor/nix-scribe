@@ -5,6 +5,8 @@ from typing import Annotated
 import cappa
 from cappa import Arg
 
+from src.writer.modularization import ModularizationLevel
+
 
 @cappa.command(name="nix-scribe")
 @dataclass
@@ -19,4 +21,15 @@ class CLIArguments:
 
     interactive: Annotated[bool, Arg(short="-i", help="Run interactviely")] = False
 
-    verbose: Annotated[bool, Arg(short="-v", help="Increase verbosity.")] = False
+    modularization: Annotated[
+        ModularizationLevel,
+        Arg(short="-m", help="Level of modularization of the configuration"),
+    ] = 0
+
+    flake: Annotated[bool, Arg(short="-f", help="Write flake configuration")] = False
+
+    verbose: Annotated[bool, Arg(short="-v", help="Increase verbosity")] = False
+
+    no_comment: Annotated[bool, Arg(long="--no-comment", help="Don't write comments to the output files")] = False
+
+args = cappa.parse(CLIArguments)
