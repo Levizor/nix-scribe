@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from writer.syntax_builder import NixSyntaxBuilder
+from writer.nix_writer import NixWriter
 
 
 class BaseOptionBlock(ABC):
@@ -16,7 +16,7 @@ class BaseOptionBlock(ABC):
         self.description = description
 
     @abstractmethod
-    def render(builder: NixSyntaxBuilder) -> None:
+    def render(self, writer: NixWriter) -> None:
         pass
 
 
@@ -32,9 +32,9 @@ class SimpleOptionBlock(BaseOptionBlock):
     def __init__(
         self,
         name: str,
-        description: str | None = None,
+        description: str = "",
         data: dict[str, Any] | None = None,
-        arguments: set[str] | None = None,
+        arguments: list[str] | None = None,
     ):
         super().__init__(name, description, arguments)
         self.data = {} if data is None else data
@@ -45,11 +45,11 @@ class SimpleOptionBlock(BaseOptionBlock):
     def __getitem__(self, key) -> Any:
         return self.data.__getitem__(key)
 
-    def render(self, builder: NixSyntaxBuilder):
+    def render(self, writer: NixWriter):
         """
         Writes description at the top of the option block.
         """
         if self.description:
-            builder.write_comment(self.description)
+            writer.write_comment(self.description)
 
-        builder.write_dict(self.data)
+        writer.write_dict(self.data)

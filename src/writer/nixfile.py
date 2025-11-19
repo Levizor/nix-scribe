@@ -2,16 +2,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from writer.nix_writer import NixWriter, raw
 from writer.option_block import BaseOptionBlock
-from writer.syntax_builder import NixSyntaxBuilder
-from writer.value import raw
 
 
 class NixFile(BaseOptionBlock):
-    def __init__(self, name: str, description: str | None = None):
+    def __init__(
+        self,
+        name: str,
+        description: str = "",
+        imports: list | None = None,
+        options: list | None = None,
+    ):
         super().__init__(name, description)
-        self.imports: list[raw | NixFile] = []
-        self.options: list[BaseOptionBlock] = []
+        self.imports: list[raw | NixFile] = [] if imports is None else imports
+        self.options: list[BaseOptionBlock] = [] if options is None else options
 
     def add_import(self, imported: raw | NixFile):
         self.imports.append(imported)
@@ -25,36 +30,36 @@ class NixFile(BaseOptionBlock):
         for arg in block.arguments:
             self.add_argument(arg)
 
-    def render(self, builder) -> None:
+    def render(self, writer: NixWriter) -> None:
         """Main logic for writing out stuff into nix language using NixSyntaxWriter"""
 
         if self.description:
-            builder.write_comment(self.description)
+            writer.write_comment(self.description)
 
         if len(self.arguments) > 0:
-            builder._writeln(f"{{{', '.join([*self.arguments, '...'])}}}:")
+            writer._writeln(f"{{{', '.join([*self.arguments, '...'])}}}:")
 
-        with builder.block():
+        with writer.block():
             if len(self.imports) > 0:
-                builder._writeln()
-                builder.write_attr("imports", self.imports)
-                builder._writeln()
+                writer._writeln()
+                writer.write_attr("imports", self.imports)
+                writer._writeln()
 
             if len(self.options) > 0:
                 for option_block in self.options:
-                    option_block.render(builder)
+                    option_block.render(writer)
 
     def gettext(self) -> str:
-        builder = NixSyntaxBuilder()
-        self.render(builder)
-        return builder.gettext()
+        writer = NixWriter()
+        self.render(writer)
+        return writer.gettext()
 
     def save(self, path: str | None = None):
         for file in self.imports:
             if isinstance(file, NixFile):
                 file.save()
 
-        target = Path(path or self.path)
+        target = Path(path or self.name + ".nix")
         if not target:
             raise ValueError("No output path specified.")
 

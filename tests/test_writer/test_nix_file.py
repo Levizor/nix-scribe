@@ -1,8 +1,8 @@
 import pytest
 
+from writer.nix_writer import raw
 from writer.nixfile import NixFile
 from writer.option_block import SimpleOptionBlock
-from writer.value import raw
 
 
 @pytest.fixture()
