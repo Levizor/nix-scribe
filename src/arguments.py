@@ -5,7 +5,7 @@ from typing import Annotated
 import cappa
 from cappa import Arg
 
-from writer.modularization import ModularizationLevel
+from lib.modularization import ModularizationLevel
 
 
 @cappa.command(name="nix-scribe")

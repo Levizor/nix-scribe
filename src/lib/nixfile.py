@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from writer.nix_writer import NixWriter, raw
-from writer.option_block import BaseOptionBlock
+from lib.nix_writer import NixWriter, raw
+from lib.option_block import BaseOptionBlock
 
 
 class NixFile(BaseOptionBlock):
