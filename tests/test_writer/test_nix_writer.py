@@ -1,19 +1,19 @@
 import pytest
 
-from writer.syntax_builder import NixSyntaxBuilder
-from writer.value import nix_with, raw, to_nix
+from writer.nix_writer import NixWriter, nix_with, raw, with_pkgs
 
 
 @pytest.fixture()
 def writer():
-    return NixSyntaxBuilder()
+    return NixWriter()
 
 
-def test_write_nix_block(writer: NixSyntaxBuilder):
+def test_write_nix_block(writer: NixWriter):
     data = {
         "networking": {"NetworkManager.enable": True, "firewall.enable": True},
         "security": {"sudo": {"wheelNeedsPassword": False}},
-        "environment.systemPackages": nix_with("pkgs", ["vim", "curl"]),
+        "environment.systemPackages": nix_with("pkgs", [raw("vim"), raw("curl")]),
+        "other.packages": with_pkgs("vim", "curl"),
     }
 
     writer.write_dict(data)
@@ -38,21 +38,38 @@ environment.systemPackages = with pkgs; [
   curl
 ];
 
+other.packages = with pkgs; [
+  vim
+  curl
+];
+
 """
     )
 
 
-def test_to_nix_conversion():
-    assert to_nix(True) == "true"
-    assert to_nix(False) == "false"
-    assert to_nix(None) == "null"
-    assert to_nix(123) == "123"
-    assert to_nix(1.23) == "1.23"
-    assert to_nix("hello") == '"hello"'
-    assert to_nix(raw("pkgs.vim")) == "pkgs.vim"
+def test_to_nix_conversion(writer: NixWriter):
+    cases = {
+        "true": True,
+        "false": False,
+        "null": None,
+        "123": 123,
+        "1.23": 1.23,
+        '"hello"': "hello",
+        "pkgs.vim": raw("pkgs.vim"),
+        """''
+  hello
+  world
+''""": "hello\nworld",
+    }
+
+    for key, value in cases.items():
+        writer._write_value(value)
+        print(writer.gettext())
+        assert key == writer.gettext()
+        writer.clear()
 
 
-def test_write_attr_simple_values(writer: NixSyntaxBuilder):
+def test_write_attr_simple_values(writer: NixWriter):
     writer.write_attr("key", "value")
     writer.write_attr("bool_key", True)
     writer["int_key"] = 123
@@ -68,7 +85,7 @@ int_key = 123;
     )
 
 
-def test_write_dict_empty(writer: NixSyntaxBuilder):
+def test_write_dict_empty(writer: NixWriter):
     writer.write_dict({})
     nix_text = writer.gettext()
     print(nix_text)
