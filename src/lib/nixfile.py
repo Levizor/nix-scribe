@@ -54,12 +54,15 @@ class NixFile(BaseOptionBlock):
         self.render(writer)
         return writer.gettext()
 
-    def save(self, path: str | None = None):
+    def save(self, path: Path | None = None):
         for file in self.imports:
             if isinstance(file, NixFile):
                 file.save()
 
-        target = Path(path or self.name + ".nix")
+        if path and path.is_dir():
+            path = path / (self.name + ".nix")
+
+        target = path or Path(self.name + ".nix")
         if not target:
             raise ValueError("No output path specified.")
 
