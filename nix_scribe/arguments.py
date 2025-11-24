@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from lib.modularization import ModularizationLevel
+from .lib.modularization import ModularizationLevel
 
 
 @dataclass

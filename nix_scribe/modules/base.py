@@ -1,7 +1,7 @@
 from abc import abstractmethod
 
-from lib.context import SystemContext
-from lib.option_block import BaseOptionBlock
+from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.option_block import BaseOptionBlock
 
 
 class BaseScanner:

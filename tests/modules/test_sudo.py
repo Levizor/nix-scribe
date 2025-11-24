@@ -1,7 +1,7 @@
 import json
 import unittest.mock
 
-from modules.security.sudo import SudoMapper, SudoScanner
+from nix_scribe.modules.security.sudo import SudoMapper, SudoScanner
 
 MOCK_TEXT_OUTPUT = """Defaults env_reset
 Defaults:root, %wheel env_keep+=TERMINFO_DIRS

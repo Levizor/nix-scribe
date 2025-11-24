@@ -1,6 +1,6 @@
 import pytest
 
-from lib.nix_writer import NixWriter, nix_with, raw, with_pkgs
+from nix_scribe.lib.nix_writer import NixWriter, nix_with, raw, with_pkgs
 
 
 @pytest.fixture()

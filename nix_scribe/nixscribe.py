@@ -1,11 +1,10 @@
 import os
-import sys
 
-from arguments import args
-from lib.context import ElevationRequest, SystemContext
-from lib.nixfile import NixFile
-from modules.base import Module
-from modules.security import sudo
+from .arguments import args
+from .lib.context import ElevationRequest, SystemContext
+from .lib.nixfile import NixFile
+from .modules.base import Module
+from .modules.security import sudo
 
 
 class NixScribe:
@@ -73,5 +72,3 @@ class NixScribe:
                 return True
             if response in ["n", "no"]:
                 return False
-
-

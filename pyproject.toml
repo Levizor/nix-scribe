@@ -8,8 +8,11 @@ readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = ["typer (>=0.20.0,<0.21.0)"]
 
+[tool.poetry]
+packages = [{ include = "nix_scribe" }]
+
 [project.scripts]
-"nix-scribe" = "main:main"
+"nix-scribe" = "nix_scribe.main:app"
 
 [dependency-groups]
 dev = ["pytest (>=8.4.2,<9.0.0)", "ruff (>=0.14.3,<0.15.0)"]
@@ -25,4 +28,3 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "src/main.py"]

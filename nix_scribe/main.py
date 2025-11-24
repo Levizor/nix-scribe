@@ -3,9 +3,9 @@ from typing import Annotated
 
 import typer
 
-from arguments import args
-from lib.modularization import ModularizationLevel
-from nixscribe import NixScribe
+from .arguments import args
+from .lib.modularization import ModularizationLevel
+from .nixscribe import NixScribe
 
 app = typer.Typer(
     name="nix-scribe",
