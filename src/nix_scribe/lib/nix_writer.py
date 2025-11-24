@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from io import StringIO
 from typing import Any, Generator
 
-from arguments import args
+from nix_scribe.arguments import args
 
 
 class raw(str):

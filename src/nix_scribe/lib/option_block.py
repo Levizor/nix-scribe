@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from lib.nix_writer import NixWriter
+from .nix_writer import NixWriter
 
 
 class BaseOptionBlock(ABC):

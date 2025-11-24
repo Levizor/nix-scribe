@@ -2,3 +2,6 @@
 .venv
 .pytest_cache
 **/__pycache__
+result
+configuration.nix
+configuration/

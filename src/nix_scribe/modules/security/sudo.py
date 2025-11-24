@@ -2,9 +2,9 @@ import json
 import shutil
 from typing import Any
 
-from lib.context import ElevationRequest, SystemContext
-from lib.option_block import BaseOptionBlock, SimpleOptionBlock
-from modules.base import BaseMapper, BaseScanner, Module
+from nix_scribe.lib.context import ElevationRequest, SystemContext
+from nix_scribe.lib.option_block import BaseOptionBlock, SimpleOptionBlock
+from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
 
 
 class SudoScanner(BaseScanner):

@@ -1,24 +1,21 @@
-name: Pytest Unit Tests
-
+---
+name: Pytest & Build
 on:
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
+  push:
+    branches: [main]
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Python, Poetry and Dependencies
-        uses: packetcoders/action-setup-cache-python-poetry@main
-        with:
-          python-version: 3.13
-          poetry-version: 2.2.1
-          install-args: --with dev
-
-      - name: Run Pytest
-        run: poetry run pytest
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Check Build (Production)
+        run: nix build -L
+      - name: Run Pytest (DevShell)
+        run: nix develop --command pytest
