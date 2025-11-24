@@ -12,17 +12,11 @@ dependencies = ["typer>=0.20.0,<0.21.0"]
 "nix-scribe" = "nix_scribe.main:app"
 
 [dependency-groups]
-dev = [
-    "pytest>=8.4.2,<9.0.0",
-    "ruff>=0.14.3,<0.15.0",
-]
+dev = ["pytest>=8.4.2,<9.0.0", "ruff>=0.14.3,<0.15.0"]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["nix_scribe"]
+requires = ["uv_build>=0.9.0,<0.10.0"]
+build-backend = "uv_build"
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "B"]
