@@ -75,9 +75,3 @@ class NixScribe:
                 return False
 
 
-if __name__ == "__main__":
-    try:
-        script = NixScribe()
-        script.run()
-    except KeyboardInterrupt:
-        sys.exit(1)

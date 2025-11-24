@@ -6,7 +6,10 @@ authors = [{ name = "Levizor", email = "levizor@disroot.org" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
-dependencies = ["cappa (>=0.30.4,<0.31.0)"]
+dependencies = ["typer (>=0.20.0,<0.21.0)"]
+
+[project.scripts]
+"nix-scribe" = "main:main"
 
 [dependency-groups]
 dev = ["pytest (>=8.4.2,<9.0.0)", "ruff (>=0.14.3,<0.15.0)"]
@@ -22,4 +25,4 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "src/main.py"]
