@@ -14,12 +14,14 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            poetry
+            uv
           ];
           shellHook = ''
             echo "Done ✅"
           '';
         };
+
+        # nix-scribe = pkgs.python
       }
     );
 }
