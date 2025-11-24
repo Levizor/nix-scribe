@@ -1,7 +1,7 @@
 [project]
 name = "nix-scribe"
 version = "0.1.0"
-description = "Reverse-engineer your system state into NixOS config."
+description = "Reverse-engineer your system state into NixOS config"
 authors = [{ name = "Levizor", email = "levizor@disroot.org" }]
 license = { text = "MIT" }
 readme = "README.md"
