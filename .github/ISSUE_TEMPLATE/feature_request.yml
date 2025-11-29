@@ -1,25 +1,21 @@
-name: 💡 Feature request
-description: Suggest a new idea or enhancement
-title: "[Feature]: "
-labels: ["enhancement"]
-assignees: []
-
+---
+name: 💡 Core Feature Request
+description: Improvements to the core infrastructure (CLI, Writer, Context, NixScribe).
+title: '[Core]: '
+labels: [component/core, kind/feature]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for your suggestion! Please fill out the section below.
-
   - type: input
     id: summary
     attributes:
-      label: Summary
-      placeholder: "Add support for ... module"
+      label: Problem Description
+      description: What is missing or should be changed? (e.g., The CLI lacks robust
+        dry-run logic.)
     validations:
       required: true
-
   - type: textarea
-    id: description
+    id: proposed-solution
     attributes:
-      label: Description
-      description: Write important details for this request
+      label: Proposed Solution
+      description: How should the architecture or code change to address this problem?
+        Specify the files/classes that need modification.
+    validations:

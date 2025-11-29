@@ -1,26 +1,32 @@
-name: Bug report
-description: Report a reproducible bug or regression
-title: "[Bug]: "
-labels: ["bug"]
-assignees: []
-
+---
+name: 🐞 Bug report
+description: Report a reproducible bug or regression in scanning or mapping logic.
+title: '[Bug]: '
+labels: [kind/bug]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for reporting a bug! Please fill out the sections below.
-
   - type: input
     id: summary
     attributes:
       label: Summary
-      description: A short description of the problem
-      placeholder: e.g. "Generates invalid Nix code."
-
+      description: A short description of the problem.
+      placeholder: e.g. "Generates invalid Nix code for groups."
+    validations:
+      required: true
+  - type: input
+    id: module-affected
+    attributes:
+      label: Module/Component Affected
+      description: Which module or core component is involved?
+      placeholder: e.g., Sudo, Filesystems, Core Writer
   - type: textarea
     id: steps
     attributes:
-      label: Describe the bug
-      description: Describe the bug and how to reproduce it. Share logs.
-    validations:
-      required: true
+      label: Steps to Reproduce
+      description: Describe the exact steps taken, including commands, CLI options,
+        etc.
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What is the resulting error, crash, or invalid output? Include
+        traceback or generated invalid Nix code.

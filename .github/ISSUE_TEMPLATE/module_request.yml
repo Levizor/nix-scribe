@@ -1,0 +1,34 @@
+---
+name: 🪶 New Module Proposal
+description: Propose a new system component to scan and map to NixOS options.
+title: '[Module]: '
+labels: [component/module, kind/feature]
+body:
+  - type: input
+    id: component-name
+    attributes:
+      label: Target Component Name
+      description: The canonical name for the module (e.g., 'services/openssh' or
+        'programs/zsh').
+      placeholder: e.g., 'services/openssh'
+    validations:
+      required: true
+  - type: textarea
+    id: scanning-strategy
+    attributes:
+      label: Scanning Strategy (Input)
+      description: Describe files to read (relative to the root input path), commands
+        to run, and the required privilege level.
+      placeholder: |
+        Files: /etc/ssh/sshd_config
+        Commands: systemctl is-enabled sshd
+        Privilege: true
+  - type: textarea
+    id: mapping-strategy
+    attributes:
+      label: Mapping Strategy (Output)
+      description: Describe the intended translation logic and high-level options
+        to use, preferring idiomatic Nix options over extraConfig dumps.
+      placeholder: |-
+        Primary Options: services.openssh.enable, services.openssh.settings.PasswordAuthentication
+        Optimization: If PasswordAuthentication is 'no', set the option directly.
