@@ -64,7 +64,6 @@ def test_to_nix_conversion(writer: NixWriter):
 
     for key, value in cases.items():
         writer._write_value(value)
-        print(writer.gettext())
         assert key == writer.gettext()
         writer.clear()
 
@@ -74,7 +73,6 @@ def test_write_attr_simple_values(writer: NixWriter):
     writer.write_attr("bool_key", True)
     writer["int_key"] = 123
     nix_text = writer.gettext()
-    print(nix_text)
     assert (
         nix_text
         == """\
@@ -88,5 +86,4 @@ int_key = 123;
 def test_write_dict_empty(writer: NixWriter):
     writer.write_dict({})
     nix_text = writer.gettext()
-    print(nix_text)
     assert nix_text == ""
