@@ -1,10 +1,13 @@
 import json
+import logging
 import shutil
 from typing import Any
 
-from nix_scribe.lib.context import ElevationRequest, SystemContext
+from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import BaseOptionBlock, SimpleOptionBlock
 from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
+
+logger = logging.getLogger(__name__)
 
 
 class SudoScanner(BaseScanner):
@@ -17,6 +20,7 @@ class SudoScanner(BaseScanner):
         sudo_path = shutil.which("sudo")
 
         if not cvtsudoers_path or not sudo_path:
+            logger.warning("No sudo configuration or cvtsudoers not found")
             return {}
 
         ir = {
@@ -27,39 +31,30 @@ class SudoScanner(BaseScanner):
             "extraConfigLines": [],
         }
 
-        try:
-            # Get Effective Config as TEXT (for extraConfig)
-            text_output = context.run_command(
-                [cvtsudoers_path, "-e", "-f", "sudoers", "/etc/sudoers"],
-            )
-            ir["extraConfigLines"] = [
-                line for line in text_output.splitlines() if line.strip()
-            ]
+        # Get Effective Config as TEXT (for extraConfig)
+        text_output = context.run_command(
+            [cvtsudoers_path, "-e", "-f", "sudoers", "/etc/sudoers"],
+        )
+        ir["extraConfigLines"] = [
+            line for line in text_output.splitlines() if line.strip()
+        ]
 
-            # Get Effective Config as JSON (for Analysis)
-            json_output = context.run_command(
-                [cvtsudoers_path, "-f", "json", "-e", "/etc/sudoers"]
-            )
-            json_data = json.loads(json_output)
-            self._analyze_json(json_data, ir)
+        # Get Effective Config as JSON (for Analysis)
+        json_output = context.run_command(
+            [cvtsudoers_path, "-f", "json", "-e", "/etc/sudoers"]
+        )
+        json_data = json.loads(json_output)
+        self._analyze_json(json_data, ir)
 
-            # Check Permissions for execWheelOnly
-            stat_output = context.run_command(
-                ["stat", "-c", "%a %G", sudo_path]
-            ).strip()
+        # Check Permissions for execWheelOnly
+        stat_output = context.run_command(["stat", "-c", "%a %G", sudo_path]).strip()
 
-            if stat_output:
-                mode_octal, group = stat_output.split()
-                others_perm = int(mode_octal[-1])
-                is_world_exec = (others_perm & 1) == 1
-                if not is_world_exec:
-                    ir["execWheelOnly"] = True
-
-        except ElevationRequest:
-            raise
-        except Exception as e:
-            print(f"Warning: Sudo scan failed: {e}")
-            return {}
+        if stat_output:
+            mode_octal, group = stat_output.split()
+            others_perm = int(mode_octal[-1])
+            is_world_exec = (others_perm & 1) == 1
+            if not is_world_exec:
+                ir["execWheelOnly"] = True
 
         return ir
 
