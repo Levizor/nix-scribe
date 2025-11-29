@@ -3,6 +3,8 @@ from typing import Annotated
 
 import typer
 
+from nix_scribe.logger import setup_logging
+
 from .arguments import args
 from .lib.modularization import ModularizationLevel
 from .nixscribe import NixScribe
@@ -41,16 +43,34 @@ def main(
     interactive: Annotated[
         bool, typer.Option("--interactive", help="Run interactively")
     ] = False,
-    verbose: Annotated[bool, typer.Option("-v", help="Increase verbosity")] = False,
+    verbosity: Annotated[
+        int,
+        typer.Option(
+            "-v",
+            "--verbosity",
+            help="Set verbosity level: 0 - silent, 1 - INFO, 2 - DEBUG",
+        ),
+    ] = 1,
+    mod_verbosity: Annotated[
+        int,
+        typer.Option(
+            "--mod-verbosity",
+            help="Set modules verbosity level: 0 - silent, 1 - INFO, 2 - DEBUG",
+        ),
+    ] = 1,
 ):
     args.input_path = input_path
     args.output_path = output_path
     args.interactive = interactive
     args.modularization = ModularizationLevel(modularization)
     args.flake = flake
-    args.verbose = verbose
+    args.verbosity = verbosity
+    args.mod_verbosity = mod_verbosity
     args.no_comment = no_comment
-    script = NixScribe()
+
+    console = setup_logging(verbosity, mod_verbosity, Path("nix-scribe.log"))
+
+    script = NixScribe(console)
     script.run()
 
 

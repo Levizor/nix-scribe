@@ -11,7 +11,8 @@ class CLIArguments:
     interactive: bool = False
     modularization: ModularizationLevel = ModularizationLevel.SINGLE_FILE
     flake: bool = False
-    verbose: bool = False
+    verbosity: int = 1
+    mod_verbosity: int = 1
     no_comment: bool = False
 
 
