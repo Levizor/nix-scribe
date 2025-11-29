@@ -3,5 +3,6 @@
 .pytest_cache
 **/__pycache__
 result
+*.log
 configuration.nix
 configuration/
