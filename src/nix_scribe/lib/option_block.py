@@ -5,6 +5,13 @@ from .nix_writer import NixWriter
 
 
 class BaseOptionBlock(ABC):
+    """
+    Logical partition of a specific part of generated configuration:
+        name - used as file name
+        description - used for comments
+        argumens - required arguments for the option block, e.g. pkgs, lib, etc.
+    """
+
     def __init__(
         self,
         name: str,
@@ -22,11 +29,11 @@ class BaseOptionBlock(ABC):
 
 class SimpleOptionBlock(BaseOptionBlock):
     """
-    Logical partition of a specific part of generated configuration:
-        # firewall.nix
+    Outputs a description comment and all the options specified.
+    # firewall.nix
 
-        # firewall configuration
-        networking.filewall.enable = true;
+    # firewall configuration
+    networking.filewall.enable = true;
     """
 
     def __init__(
