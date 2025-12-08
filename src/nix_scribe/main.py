@@ -52,12 +52,12 @@ def main(
         ),
     ] = 1,
     mod_verbosity: Annotated[
-        int,
+        int | None,
         typer.Option(
             "--mod-verbosity",
             help="Set modules verbosity level: 0 - silent, 1 - INFO, 2 - DEBUG",
         ),
-    ] = 1,
+    ] = None,
 ):
     args.input_path = input_path
     args.output_path = output_path
@@ -65,10 +65,10 @@ def main(
     args.modularization = ModularizationLevel(modularization)
     args.flake = flake
     args.verbosity = verbosity
-    args.mod_verbosity = mod_verbosity
+    args.mod_verbosity = verbosity if not mod_verbosity else mod_verbosity
     args.no_comment = no_comment
 
-    console = setup_logging(verbosity, mod_verbosity, Path("nix-scribe.log"))
+    console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
 
     script = NixScribe(console)
     script.run()
