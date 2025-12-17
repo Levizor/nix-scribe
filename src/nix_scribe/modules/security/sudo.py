@@ -9,6 +9,8 @@ from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
 
 logger = logging.getLogger(__name__)
 
+SUDOERS_PATH = "/etc/sudoers"
+
 
 class SudoScanner(BaseScanner):
     @property
@@ -17,9 +19,15 @@ class SudoScanner(BaseScanner):
 
     def scan(self, context: SystemContext) -> dict[str, Any]:
         cvtsudoers_path = shutil.which("cvtsudoers")
-        sudo_path = shutil.which("sudo")
+        sudo_path = context.find_executable_path("sudo")
 
-        if not cvtsudoers_path or not sudo_path:
+        if (
+            not cvtsudoers_path
+            or not sudo_path
+            or not context.path_exists(SUDOERS_PATH)
+        ):
+            logger.debug(f"cvtsudoers_path: {cvtsudoers_path}")
+            logger.debug(f"sudo_path: {sudo_path}")
             logger.warning("No sudo configuration or cvtsudoers not found")
             return {}
 
@@ -33,7 +41,7 @@ class SudoScanner(BaseScanner):
 
         # Get Effective Config as TEXT (for extraConfig)
         text_output = context.run_command(
-            [cvtsudoers_path, "-e", "-f", "sudoers", "/etc/sudoers"],
+            [cvtsudoers_path, "-b", "/etc", "-e", "-f", "sudoers", SUDOERS_PATH],
         )
         ir["extraConfigLines"] = [
             line for line in text_output.splitlines() if line.strip()
@@ -41,7 +49,7 @@ class SudoScanner(BaseScanner):
 
         # Get Effective Config as JSON (for Analysis)
         json_output = context.run_command(
-            [cvtsudoers_path, "-f", "json", "-e", "/etc/sudoers"]
+            [cvtsudoers_path, "-f", "json", "-e", SUDOERS_PATH]
         )
         json_data = json.loads(json_output)
         self._analyze_json(json_data, ir)
