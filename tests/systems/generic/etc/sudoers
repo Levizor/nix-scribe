@@ -1,0 +1,34 @@
+#
+# This file MUST be edited with the 'visudo' command.
+#
+# See the man page for more details on how to write a sudoers file.
+#
+
+# === Global Defaults ===
+Defaults	env_reset
+Defaults	mail_badpass
+Defaults	secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# By default, we DO NOT require a TTY for commands
+Defaults	!requiretty
+
+# === User Privilege Specification ===
+root	ALL=(ALL) ALL
+
+# === Groups Specification ===
+# Members of the wheel group may gain root privileges.
+%wheel	ALL=(ALL) ALL
+
+# Members of the sudo group may execute any command
+%sudo	ALL=(ALL) NOPASSWD: ALL
+
+# === Specific Rules for Automation and Database Access ===
+
+# The 'robot' user needs to restart specific services without a password prompt.
+robot	ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart httpd, /usr/bin/systemctl restart nginx
+
+# The 'db_admin' user can run psql as the postgres user.
+db_admin	ALL=(postgres) /usr/bin/psql
+
+# Allow network admins to run iptables commands
+%net_admin	ALL=(root) /usr/sbin/iptables, /usr/sbin/ip6tables
