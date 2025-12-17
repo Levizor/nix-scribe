@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Annotated
 
@@ -69,6 +70,8 @@ def main(
     args.no_comment = no_comment
 
     console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
+    log = logging.getLogger(__name__)
+    log.debug(args)
 
     script = NixScribe(console)
     script.run()
