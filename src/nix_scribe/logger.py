@@ -82,7 +82,7 @@ def setup_logging(
     )
 
     # Core logger
-    core_logger = logging.getLogger("nix_scribe.nixscribe")
+    core_logger = logging.getLogger("nix_scribe")
     core_logger.setLevel(core_level)
     core_logger.propagate = True
 
