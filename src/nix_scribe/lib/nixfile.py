@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.nix_writer import NixWriter, raw
 from nix_scribe.lib.option_block import BaseOptionBlock
 
@@ -54,16 +55,62 @@ class NixFile(BaseOptionBlock):
         self.render(writer)
         return writer.gettext()
 
-    def save(self, path: Path | None = None):
-        for file in self.imports:
-            if isinstance(file, NixFile):
-                file.save()
+    def save(self, output_path: Path, modularization_level: ModularizationLevel):
+        """
+        Saves the NixFile structure to disk according to the specified
+        modularization level.
+        """
+        config_root = output_path
+        file_path = config_root / f"{self.name}.nix"
 
-        if path and path.is_dir():
-            path = path / (self.name + ".nix")
+        config_root.mkdir(parents=True, exist_ok=True)
 
-        target = path or Path(self.name + ".nix")
-        if not target:
-            raise ValueError("No output path specified.")
+        imports = list(self.imports)
+        final_imports = []
 
-        target.write_text(self.gettext())
+        for imp in imports:
+            # handle NixFile in imports
+            if isinstance(imp, NixFile):
+                import_path = imp._save_modularized(config_root, modularization_level)
+                final_imports.append(raw(import_path))
+            else:
+                final_imports.append(imp)
+
+        self.imports = final_imports
+        file_path.write_text(self.gettext())
+
+    def _save_modularized(
+        self, parent_dir: Path, modularization_level: ModularizationLevel
+    ) -> str:
+        """
+        Recursively saves child NixFiles for modularization levels.
+        """
+        if modularization_level == ModularizationLevel.COMPONENT_LEVEL and any(
+            isinstance(imp, NixFile) for imp in self.imports
+        ):
+            # create import directory and 'default.nix' with all the imports
+            module_dir = parent_dir / self.name
+            module_dir.mkdir(exist_ok=True)
+
+            default_nix_path = module_dir / "default.nix"
+
+            imports_to_process = list(self.imports)
+            final_imports = []
+            for imp in imports_to_process:
+                if isinstance(imp, NixFile):
+                    import_path = imp._save_modularized(
+                        module_dir, modularization_level
+                    )
+                    final_imports.append(raw(import_path))
+                else:
+                    final_imports.append(imp)
+
+            self.imports = final_imports
+            default_nix_path.write_text(self.gettext())
+
+            return f"./{self.name}"
+
+        else:
+            file_path = parent_dir / f"{self.name}.nix"
+            file_path.write_text(self.gettext())
+            return f"./{file_path.name}"

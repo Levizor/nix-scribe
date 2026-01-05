@@ -1,8 +1,6 @@
-from ast import arg
 import datetime
 import logging
 import os
-from pathlib import Path
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -69,13 +67,15 @@ class NixScribe:
                     elif args.modularization == ModularizationLevel.SINGLE_FILE:
                         self.root_file.add_option_block(module.option_block)
 
-            if args.modularization != ModularizationLevel.SINGLE_FILE:
+            if args.modularization != ModularizationLevel.SINGLE_FILE and (
+                any(option_file.imports) or any(option_file.options)
+            ):
                 self.root_file.add_import(option_file)
 
         logger.info("Finished mapping stage.")
 
         logger.info("Writing configuration...")
-        self.root_file.save(args.output_path)
+        self.root_file.save(args.output_path, args.modularization)
 
         logger.info(f"Saved configuration to {args.output_path}")
 
