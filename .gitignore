@@ -6,3 +6,4 @@ result
 *.log
 configuration.nix
 configuration/
+nix-config/

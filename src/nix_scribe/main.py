@@ -25,7 +25,7 @@ def main(
     output_path: Annotated[
         Path,
         typer.Option("-o", "--output", help="Output path for the configuration"),
-    ] = Path("./configuration.nix"),
+    ] = Path("./nix-config"),
     modularization: Annotated[
         int,
         typer.Option(
@@ -72,6 +72,8 @@ def main(
     console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
     log = logging.getLogger(__name__)
     log.debug(args)
+
+    args.check()
 
     script = NixScribe(console)
     script.run()
