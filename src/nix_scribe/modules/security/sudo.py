@@ -143,7 +143,7 @@ class SudoMapper(BaseMapper):
         return SimpleOptionBlock(
             name="security/sudo",
             description="Sudo Configuration",
-            data={"security": {"sudo": sudo_config}},
+            data={"security.sudo": sudo_config},
         )
 
 

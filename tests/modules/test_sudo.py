@@ -1,6 +1,7 @@
 import json
 import unittest.mock
 
+from nix_scribe.lib.option_block import SimpleOptionBlock
 from nix_scribe.modules.security.sudo import SudoMapper, SudoScanner
 
 MOCK_TEXT_OUTPUT = """Defaults env_reset
@@ -65,7 +66,9 @@ def test_mapper_filtering():
 
     mapper = SudoMapper()
     block = mapper.map(mock_ir)
-    data = block.data["security"]["sudo"]
+
+    assert isinstance(block, SimpleOptionBlock)
+    data = block.data["security.sudo"]
 
     assert data["wheelNeedsPassword"] is False
 
