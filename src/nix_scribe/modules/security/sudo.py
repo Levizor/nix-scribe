@@ -13,10 +13,6 @@ SUDOERS_PATH = "/etc/sudoers"
 
 
 class SudoScanner(BaseScanner):
-    @property
-    def name(self) -> str:
-        return "Sudo Configuration"
-
     def scan(self, context: SystemContext) -> dict[str, Any]:
         cvtsudoers_path = shutil.which("cvtsudoers")
         sudo_path = context.find_executable_path("sudo")
@@ -137,8 +133,8 @@ class SudoMapper(BaseMapper):
 
             filtered_lines.append(line)
 
-        if filtered_lines:
-            sudo_config["extraConfig"] = "\n".join(filtered_lines)
+        # if filtered_lines:
+        #     sudo_config["extraConfig"] = "\n".join(filtered_lines)
 
         return SimpleOptionBlock(
             name="security/sudo",
