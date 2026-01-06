@@ -1,0 +1,9 @@
+root:x:0:
+bin:x:1:
+daemon:x:2:
+alice:x:1000:
+bob:x:1001:
+charlie:x:1002:
+wheel:x:10:alice,bob
+sudo:x:27:alice
+users:x:100:

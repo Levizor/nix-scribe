@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 
 from nix_scribe.lib.modularization import ModularizationLevel
+from nix_scribe.modules.users import groups, users
 
 from .arguments import args
 from .lib.context import ElevationRequest, SystemContext
@@ -23,7 +24,7 @@ OPTIONS: dict[str, list[Module]] = {
     "programs": [],
     "security": [sudo.module],
     "services": [],
-    "users": [],
+    "users": [groups.module, users.module],
     "virtualisation": [],
     "xdg": [],
 }
