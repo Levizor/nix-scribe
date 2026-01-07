@@ -17,7 +17,10 @@ class NixFile(BaseOptionBlock):
     ):
         super().__init__(name, description)
         self.imports: list[raw | NixFile] = [] if imports is None else imports
-        self.options: list[BaseOptionBlock] = [] if options is None else options
+        self.options = []
+        if options:
+            for option in options:
+                self.add_option_block(option)
 
     def add_import(self, imported: raw | NixFile):
         self.imports.append(imported)
