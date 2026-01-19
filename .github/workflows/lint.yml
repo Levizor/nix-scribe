@@ -15,6 +15,12 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
       - name: Setup Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
+      # - name: Setup Attic Cache
+      #   uses: ryanccn/attic-action@v0
+      #   with:
+      #     endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+      #     cache: ${{ secrets.ATTIC_CACHE }}
+      #     token: ${{ secrets.ATTIC_TOKEN }}
       - name: Linting with Fixes
         run: |
           nix develop --command ruff check . --fix
