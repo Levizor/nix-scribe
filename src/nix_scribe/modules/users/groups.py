@@ -36,6 +36,10 @@ class GroupsScanner(BaseScanner):
             if gid < 1000 or group_name == "nogroup":
                 continue
 
+            # skip nixbld group
+            if group_name == "nixbld":
+                continue
+
             ir[group_name] = {
                 "gid": gid,
                 "members": members,

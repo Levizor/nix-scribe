@@ -24,6 +24,10 @@ class UsersScanner(BaseScanner):
             if uid < 1000 or username == "nobody":
                 continue
 
+            # skip nixbld user
+            if "nixbld" in username:
+                continue
+
             users[username] = {
                 "uid": uid,
                 "gid": gid,
