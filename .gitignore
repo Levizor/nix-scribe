@@ -7,3 +7,4 @@ result
 configuration.nix
 configuration/
 nix-config/
+vm-test*/
