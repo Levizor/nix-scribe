@@ -59,10 +59,12 @@ class NixWriter:
 
         elif isinstance(value, str):
             if "\n" in value:
+                value = value.replace("''", "'''").replace("${", "''${")
                 with self.block(surrounding="''''"):
                     for line in value.splitlines():
                         self._writeln(line)
             else:
+                value = value.replace("${", "\\${")
                 self._write_raw(f'"{value}"')
 
         elif isinstance(value, dict):
