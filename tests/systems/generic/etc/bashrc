@@ -1,0 +1,22 @@
+# ~/.bashrc
+
+# Exit if not interactive
+[[ $- != *i* ]] && return
+
+# History
+HISTSIZE=10000
+HISTFILESIZE=20000
+HISTCONTROL=ignoreboth
+
+# Prompt
+PS1_CMD1=$(git branch --show-current 2>/dev/null)
+PS1='\u@\h[\w]-${PS1_CMD1}\n'
+# Aliases
+alias grep='grep --color=auto'
+alias df='df -h'
+alias du='du -h'
+
+# Enable programmable completion
+if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+fi

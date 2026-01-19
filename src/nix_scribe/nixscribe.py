@@ -3,12 +3,12 @@ import logging
 import os
 
 from rich.console import Console
-from rich.prompt import Confirm
 
 from nix_scribe.lib.modularization import ModularizationLevel
+from nix_scribe.modules.programs import bash
 from nix_scribe.modules.users import groups, users
 
-from .arguments import args
+from .arguments import args, confirm
 from .lib.context import ElevationRequest, SystemContext
 from .lib.nixfile import NixFile
 from .modules.base import Module
@@ -21,7 +21,7 @@ OPTIONS: dict[str, list[Module]] = {
     "environment": [],
     "hardware": [],
     "networking": [],
-    "programs": [],
+    "programs": [bash.module],
     "security": [sudo.module],
     "services": [],
     "users": [groups.module, users.module],
@@ -120,7 +120,7 @@ class NixScribe:
 
     def _prompt_for_sudo(self) -> bool:
         try:
-            return Confirm.ask(
+            return confirm(
                 "[bold yellow]Permission required.[/] Do you want to retry with sudo privileges?",
                 console=self.console,
                 default=True,
