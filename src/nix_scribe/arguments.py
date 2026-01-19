@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import typer
+from rich.console import Console
 from rich.prompt import Confirm
 
 from .lib.modularization import ModularizationLevel
@@ -13,6 +14,7 @@ class CLIArguments:
     output_path: Path = Path("nix-config")
     interactive: bool = False  # TODO
     modularization: ModularizationLevel = ModularizationLevel.SINGLE_FILE
+    confirm: bool = False
     flake: bool = False  # TODO
     verbosity: int = 1
     mod_verbosity: int = 1
@@ -30,10 +32,17 @@ class CLIArguments:
             and output.is_dir()
             and any(item for item in output.iterdir() if not item.name.startswith("."))
         ):
-            if not Confirm.ask(
+            if not confirm(
                 f"[bold yellow]Directory exists at specified output path '{output}' and contains files.[/]\nContinue?"
             ):
                 raise typer.Exit(code=1)
 
 
 args = CLIArguments()
+
+
+def confirm(text: str, default: bool = True, console: Console | None = None) -> bool:
+    if args.confirm:
+        return True
+
+    return Confirm.ask(text, default=default, console=console)

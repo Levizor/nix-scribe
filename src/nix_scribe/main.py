@@ -41,6 +41,9 @@ def main(
         bool,
         typer.Option("--no-comment", help="Don't write comments to the output files"),
     ] = False,
+    confirm: Annotated[
+        bool, typer.Option("--confirm", help="Don't ask for confirmation")
+    ] = False,
     interactive: Annotated[
         bool, typer.Option("--interactive", help="Run interactively")
     ] = False,
@@ -68,6 +71,7 @@ def main(
     args.verbosity = verbosity
     args.mod_verbosity = verbosity if not mod_verbosity else mod_verbosity
     args.no_comment = no_comment
+    args.confirm = confirm
 
     console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
     log = logging.getLogger(__name__)

@@ -1,0 +1,10 @@
+# ~/.bash_profile
+
+# Load user bashrc if it exists
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+
+# User-specific PATH additions
+export PATH="$HOME/bin:$PATH"
+

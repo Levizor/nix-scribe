@@ -1,0 +1,18 @@
+# /etc/profile
+
+# Set default umask
+umask 022
+
+# Set default editor
+export EDITOR=vi
+export VISUAL=vi
+
+# Locale
+export LANG=C.UTF-8
+
+# Source system-wide profile fragments
+if [ -d /etc/profile.d ]; then
+    for script in /etc/profile.d/*.sh; do
+        [ -r "$script" ] && . "$script"
+    done
+fi
