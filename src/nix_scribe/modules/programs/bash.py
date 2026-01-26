@@ -60,7 +60,7 @@ class BashScanner(BaseScanner):
         )
 
         # regex for ps1='prompt'
-        ps1_re = re.compile(r'^\s*(?:export\s+)?PS1=(?:([\'"])(.*?)\1|([^\s]+))')
+        ps1_re = re.compile(r".*PS1.*")
 
         for line in content.splitlines():
             stripped = line.strip()
