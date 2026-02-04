@@ -6,6 +6,7 @@ from rich.console import Console
 
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.modules.programs import bash
+from nix_scribe.modules.services.displayManager import gdm
 from nix_scribe.modules.users import groups, users
 
 from .arguments import args, confirm
@@ -13,6 +14,7 @@ from .lib.context import ElevationRequest, SystemContext
 from .lib.nixfile import NixFile
 from .modules.base import Module
 from .modules.security import sudo
+from .modules.services.desktopManager import gnome, plasma6
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ OPTIONS: dict[str, list[Module]] = {
     "networking": [],
     "programs": [bash.module],
     "security": [sudo.module],
-    "services": [],
+    "services": [plasma6.module, gnome.module, gdm.module],
     "users": [groups.module, users.module],
     "virtualisation": [],
     "xdg": [],
