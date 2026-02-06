@@ -4,6 +4,7 @@ from typing import Any
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
 from nix_scribe.lib.parsers import parse_ini
+from nix_scribe.lib.parsers.ini import normalize_config
 from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ class GdmMapper(BaseMapper):
 
         settings = {}
         for section, keys in config.items():
+            filtered = {}
             for k, v in keys.items():
                 if section == "daemon" and k in ["WaylandEnable", "TimedLoginDelay"]:
                     continue
@@ -83,17 +85,12 @@ class GdmMapper(BaseMapper):
                 if section not in settings:
                     settings[section] = {}
 
-                parsed_val = v
-                if v.lower() == "true":
-                    parsed_val = True
-                elif v.lower() == "false":
-                    parsed_val = False
-                elif v.isdigit():
-                    parsed_val = int(v)
+                filtered[k] = v
+            if filtered:
+                settings[section] = filtered
 
-                settings[section][k] = parsed_val
-            if settings:
-                data["settings"] = settings
+        if settings:
+            data["settings"] = normalize_config(settings)
 
         return SimpleOptionBlock(
             name="services/displayManager/gdm",
