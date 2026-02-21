@@ -4,7 +4,7 @@ from typing import Any
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
 from nix_scribe.lib.parsers import parse_ini
-from nix_scribe.lib.parsers.ini import normalize_config
+from nix_scribe.lib.parsers.parser import ConfigReader
 from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
 
 logger = logging.getLogger(__name__)
@@ -14,11 +14,7 @@ class GdmScanner(BaseScanner):
     def scan(self, context: SystemContext) -> dict[str, Any]:
         ir = {}
 
-        gdm_bin = context.find_executable_path("gdm") or context.find_executable_path(
-            "gdm3"
-        )
-
-        if not gdm_bin:
+        if not context.systemctl.is_enabled("gdm"):
             return ir
 
         ir["enable"] = True
@@ -29,13 +25,13 @@ class GdmScanner(BaseScanner):
             "/etc/gdm/daemon.conf",
         ]
 
-        target_conf = [path for path in config_paths if context.path_exists(path)]
-        if target_conf:
-            target_conf = target_conf[0]
-            try:
-                ir["config"] = parse_ini(context.read_file(target_conf))
-            except Exception as e:
-                logger.warning(f"Failed to parse GDM config at {target_conf}: {e}")
+        try:
+            config_reader = ConfigReader(context, parse_ini)
+            ir["config"] = config_reader.read_merge_configs_from_paths_list(
+                config_paths
+            )
+        except Exception as e:
+            logger.warning(f"Failed to parse GDM config: {e}")
 
         return ir
 
@@ -73,7 +69,6 @@ class GdmMapper(BaseMapper):
             data["debug"] = True
 
         # settings
-
         settings = {}
         for section, keys in config.items():
             filtered = {}
@@ -90,7 +85,7 @@ class GdmMapper(BaseMapper):
                 settings[section] = filtered
 
         if settings:
-            data["settings"] = normalize_config(settings)
+            data["settings"] = settings
 
         return SimpleOptionBlock(
             name="services/displayManager/gdm",
