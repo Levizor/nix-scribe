@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import logging
+import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
+
+from nix_scribe.lib.systemctl import Systemctl
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +31,17 @@ class SystemContext:
     def __init__(self, root: Path, use_sudo: bool = False):
         self.root = root
         self.use_sudo = use_sudo
+        self.systemctl = Systemctl(self)
 
     def root_path(self, path: str) -> Path:
         """
         Return a path relative to the input root.
         Required to use on paths when running custom commands.
         """
-        return self.root / path.lstrip("/")
+        return Path(os.path.normpath(f"{self.root}/{path}"))
 
-    def path_exists(self, path: str) -> bool:
-        rpath = self.root_path(path)
+    def path_exists(self, path: str | Path) -> bool:
+        rpath = self.root_path(path) if isinstance(path, str) else path
         try:
             rpath.stat()
             return True
@@ -122,3 +128,15 @@ class SystemContext:
             if self.use_sudo:
                 return self.run_command(["sudo", "cat", path])
             raise ElevationRequest(path, "Read permission denied.") from PermissionError
+
+    def read_directory_files(self, path: str) -> list[str]:
+        """
+        Reads all files inside a specified directory files, return list of strings
+        """
+        result = []
+        rpath = self.root_path(path)
+
+        for file_path in sorted(os.listdir(rpath)):
+            result.append(self.read_file(file_path))
+
+        return result
