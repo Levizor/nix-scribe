@@ -64,15 +64,19 @@
             virtualenv = editablePythonSet.mkVirtualEnv "nix-scribe-dev-env" workspace.deps.all;
           in
           pkgs.mkShell {
-            packages = [
+            packages = with pkgs; [
               virtualenv
-              pkgs.uv
+              uv
+              act
+              nixfmt
             ];
+
             env = {
               UV_NO_SYNC = "1";
               UV_PYTHON = pythonSet.python.interpreter;
               UV_PYTHON_DOWNLOADS = "never";
             };
+
             shellHook = ''
               unset PYTHONPATH
               export REPO_ROOT=$(git rev-parse --show-toplevel)
