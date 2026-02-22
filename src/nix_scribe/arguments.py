@@ -12,10 +12,8 @@ from .lib.modularization import ModularizationLevel
 class CLIArguments:
     input_path: Path = Path("/")
     output_path: Path = Path("nix-config")
-    interactive: bool = False  # TODO
     modularization: ModularizationLevel = ModularizationLevel.SINGLE_FILE
     confirm: bool = False
-    flake: bool = False  # TODO
     verbosity: int = 1
     mod_verbosity: int = 1
     no_comment: bool = False
