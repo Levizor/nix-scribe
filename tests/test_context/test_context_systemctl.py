@@ -6,7 +6,7 @@ import pytest
 
 from nix_scribe.lib.context import SystemContext
 
-GENERIC_SYSTEM_ROOT = Path(__file__).parent / "systems/generic"
+GENERIC_SYSTEM_ROOT = Path(__file__).parent.parent / "systems/generic"
 
 
 @pytest.fixture
