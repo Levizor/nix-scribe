@@ -12,8 +12,8 @@ from .lib.nixfile import NixFile
 from .modules.base import Module
 from .modules.programs import bash
 from .modules.security import sudo
-from .modules.services.desktopManager import gnome, plasma6
-from .modules.services.displayManager import gdm, sddm
+from .modules.services.desktopManager import cosmic, gnome, plasma6
+from .modules.services.displayManager import cosmic_greeter, gdm, sddm
 from .modules.users import groups, users
 from .modules.virtualisation import virtualisation
 
@@ -26,7 +26,14 @@ OPTIONS: dict[str, list[Module]] = {
     "networking": [],
     "programs": [bash.module],
     "security": [sudo.module],
-    "services": [plasma6.module, gnome.module, gdm.module, sddm.module],
+    "services": [
+        plasma6.module,
+        gnome.module,
+        cosmic.module,
+        gdm.module,
+        sddm.module,
+        cosmic_greeter.module,
+    ],
     "users": [groups.module, users.module],
     "virtualisation": [virtualisation.module],
     "xdg": [],
