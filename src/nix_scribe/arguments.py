@@ -10,7 +10,7 @@ from .lib.modularization import ModularizationLevel
 
 @dataclass
 class CLIArguments:
-    input_path: Path = Path("/")
+    root_path: Path = Path("/")
     output_path: Path = Path("nix-config")
     modularization: ModularizationLevel = ModularizationLevel.SINGLE_FILE
     confirm: bool = False

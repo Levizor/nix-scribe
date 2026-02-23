@@ -19,8 +19,11 @@ app = typer.Typer(
 
 @app.command()
 def main(
-    input_path: Annotated[
-        Path, typer.Option("-i", "--input", help="Path to the root directory of the OS")
+    root_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the root directory of the system to be scanned",
+        ),
     ] = Path("/"),
     output_path: Annotated[
         Path,
@@ -57,7 +60,7 @@ def main(
         ),
     ] = None,
 ):
-    args.input_path = input_path
+    args.root_path = root_path
     args.output_path = output_path
     args.modularization = ModularizationLevel(modularization)
     args.verbosity = verbosity
