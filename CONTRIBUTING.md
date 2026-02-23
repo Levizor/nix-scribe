@@ -1,24 +1,85 @@
 # Contributing
-Contributions are welcome. For now there are no strict rules regarding how to write the code, but try to stick to good programming practices.
 
-## How to add a module
-To add a module, find a respective directory and create a file to its definition in nixpkgs. For example, to add `programs.vim` option you would create `btop.py` file in the `src/nix_scribe/modules/programs` directory.
+Contributions are welcome! While there are no strict rules regarding how to write the code yet, please strive to follow good programming practices and maintain consistency with the existing codebase.
 
-In this file you have to write the following:
+## How to Add a Module
 
-### A Scanner
-**Scanner** is a logical part of your script used to actually fetch the required data and parse it to some kind of Intermediate Representation.
-For the aforementioned `programs.vim` option you would check if `btop` is installed on the system, by running `shutil.which("btop")` or directly checking `/bin` for example.
+To add a module, find (or create) the appropriate directory in `src/nix_scribe/modules/` and create a file for its definition. For example, to add a module for `vim`, you would create `vim.py` in the `src/nix_scribe/modules/programs/` directory.
 
-### A Mapper
-**Mapper**'s responsibility is to process the Intermediate Representation produced by a **Scanner**, then build and return an **OptionBlock**.
+Each module file must instantiate a `Module` class assigned to a `module` variable, containing a **Scanner** and a **Mapper**.
 
-#### Option Block
-A logical partition of the configuration, a pythonic representation of Nix configuration set. It has a `name`, `description` and `arguments` fields. Name should reflect our option path with a slash, e.g. `programs/vim`, as this field may be used as a filename and turned into `programs/vim.nix`. Description is just a comment used later by `NixWriter`. Arguments allow you to specify which function arguments you require in your configuration set. For example, if you need `pkgs` set to specify `programs.vim.package = pkgs.vim-full` you have to add those `pkgs` into the arguments set, as it has to be added to the function parameters in the resulting code.
-Lastly there's data. You write NixOS options in standard python dictionary. Then it is processed by the NixWriter class and mapped into a respective nixos code. For the most basic modules requiring little to no description `SimpleOptionBlock` is a way to go. It will output the description of your module as a comment, and the data you put in it as nix code.
+### Example Module
+Here is how a simple module looks (using Hyprland as an example):
 
-For example, this option block
+```python
+# src/nix_scribe/modules/programs/hyprland.py
 
+from typing import Any
+from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
+
+class HyprlandScanner(BaseScanner):
+    def scan(self, context: SystemContext) -> dict[str, Any]:
+        # just check if Hyprland binary exists on the target system
+        return {"enable": bool(context.find_executable_path("Hyprland"))}
+
+class HyprlandMapper(BaseMapper):
+    def map(self, ir: dict[str, Any]) -> SimpleOptionBlock | None:
+        # nothing to return if there's no Hyprland
+        if not ir.get("enable"):
+            return None
+
+        return SimpleOptionBlock(
+            name="programs/hyprland",
+            description="Hyprland compositor",
+            data={"programs.hyprland.enable": True},
+        )
+
+module = Module("hyprland", HyprlandScanner(), HyprlandMapper())
+```
+
+---
+
+## Architecture Overview
+
+Essentially, nix-scribe is a lightweight framework providing abstraction for reading the state and replicating it with nixos options. The starting point is located at [src/nix_scribe/nixscribe.py](./src/nix_scribe/nixscribe.py).
+
+The flow is divided in 4 stages:
+1. Collecting modules defined in [src/nix_scribe/modules](./src/nix_scribe/modules).
+2. Running a Scan for all the modules
+3. Mapping all the collected data into option blocks
+4. Writing it all down into .nix files
+
+### The Scanner
+The **Scanner** is responsible for fetching data from the system and parsing it into an **Intermediate Representation (IR)**, which is then used by the Mapper. How to define IR in your modules is up to you.
+
+* **Filesystem-based Scanning:** In `nix-scribe`, all scanning should ideally be done in a filesystem-based way. This means the script should avoid running shell commands to read state whenever possible.
+* **Implementation:** Any class inheriting from `BaseScanner` must define a `scan(self, context: SystemContext)` method.
+
+### SystemContext
+`SystemContext` is the primary interface for communicating with the target system. It provides high-level methods to:
+* Search for executables (`find_executable_path`).
+* Read systemd services status.
+* Read files and list directories (handling permissions/sudo automatically).
+* Check path existence.
+
+### The Mapper
+The **Mapper**'s responsibility is to process the IR produced by the Scanner to build and return an **OptionBlock**.
+
+### Option Block
+An `OptionBlock` is a Pythonic representation of a Nix configuration set. These blocks are processed by the engine and written into the final NixOS configuration files.
+
+An Option Block typically consists of:
+1. **Name**: Identifier for the block (may be used in debugging)
+2. **Description**: May be used as a comment in the generated Nix file.
+3. **Arguments set**: Set of arguments required by the block (e.g., `pkgs`, `lib`, `config`). These are added to the function parameters in the resulting Nix code.
+4. **Assets set**: Files that need to be copied from the target system into the Nix configuration (e.g., wallpapers, specific config files).
+
+#### SimpleOptionBlock
+For most modules, `SimpleOptionBlock` is the preferred choice. It provides a `data: dict` parameter and implements the render() method. It also handles the detection of arguments and assets to minimize frictio[.](2026-02-27_..md).
+
+**Example:**
 ```python
 SimpleOptionBlock(
     name="networkmanager",
@@ -33,8 +94,7 @@ SimpleOptionBlock(
 )
 ```
 
-will be mapped to
-
+**Generates:**
 ```nix
 # NetworkManager configuration
 networking.networkmanager = {
@@ -43,7 +103,41 @@ networking.networkmanager = {
     pkgs.networkmanager-openvpn
   ];
 };
-
 ```
 
-You can see more examples by reading already created modules, other than that you have a freedom of implementation. You can as well create your own option blocks inheriting from `BaseOptionBlock` to define the `render()` function behaviour yourself, but that's most probably an overkill.
+#### Custom Option Blocks
+You can create your own option blocks by inheriting from `BaseOptionBlock` and overriding the `render()` method if you want to achieve some specific format of the resulting configuration, though this is probably unnecessary.
+
+---
+
+## Development Workflow
+
+### flake and direnv
+Nix flake provides a development shell:
+```bash
+nix develop
+```
+
+You can use direnv to automatically apply it upon entering the directory:
+```
+direnv allow
+```
+
+### Testing
+When adding a new module, it's a good idea to include corresponding tests in the `tests/modules/` directory to ensure reliability.
+
+To run the tests:
+```bash
+pytest
+```
+
+### Code Quality
+Use **ruff** for linting and formatting.
+
+```bash
+ruff check --fix
+ruff format
+```
+
+### Type Hints
+The project uses type hints extensively. Please provide type annotations for all function signatures and complex variables to keep the codebase maintainable and readable.
