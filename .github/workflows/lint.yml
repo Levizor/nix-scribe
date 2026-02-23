@@ -5,12 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+permissions:
+  contents: write
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
       - name: Setup Magic Nix Cache
@@ -28,3 +32,4 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          token: ${{ secrets.PAT_TOKEN }}
