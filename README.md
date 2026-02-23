@@ -11,5 +11,21 @@ This project aims to simplify and automate the transition from traditional (impe
 ## The Idea
 **nix-scribe** is essentially a Python script, that __scans__ your current (or specified) system - including configuration files, users, services, packages - and attempts to __map__ this state to NixOS options and definitions.
 
+## Usage
+```
+Usage: nix-scribe [OPTIONS] [ROOT_PATH]
+
+Arguments:
+  [ROOT_PATH]  Path to the root directory of the system to be scanned [default: /]
+```
+
+Run with nix:
+```
+sudo -E nix --extra-experimental-features "nix-command flakes" run github:Levizor/nix-scribe -- <command line options>
+```
+
+It's advised to run the script with sudo to allow scanning as much as possible.
+You can specify the path to the root directory of the system to be scanned, in case you mount it to your current one.
+
 ---
 <small>The project is developed as a Bachelors Thesis project for the Polish-Japanese Academy of Information Technology</small>
