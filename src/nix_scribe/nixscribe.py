@@ -5,6 +5,7 @@ import os
 from rich.console import Console
 
 from nix_scribe.lib.modularization import ModularizationLevel
+from nix_scribe.modules.programs import hyprland
 
 from .arguments import args, confirm
 from .lib.context import ElevationRequest, SystemContext
@@ -24,7 +25,7 @@ OPTIONS: dict[str, list[Module]] = {
     "environment": [],
     "hardware": [],
     "networking": [],
-    "programs": [bash.module],
+    "programs": [bash.module, hyprland.module],
     "security": [sudo.module],
     "services": [
         plasma6.module,
