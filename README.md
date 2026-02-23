@@ -27,5 +27,11 @@ sudo -E nix --extra-experimental-features "nix-command flakes" run github:Levizo
 It's advised to run the script with sudo to allow scanning as much as possible.
 You can specify the path to the root directory of the system to be scanned, in case you mount it to your current one.
 
+## Contributions
+Contributions are welcome.
+Adding as much modules as possible is the main target of the project.
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) to better understand how to do that.
+
 ---
 <small>The project is developed as a Bachelors Thesis project for the Polish-Japanese Academy of Information Technology</small>
