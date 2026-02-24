@@ -140,3 +140,23 @@ class SystemContext:
             result.append(self.read_file(file_path))
 
         return result
+
+    def copy_file(self, src: str, dst: Path) -> None:
+        """
+        Copies a file from the target system to a destination path
+        """
+        rsrc = self.root_path(src)
+        logger.debug(f"Copying file from {rsrc} to {dst}")
+
+        try:
+            shutil.copy2(rsrc, dst)
+        except PermissionError:
+            if self.use_sudo:
+                self.run_command(["sudo", "cp", "-p", src, str(dst)])
+            else:
+                raise ElevationRequest(
+                    str(rsrc), f"Permission denied while copying to {dst}"
+                ) from PermissionError
+        except Exception as e:
+            logger.error(f"Failed to copy {rsrc} to {dst}: {e}")
+            raise
