@@ -4,4 +4,4 @@ GRUB_DEFAULT=0
 GRUB_TERMINAL_OUTPUT="gfxterm"
 GRUB_DISABLE_OS_PROBER=false
 GRUB_ENABLE_CRYPTODISK=y
-GRUB_BACKGROUND="/boot/grub/background.png"
+GRUB_BACKGROUND="/boot/grub/background.jpg"

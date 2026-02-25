@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 from typing import Any
 
+from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import BaseOptionBlock, SimpleOptionBlock
 from nix_scribe.lib.parsers.kv import parse_kv
@@ -51,13 +53,15 @@ class GrubScanner(BaseScanner):
             try:
                 reader = ConfigReader(context, parse_kv)
                 config = reader.read_config(GRUB_DEFAULT_PATH)
-                self._analyze_config(config, ir)
+                self._analyze_config(config, ir, context)
             except Exception as e:
                 logger.warning(f"Failed to parse GRUB config: {e}")
 
         return ir
 
-    def _analyze_config(self, config: dict[str, Any], ir: dict[str, Any]) -> None:
+    def _analyze_config(
+        self, config: dict[str, Any], ir: dict[str, Any], context: SystemContext
+    ) -> None:
         if "GRUB_TIMEOUT" in config:
             try:
                 ir["timeout"] = int(config["GRUB_TIMEOUT"])
@@ -77,13 +81,17 @@ class GrubScanner(BaseScanner):
             val = str(config["GRUB_ENABLE_CRYPTODISK"]).lower()
             ir["enableCryptodisk"] = val in ("y", "yes", "true")
 
+        if "GRUB_BACKGROUND" in config:
+            if context.path_exists(config["GRUB_BACKGROUND"]):
+                ir["splashImage"] = config["GRUB_BACKGROUND"]
+
 
 class GrubMapper(BaseMapper):
     def map(self, ir: dict[str, Any]) -> BaseOptionBlock | None:
         if not ir or not ir.get("enable", False):
             return None
 
-        grub_config = {
+        grub_config: dict[str, Any] = {
             "enable": True,
         }
 
@@ -104,6 +112,11 @@ class GrubMapper(BaseMapper):
 
         if ir.get("enableCryptodisk"):
             grub_config["enableCryptodisk"] = True
+
+        if "splashImage" in ir:
+            source_path = ir["splashImage"]
+            target_filename = f"boot-loader-grub-{Path(source_path).name}"
+            grub_config["splashImage"] = Asset(source_path, target_filename)
 
         return SimpleOptionBlock(
             name="boot/loader/grub",
