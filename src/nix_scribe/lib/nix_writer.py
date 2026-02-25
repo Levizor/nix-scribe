@@ -3,16 +3,23 @@ from io import StringIO
 from typing import Any, Generator
 
 from nix_scribe.arguments import args
+from nix_scribe.lib.asset import Asset
 
 
 class raw(str):
     def __new__(cls, value):
         return super().__new__(cls, value)
 
+    def __repr__(self):
+        return str(self)
+
 
 class combination(list):
     def __new__(cls, *args):
         return super().__new__(cls, *args)
+
+    def __repr__(self):
+        return "".join(repr(item) for item in self)
 
 
 def nix_with(with_attr: str, value) -> combination:
@@ -52,6 +59,9 @@ class NixWriter:
 
         elif isinstance(value, (int, float, raw)):
             self._write_raw(str(value))
+
+        elif isinstance(value, Asset):
+            self._write_raw(f"./{value.target_filename}")
 
         elif isinstance(value, combination):
             for inner_value in value:

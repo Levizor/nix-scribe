@@ -74,7 +74,7 @@ class NixScribe:
         logger.info("Finished mapping stage.")
 
         logger.info("Writing configuration...")
-        self.root_file.save(args.output_path, args.modularization)
+        self.root_file.save(args.output_path, args.modularization, self.context)
 
         logger.info(f"Done. Saved configuration to {args.output_path}")
 

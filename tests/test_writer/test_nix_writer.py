@@ -1,5 +1,6 @@
 import pytest
 
+from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.nix_writer import NixWriter, nix_with, raw, with_pkgs
 
 
@@ -87,3 +88,10 @@ def test_write_dict_empty(writer: NixWriter):
     writer.write_dict({})
     nix_text = writer.gettext()
     assert nix_text == ""
+
+
+def test_asset_rendering_and_collection(writer: NixWriter):
+    asset = Asset("/src/path", "target.png")
+    writer.write_attr("image", asset)
+
+    assert writer.gettext() == "image = ./target.png;\n"
