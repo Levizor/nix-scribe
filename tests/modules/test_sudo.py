@@ -1,6 +1,8 @@
 import json
+import shutil
 import unittest.mock
 
+from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
 from nix_scribe.modules.security.sudo import SudoMapper, SudoScanner
 
@@ -21,32 +23,36 @@ MOCK_JSON_OUTPUT = {
 }
 
 
-@unittest.mock.patch("shutil.which")
-def test_scanner_hybrid_approach(mock_which):
-    def which_side_effect(arg):
-        if arg == "cvtsudoers":
-            return "/usr/bin/cvtsudoers"
-        if arg == "sudo":
-            return "/usr/bin/sudo"
-        return None
+def test_scanner_hybrid_approach(tmp_path, monkeypatch):
+    (tmp_path / "etc").mkdir()
+    (tmp_path / "etc/sudoers").touch()
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin/sudo").touch()
 
-    mock_which.side_effect = which_side_effect
+    context = SystemContext(tmp_path)
 
-    mock_context = unittest.mock.MagicMock()
-    # 1. Text output, 2. JSON output, 3. Stat output
-    mock_context.run_command.side_effect = [
-        MOCK_TEXT_OUTPUT,
-        json.dumps(MOCK_JSON_OUTPUT),
-        "4755 root",  # Standard permissions (execWheelOnly=False)
-    ]
+    monkeypatch.setattr(
+        shutil, "which", lambda x: f"/usr/bin/{x}" if x == "cvtsudoers" else None
+    )
+
+    monkeypatch.setattr(
+        context,
+        "run_command",
+        unittest.mock.MagicMock(
+            side_effect=[
+                MOCK_TEXT_OUTPUT,
+                json.dumps(MOCK_JSON_OUTPUT),
+                "4755 root",
+            ]
+        ),
+    )
 
     scanner = SudoScanner()
-    ir = scanner.scan(mock_context)
+    ir = scanner.scan(context)
 
     assert ir["enable"] is True
     assert ir["wheelNeedsPassword"] is False
     assert ir["keepTerminfo"] is True
-    # assert len(ir["extraConfigLines"]) == 4
 
 
 def test_mapper_filtering():
@@ -55,13 +61,6 @@ def test_mapper_filtering():
         "wheelNeedsPassword": False,
         "execWheelOnly": False,
         "keepTerminfo": True,
-        # "extraConfigLines": [
-        #     "Defaults env_reset",
-        #     "Defaults:root, %wheel env_keep+=TERMINFO_DIRS",  # Should filter
-        #     "root ALL=(ALL:ALL) SETENV: ALL",  # Should filter
-        #     "%wheel ALL=(ALL) NOPASSWD: ALL",  # Should filter
-        #     "custom_user ALL=(ALL) ALL",  # Should keep
-        # ],
     }
 
     mapper = SudoMapper()
@@ -71,12 +70,3 @@ def test_mapper_filtering():
     data = block.data["security.sudo"]
 
     assert data["wheelNeedsPassword"] is False
-
-    # extra_config = data.get("extraConfig", "")
-    # assert "Defaults env_reset" in extra_config
-    # assert "custom_user" in extra_config
-    #
-    # # Assertions for filtered lines
-    # assert "TERMINFO" not in extra_config
-    # assert "root ALL" not in extra_config
-    # assert "%wheel" not in extra_config

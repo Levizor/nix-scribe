@@ -1,5 +1,4 @@
-import unittest.mock
-
+from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
 from nix_scribe.modules.networking.base import NetworkingMapper, NetworkingScanner
 
@@ -28,37 +27,23 @@ NTP=0.nixos.pool.ntp.org 1.nixos.pool.ntp.org
 """
 
 
-def test_networking_scanner():
-    mock_context = unittest.mock.MagicMock()
+def test_networking_scanner(tmp_path, monkeypatch):
+    (tmp_path / "etc").mkdir()
+    (tmp_path / "etc/hostname").write_text("my-hostname\n")
+    (tmp_path / "etc/hosts").write_text(MOCK_HOSTS)
+    (tmp_path / "etc/resolv.conf").write_text(MOCK_RESOLV_STATIC)
+    (tmp_path / "etc/systemd").mkdir()
+    (tmp_path / "etc/systemd/timesyncd.conf").write_text(MOCK_TIMESYNCD)
 
-    def path_exists_side_effect(path):
-        return path in [
-            "/etc/hostname",
-            "/etc/hosts",
-            "/etc/resolv.conf",
-            "/proc/sys/net/ipv6/conf/all/disable_ipv6",
-            "/etc/systemd/timesyncd.conf",
-        ]
+    ipv6_path = tmp_path / "proc/sys/net/ipv6/conf/all"
+    ipv6_path.mkdir(parents=True)
+    (ipv6_path / "disable_ipv6").write_text("0\n")
 
-    def read_file_side_effect(path):
-        if path == "/etc/hostname":
-            return "my-hostname\n"
-        if path == "/etc/hosts":
-            return MOCK_HOSTS
-        if path == "/etc/resolv.conf":
-            return MOCK_RESOLV_STATIC
-        if path == "/proc/sys/net/ipv6/conf/all/disable_ipv6":
-            return "0\n"
-        if path == "/etc/systemd/timesyncd.conf":
-            return MOCK_TIMESYNCD
-        return ""
-
-    mock_context.path_exists.side_effect = path_exists_side_effect
-    mock_context.read_file.side_effect = read_file_side_effect
-    mock_context.systemctl.is_enabled.return_value = False
+    context = SystemContext(tmp_path)
+    monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
 
     scanner = NetworkingScanner()
-    ir = scanner.scan(mock_context)
+    ir = scanner.scan(context)
 
     assert ir["hostName"] == "my-hostname"
     assert ir["enableIpv6"] is True
@@ -71,16 +56,15 @@ def test_networking_scanner():
     assert ir["timeServers"] == ["0.nixos.pool.ntp.org", "1.nixos.pool.ntp.org"]
 
 
-def test_networking_scanner_dynamic_resolv():
-    mock_context = unittest.mock.MagicMock()
-    mock_context.path_exists.return_value = True
-    mock_context.read_file.side_effect = (
-        lambda p: MOCK_RESOLV_DYNAMIC if p == "/etc/resolv.conf" else "1\n"
-    )
-    mock_context.systemctl.is_enabled.return_value = False
+def test_networking_scanner_dynamic_resolv(tmp_path, monkeypatch):
+    (tmp_path / "etc").mkdir()
+    (tmp_path / "etc/resolv.conf").write_text(MOCK_RESOLV_DYNAMIC)
+
+    context = SystemContext(tmp_path)
+    monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
 
     scanner = NetworkingScanner()
-    ir = scanner.scan(mock_context)
+    ir = scanner.scan(context)
 
     # should be empty because it's dynamic
     assert ir["nameservers"] == []
