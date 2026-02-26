@@ -6,7 +6,10 @@ authors = [{ name = "Levizor", email = "levizor@disroot.org" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
-dependencies = ["typer>=0.20.0,<0.21.0"]
+dependencies = [
+    "deepmerge>=2.0",
+    "typer>=0.20.0,<0.21.0",
+]
 
 [project.scripts]
 "nix-scribe" = "nix_scribe.main:app"
