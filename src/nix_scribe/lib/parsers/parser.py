@@ -1,5 +1,8 @@
+import os
 from types import FunctionType
 from typing import Any
+
+from deepmerge import always_merger
 
 from nix_scribe.lib.context import SystemContext
 
@@ -52,20 +55,21 @@ class ConfigReader:
         self.context = system_context
         self.parse = parse_function
 
-    def read_config(self, path: str, is_directory_config: bool = False) -> dict:
+    def read_config(self, path: str) -> dict:
         """
-        Reads config file and parses it.
-        Returns a merged config if it's specified that path is a directory.
+        Reads a configuration file or all files within a directory and parses them.
+        Returns a merged dictionary of the parsed configurations.
         """
-        if not is_directory_config:
-            return self.parse(self.context.read_file(path))
+        rpath = self.context.root_path(path)
+        if not os.path.isdir(rpath):
+            return normalize_config(self.parse(self.context.read_file(path)))
 
         dir_files = self.context.read_directory_files(path)
         configs = [self.parse(file) for file in dir_files]
         merged = {}
 
         for config in configs:
-            merged.update(config)
+            always_merger.merge(merged, config)
 
         return normalize_config(merged)
 
@@ -77,10 +81,10 @@ class ConfigReader:
         merged = {}
 
         for path in paths:
-            try:
-                config = self.read_config(path)
-                merged.update(config)
-            except FileNotFoundError:
+            if not self.context.path_exists(path):
                 continue
+
+            config = self.read_config(path)
+            always_merger.merge(merged, config)
 
         return merged

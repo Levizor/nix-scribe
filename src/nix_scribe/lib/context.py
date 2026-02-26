@@ -129,14 +129,24 @@ class SystemContext:
                 return self.run_command(["sudo", "cat", path])
             raise ElevationRequest(path, "Read permission denied.") from PermissionError
 
-    def read_directory_files(self, path: str) -> list[str]:
-        """
-        Reads all files inside a specified directory files, return list of strings
-        """
-        result = []
+    def list_directory(self, path: str) -> list[str]:
         rpath = self.root_path(path)
+        try:
+            return sorted(os.listdir(rpath))
+        except PermissionError:
+            if self.use_sudo:
+                output = self.run_command(["sudo", "ls", "-1", path])
+                return sorted(output.splitlines()) if output else []
+            raise ElevationRequest(
+                path, "List directory permission denied."
+            ) from PermissionError
+        except FileNotFoundError:
+            return []
 
-        for file_path in sorted(os.listdir(rpath)):
+    def read_directory_files(self, path: str) -> list[str]:
+        result = []
+        for filename in self.list_directory(path):
+            file_path = os.path.join(path, filename)
             result.append(self.read_file(file_path))
 
         return result
