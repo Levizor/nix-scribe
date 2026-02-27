@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from .asset import Asset
-from .nix_writer import NixWriter
+from .nix_writer import NixWriter, raw
 
 
 class BaseOptionBlock(ABC):
@@ -18,11 +18,11 @@ class BaseOptionBlock(ABC):
         self,
         name: str,
         description: str = "",
-        arguments: list[str] | None = None,
+        arguments: set[str] | None = None,
     ) -> None:
         self.name = name
-        self.arguments = [] if arguments is None else arguments
         self.description = description
+        self.arguments = set() if arguments is None else arguments
         self.assets: set[Asset] = set()
 
     def register_asset(self, asset: Asset) -> Asset:
@@ -52,7 +52,7 @@ class SimpleOptionBlock(BaseOptionBlock):
         name: str,
         description: str = "",
         data: dict[str, Any] | None = None,
-        arguments: list[str] | None = None,
+        arguments: set[str] | None = None,
     ):
         super().__init__(name, description, arguments)
         self.data: dict[str, Any] = {}
@@ -64,21 +64,29 @@ class SimpleOptionBlock(BaseOptionBlock):
         """
         Sets a value in the data dict and automatically registers assets.
         """
-        self._register_potential_assets(value)
+        self.__register_potential_data(value)
         self.data.__setitem__(key, value)
 
-    def _register_potential_assets(self, value: Any) -> None:
+    def __register_potential_data(self, value: Any) -> None:
         """
-        Recursively finds and registers assets in the value being set.
+        Recursively finds and registers assets and arguments in the value being set
         """
         if isinstance(value, Asset):
             self.register_asset(value)
+        elif isinstance(value, raw):
+            text = str(value)
+            if "pkgs" in text:
+                self.arguments.add("pkgs")
+            if "lib" in text:
+                self.arguments.add("lib")
+            if "config" in text:
+                self.arguments.add("config")
         elif isinstance(value, dict):
             for v in value.values():
-                self._register_potential_assets(v)
+                self.__register_potential_data(v)
         elif isinstance(value, list):
             for v in value:
-                self._register_potential_assets(v)
+                self.__register_potential_data(v)
 
     def __getitem__(self, key) -> Any:
         return self.data.__getitem__(key)
