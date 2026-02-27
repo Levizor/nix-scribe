@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.nix_writer import NixWriter, raw
 from nix_scribe.lib.option_block import BaseOptionBlock
+
+logger = logging.getLogger(__name__)
 
 
 class NixFile(BaseOptionBlock):
@@ -26,14 +29,9 @@ class NixFile(BaseOptionBlock):
     def add_import(self, imported: raw | NixFile):
         self.imports.append(imported)
 
-    def add_argument(self, argument: str):
-        if argument not in self.arguments:
-            self.arguments.append(argument)
-
     def add_option_block(self, block: BaseOptionBlock):
         self.options.append(block)
-        for arg in block.arguments:
-            self.add_argument(arg)
+        self.arguments.update(block.arguments)
 
     def render(self, writer: NixWriter) -> None:
         """Main logic for writing out stuff into nix language using NixSyntaxWriter"""
@@ -42,7 +40,7 @@ class NixFile(BaseOptionBlock):
             writer.write_comment(self.description)
 
         if len(self.arguments) > 0:
-            writer._writeln(f"{{{', '.join([*self.arguments, '...'])}}}:")
+            writer._writeln(f"{{{', '.join([*sorted(self.arguments), '...'])}}}:")
 
         with writer.block():
             if len(self.imports) > 0:

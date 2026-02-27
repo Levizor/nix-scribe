@@ -57,7 +57,7 @@ def test_file_writing(file: NixFile):
                     "plugins": [raw("pkgs.networkmanager-openvpn")],
                 }
             },
-            arguments=["pkgs"],
+            arguments={"pkgs"},
         )
     )
 
