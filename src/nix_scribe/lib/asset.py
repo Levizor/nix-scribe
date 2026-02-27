@@ -1,3 +1,6 @@
+import re
+
+
 class Asset:
     """
     Represents a file from the host system that should be copied into the
@@ -6,7 +9,11 @@ class Asset:
 
     def __init__(self, source_path: str, target_filename: str):
         self.source_path = source_path
-        self.target_filename = target_filename
+        # substitute illegal characters in the /nix/store to -
+        self.target_filename = re.sub(r"[^a-zA-Z0-9\+\.\_\-\?\=]", "-", target_filename)
+
+    def __str__(self):
+        return f"./{self.target_filename}"
 
     def __repr__(self):
         return f"Asset(source={self.source_path}, target={self.target_filename})"

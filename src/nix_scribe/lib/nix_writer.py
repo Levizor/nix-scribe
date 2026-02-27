@@ -62,7 +62,7 @@ class NixWriter:
             self._write_raw(str(value))
 
         elif isinstance(value, Asset):
-            self._write_raw(f"./{value.target_filename}")
+            self._write_raw(str(value))
 
         elif isinstance(value, combination):
             for inner_value in value:
