@@ -207,7 +207,7 @@ class UsersMapper(BaseMapper):
             name="users",
             description="User accounts and subordinate ID ranges",
             data={"users.users": users, **enabled_shells},
-            arguments=list(required_args),
+            arguments=required_args,
         )
 
 
