@@ -21,7 +21,7 @@ Arguments:
 
 Run with nix:
 ```
-sudo -E nix --extra-experimental-features "nix-command flakes" run github:Levizor/nix-scribe -- <command line options>
+sudo -E nix --extra-experimental-features "nix-command flakes" run --refresh github:Levizor/nix-scribe
 ```
 
 It's advised to run the script with sudo to allow scanning as much as possible.
