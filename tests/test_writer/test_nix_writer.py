@@ -90,6 +90,34 @@ def test_write_dict_empty(writer: NixWriter):
     assert nix_text == ""
 
 
+def test_write_attr_complex_keys(writer: NixWriter):
+    cases = {
+        "networking.networkmanager.enable": "networking.networkmanager.enable",
+        "services.display-manager.enable": "services.display-manager.enable",
+        'services."display-manager".enable': 'services."display-manager".enable',
+        'settings."Greeter][Wallpaper][org.kde.image][General".Image': 'settings."Greeter][Wallpaper][org.kde.image][General".Image',
+        '"123key"': '"123key"',
+        'user."name.with.dots"': 'user."name.with.dots"',
+        '"key with space"': "key with space",
+        '"user@domain.com"': "user@domain.com",
+        '"key:with:colon"': "key:with:colon",
+        '"path/to/file"': "path/to/file",
+        '"key\\"with\\"quotes"': 'key"with"quotes',
+        '"fullyquoted"': '"fullyquoted"',
+        '"key\\\\backslashes"': "key\\backslashes",
+        '"::f"': "::f",
+        '"127.0.0.1"': "127.0.0.1",
+        '".hello"': ".hello",
+        'a12."127"."0"."0"."1"': "a12.127.0.0.1",
+        'a."12".c': "a.12.c",
+    }
+
+    for expected_key, input_key in cases.items():
+        writer.write_attr(input_key, True)
+        assert writer.gettext() == f"{expected_key} = true;\n"
+        writer.clear()
+
+
 def test_asset_rendering_and_collection(writer: NixWriter):
     asset = Asset("/src/path", "target.png")
     writer.write_attr("image", asset)

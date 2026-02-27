@@ -1,3 +1,4 @@
+import re
 from contextlib import contextmanager
 from io import StringIO
 from typing import Any, Generator
@@ -92,8 +93,56 @@ class NixWriter:
         else:
             raise TypeError(f"Cannot convert {type(value)} to Nix")
 
-    def write_attr(self, key, value):
-        self._write(f"{key} = ")
+    def _format_key(self, key: str) -> str:
+        def is_valid_identifier(s: str) -> bool:
+            return bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_\-]*$", s))
+
+        def escape(s: str) -> str:
+            return s.replace("\\", "\\\\").replace('"', '\\"')
+
+        # already fully quoted keys
+        if re.match(r'^"[^"]*"$', key):
+            return f'"{escape(key[1:-1])}"'
+
+        if key.startswith(".") or key.endswith("."):
+            return f'"{escape(key)}"'
+
+        # split by dots not inside quotes
+        parts = re.split(r'\.(?=(?:[^"]*"[^"]*")*[^"]*$)', key)
+
+        if len(parts) == 1:
+            part = parts[0]
+            if part.startswith('"') and part.endswith('"'):
+                return f'"{escape(part[1:-1])}"'
+            elif not is_valid_identifier(part):
+                return f'"{escape(part)}"'
+            return part
+
+        # multiple parts (127.0.0.1 -> "127.0.0.1")
+        has_unquoted_dirty = False
+        for part in parts:
+            if not (part.startswith('"') and part.endswith('"')):
+                if re.search(r"[^a-zA-Z0-9_\-]", part):
+                    has_unquoted_dirty = True
+                    break
+
+        if has_unquoted_dirty or re.match(r"^[0-9]", parts[0]):
+            return f'"{escape(key)}"'
+
+        # treat as a path and quote invalid segments
+        formatted_parts = []
+        for part in parts:
+            if part.startswith('"') and part.endswith('"'):
+                formatted_parts.append(f'"{escape(part[1:-1])}"')
+            elif not is_valid_identifier(part):
+                formatted_parts.append(f'"{escape(part)}"')
+            else:
+                formatted_parts.append(part)
+        return ".".join(formatted_parts)
+
+    def write_attr(self, key: str, value: Any):
+        formatted_key = self._format_key(key)
+        self._write(f"{formatted_key} = ")
         self._write_value(value)
         self._write_raw(";\n")
 
