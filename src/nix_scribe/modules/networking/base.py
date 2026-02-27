@@ -99,7 +99,7 @@ class NetworkingMapper(BaseMapper):
             networking["enableIpv6"] = False
 
         if ir.get("hosts"):
-            networking["hosts"] = ir["hosts"]
+            networking["hosts"] = {f'"{k}"': v for k, v in ir["hosts"].items()}
 
         if ir.get("nameservers"):
             networking["nameservers"] = ir["nameservers"]

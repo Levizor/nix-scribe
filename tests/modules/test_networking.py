@@ -88,7 +88,7 @@ def test_networking_mapper():
     data = block.data["networking"]
     assert data["hostName"] == "nixos-box"
     assert data["enableIpv6"] is False
-    assert data["hosts"]["10.0.0.1"] == ["gateway"]
+    assert data["hosts"]['"10.0.0.1"'] == ["gateway"]
     assert data["nameservers"] == ["1.1.1.1"]
     assert data["useDHCP"] is True
     assert data["useNetworkd"] is True
