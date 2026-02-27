@@ -21,7 +21,7 @@ class UsersScanner(BaseScanner):
             uid, gid = int(uid_str), int(gid_str)
 
             # skip system users
-            if uid < 1000 or username == "nobody":
+            if uid < 1000 or uid == 65534 or username == "nobody":
                 continue
 
             # skip nixbld user

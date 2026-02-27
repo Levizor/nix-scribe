@@ -33,7 +33,7 @@ class GroupsScanner(BaseScanner):
             members = [m.strip() for m in members_str.split(",") if m.strip()]
 
             # skip system groups
-            if gid < 1000 or group_name == "nogroup":
+            if gid < 1000 or gid == 65534 or group_name in ["nogroup", "nobody"]:
                 continue
 
             # skip nixbld group
