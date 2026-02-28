@@ -13,6 +13,14 @@ class VirtualisationMapper(BaseMapper):
                         "cores": 4,
                         "memorySize": 8128,
                         "diskSize": 10240,
+                        "qemu.options": [
+                            "-machine q35,accel=kvm,smm=off,vmport=off",
+                            "-cpu host",
+                            "-global kvm-pit.lost_tick_policy=discard",
+                            "-vga none",
+                            "-device virtio-vga-gl",
+                            "-display sdl,gl=on",
+                        ],
                     }
                 }
             },
