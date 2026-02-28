@@ -1,7 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
 
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
@@ -23,78 +23,19 @@
   };
 
   outputs =
-    {
-      nixpkgs,
-      flake-utils,
-      uv2nix,
-      pyproject-nix,
-      pyproject-build-systems,
-      ...
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-        workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
+    inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
-        overlay = workspace.mkPyprojectOverlay {
-          sourcePreference = "wheel";
-        };
-
-        editableOverlay = workspace.mkEditablePyprojectOverlay {
-          root = "$REPO_ROOT";
-        };
-
-        pythonSet =
-          (pkgs.callPackage pyproject-nix.build.packages {
-            python = pkgs.python3;
-          }).overrideScope
-            (
-              pkgs.lib.composeManyExtensions [
-                pyproject-build-systems.overlays.wheel
-                overlay
-              ]
-            );
-
-      in
-      {
-        devShells.default =
-          let
-            editablePythonSet = pythonSet.overrideScope editableOverlay;
-            virtualenv = editablePythonSet.mkVirtualEnv "nix-scribe-dev-env" workspace.deps.all;
-          in
-          pkgs.mkShell {
-            packages = with pkgs; [
-              virtualenv
-              uv
-              act
-              nixfmt
-              pre-commit
-            ];
-
-            env = {
-              UV_NO_SYNC = "1";
-              UV_PYTHON = pythonSet.python.interpreter;
-              UV_PYTHON_DOWNLOADS = "never";
-            };
-
-            shellHook = ''
-              unset PYTHONPATH
-              export REPO_ROOT=$(git rev-parse --show-toplevel)
-              if [ -d .git ]; then
-                pre-commit install > /dev/null
-                echo "Pre-commit hooks installed 🪝"
-              fi
-              echo "Shell Ready ✅"
-            '';
-          };
-
-        packages.default = pythonSet.mkVirtualEnv "nix-scribe-env" workspace.deps.default;
-
-        apps.default = flake-utils.lib.mkApp {
-          drv = pythonSet.mkVirtualEnv "nix-scribe-env" workspace.deps.default;
-          name = "nix-scribe";
-        };
-      }
-    );
+      imports = [
+        ./nix/python.nix
+        ./nix/package.nix
+        ./nix/shell.nix
+      ];
+    };
 }
