@@ -82,7 +82,7 @@ def test_networkmanager_mapper():
     assert data["enable"] is True
     assert data["dns"] == "dnsmasq"
     assert data["dhcp"] == "dhclient"
-    assert data["wifi"]["powersave"] == 2
+    assert data["wifi"]["powersave"] is True
     assert data["wifi"]["scanRandMacAddress"] is True
     assert data["settings"]["main"]["plugins"] == "keyfile"
 

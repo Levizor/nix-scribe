@@ -47,10 +47,7 @@ class NetworkManagerMapper(BaseMapper):
         wifi_config = {}
         connection_section = settings.get("connection", {})
         if "wifi.powersave" in connection_section:
-            try:
-                wifi_config["powersave"] = int(connection_section.pop("wifi.powersave"))
-            except ValueError:
-                pass
+            wifi_config["powersave"] = True
 
         device_section = settings.get("device", {})
         if "wifi.scan-rand-mac-address" in device_section:
