@@ -170,3 +170,35 @@ class SystemContext:
         except Exception as e:
             logger.error(f"Failed to copy {rsrc} to {dst}: {e}")
             raise
+
+    def readlink(self, path: str, recursive: bool = False) -> str:
+        """
+        Reads a symbolic link. If recursive is True, it will resolve all symlinks (like readlink -f).
+        """
+        rpath = self.root_path(path)
+
+        if not recursive:
+            return os.readlink(rpath)
+
+        current_path = path
+        seen = set()
+
+        while True:
+            if current_path in seen:
+                raise Exception(f"Symlink loop detected at {current_path}")
+            seen.add(current_path)
+
+            r_current = self.root_path(current_path)
+            if not os.path.islink(r_current):
+                break
+
+            target = os.readlink(r_current)
+
+            if os.path.isabs(target):
+                current_path = target
+            else:
+                current_path = os.path.normpath(
+                    os.path.join(os.path.dirname(current_path), target)
+                )
+
+        return current_path
