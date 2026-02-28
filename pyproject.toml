@@ -15,7 +15,7 @@ dependencies = [
 "nix-scribe" = "nix_scribe.main:app"
 
 [dependency-groups]
-dev = ["pytest>=8.4.2,<9.0.0", "ruff>=0.14.3,<0.15.0"]
+dev = ["pytest>=8.4.2,<9.0.0", "ruff>=0.14.3,<0.15.0", "pre-commit"]
 
 [build-system]
 requires = ["uv_build>=0.9.0,<0.10.0"]
