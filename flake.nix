@@ -69,6 +69,7 @@
               uv
               act
               nixfmt
+              pre-commit
             ];
 
             env = {
@@ -80,6 +81,10 @@
             shellHook = ''
               unset PYTHONPATH
               export REPO_ROOT=$(git rev-parse --show-toplevel)
+              if [ -d .git ]; then
+                pre-commit install > /dev/null
+                echo "Pre-commit hooks installed 🪝"
+              fi
               echo "Shell Ready ✅"
             '';
           };
