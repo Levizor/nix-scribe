@@ -70,7 +70,7 @@ class NixWriter:
 
         elif isinstance(value, str):
             if "\n" in value:
-                value = value.replace("''", "'''").replace("${", "''${")
+                value = value.replace("''", "'''").replace("${", "${" + '"$"' + "}{")
                 with self.block(surrounding="''''"):
                     for line in value.splitlines():
                         self._writeln(line)
