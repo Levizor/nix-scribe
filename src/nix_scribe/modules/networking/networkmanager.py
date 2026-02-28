@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.nix_types import quote_keys_with_dots
 from nix_scribe.lib.option_block import BaseOptionBlock, SimpleOptionBlock
 from nix_scribe.lib.parsers.ini import parse_ini
 from nix_scribe.lib.parsers.parser import ConfigReader
@@ -70,7 +71,7 @@ class NetworkManagerMapper(BaseMapper):
                 final_settings[section] = options
 
         if final_settings:
-            nm_config["settings"] = final_settings
+            nm_config["settings"] = quote_keys_with_dots(final_settings)
 
         return SimpleOptionBlock(
             name="networkmanager",
