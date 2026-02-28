@@ -19,11 +19,12 @@ class BaseOptionBlock(ABC):
         name: str,
         description: str = "",
         arguments: set[str] | None = None,
+        assets: set[Asset] | None = None,
     ) -> None:
         self.name = name
         self.description = description
         self.arguments = set() if arguments is None else arguments
-        self.assets: set[Asset] = set()
+        self.assets: set[Asset] = set() if assets is None else assets
 
     def register_asset(self, asset: Asset) -> Asset:
         """
@@ -53,8 +54,9 @@ class SimpleOptionBlock(BaseOptionBlock):
         description: str = "",
         data: dict[str, Any] | None = None,
         arguments: set[str] | None = None,
+        assets: set[Asset] | None = None,
     ):
-        super().__init__(name, description, arguments)
+        super().__init__(name, description, arguments, assets)
         self.data: dict[str, Any] = {}
         if data:
             for k, v in data.items():
