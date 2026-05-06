@@ -1,9 +1,10 @@
 import importlib
+import importlib.util
 import logging
 import pkgutil
 from pathlib import Path
 
-from nix_scribe.modules.base import Module
+from nix_scribe.lib.registry import _MODULES_REGISTRY, RegisteredModule
 
 logger = logging.getLogger(__name__)
 
@@ -21,45 +22,38 @@ class ModuleLoader:
                 raise ImportError(f"Could not find package {modules_package}")
             self.package_path = Path(spec.submodule_search_locations[0])
 
-    def discover(self) -> dict[str, list[Module]]:
-        """
-        Discovers modules and organizes them by first-level name
-        """
-        categories: dict[str, list[Module]] = {}
+    def discover(self) -> dict[str, RegisteredModule]:
+        """Loads all modules and returns a flat dictionary keyed by namespace."""
+        self._import_all_modules()
 
-        for item in self.package_path.iterdir():
-            if item.is_dir() and not item.name.startswith("__"):
-                category_name = item.name
-                categories[category_name] = self._load_modules_in_category(
-                    category_name
-                )
+        valid_modules: dict[str, RegisteredModule] = {}
 
-        return categories
+        for full_name, registered_module in _MODULES_REGISTRY.items():
+            if not registered_module.scanner:
+                logger.warning(f"Module '{full_name}' skipped: No scanner.")
+                continue
+            if not registered_module.mapper:
+                logger.warning(f"Module '{full_name}' skipped: No mapper.")
+                continue
 
-    def _load_modules_in_category(self, category: str) -> list[Module]:
-        modules = []
-        category_package = f"{self.modules_package}.{category}"
+            registered_module.name = full_name
+            valid_modules[full_name] = registered_module
+            logger.debug(f"Successfully loaded module '{full_name}'")
 
-        spec = importlib.util.find_spec(category_package)
+        return valid_modules
+
+    def _import_all_modules(self) -> None:
+        spec = importlib.util.find_spec(self.modules_package)
         if not spec or not spec.submodule_search_locations:
-            return []
+            return
 
-        category_path = spec.submodule_search_locations
+        package_path = spec.submodule_search_locations
 
-        for info in pkgutil.walk_packages(category_path, f"{category_package}."):
+        for info in pkgutil.walk_packages(package_path, f"{self.modules_package}."):
             if info.ispkg:
                 continue
 
             try:
-                mod = importlib.import_module(info.name)
-                if hasattr(mod, "module") and isinstance(mod.module, Module):
-                    logger.debug(f"Loaded module '{mod.module.name}' from {info.name}")
-                    modules.append(mod.module)
-                else:
-                    logger.debug(
-                        f"Skipped {info.name}: no 'module' object of type Module found"
-                    )
+                importlib.import_module(info.name)
             except Exception as e:
                 logger.error(f"Failed to load module {info.name}: {e}")
-
-        return modules
