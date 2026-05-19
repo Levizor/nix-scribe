@@ -11,20 +11,20 @@ def test_module_loader_discovery_logic():
     loader = ModuleLoader(
         modules_package="tests.test_loader.test_loader_pkg", path=pkg_dir
     )
-    categories = loader.discover()
+    modules = loader.discover()
 
-    assert "test_category" in categories
-    mods = categories["test_category"]
-    assert len(mods) == 1
-    assert mods[0].name == "dummy"
+    assert "dummy" in modules
+    mod = modules["dummy"]
+    assert mod.name == "dummy"
 
 
 def test_module_loader_real_discovery():
     loader = ModuleLoader()
-    categories = loader.discover()
+    modules = loader.discover()
 
-    assert len(categories) > 0
-    assert "programs" in categories
+    assert len(modules) > 0
+    # Check for a few well-known modules
+    assert "programs.bash" in modules
+    assert "programs.git" in modules
 
-    all_names = [m.name for mods in categories.values() for m in mods]
-    assert "bash" in all_names
+    assert modules["programs.bash"].name == "programs.bash"

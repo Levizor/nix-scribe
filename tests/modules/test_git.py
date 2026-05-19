@@ -1,7 +1,8 @@
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.modules.programs.git import GitMapper, GitScanner
+from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.modules.programs.git import git
 
 
 def test_git_scanner_basic(tmp_path):
@@ -9,8 +10,8 @@ def test_git_scanner_basic(tmp_path):
     (tmp_path / "usr/bin/git").touch()
 
     context = SystemContext(tmp_path)
-    scanner = GitScanner()
-    ir = scanner.scan(context)
+    assert git.scan
+    ir = git.scan(context)
 
     assert ir["enable"] is True
     assert "lfs" not in ir
@@ -23,8 +24,8 @@ def test_git_scanner_lfs(tmp_path):
     (tmp_path / "usr/bin/git-lfs").touch()
 
     context = SystemContext(tmp_path)
-    scanner = GitScanner()
-    ir = scanner.scan(context)
+    assert git.scan
+    ir = git.scan(context)
 
     assert ir["lfs"]["enable"] is True
 
@@ -43,8 +44,8 @@ def test_git_scanner_config(tmp_path):
 """)
 
     context = SystemContext(tmp_path)
-    scanner = GitScanner()
-    ir = scanner.scan(context)
+    assert git.scan
+    ir = git.scan(context)
 
     assert ir["config"]["user"]["name"] == "Test User"
     assert ir["config"]["core"]["editor"] == "vim"
@@ -59,26 +60,28 @@ def test_git_scanner_prompt(tmp_path):
     # PS1 call to __git_ps1
     (tmp_path / "etc/bashrc").write_text(r'PS1="\u@\h \W$(__git_ps1 \" (%s)\")\$ "')
     context = SystemContext(tmp_path)
-    scanner = GitScanner()
-    assert scanner.scan(context)["promptEnable"] is True
+    assert git.scan
+    assert git.scan(context)["promptEnable"] is True
 
     # source git-prompt.sh
     (tmp_path / "etc/bashrc").write_text("source /usr/lib/git-core/git-sh-prompt")
-    assert scanner.scan(context)["promptEnable"] is True
+    assert git.scan(context)["promptEnable"] is True
 
 
 def test_git_mapper_basic():
-    mapper = GitMapper()
+    assert git.map
+    mapper = git.map
 
     ir: dict[str, Any] = {"enable": True, "promptEnable": False}
-    block = mapper.map(ir)
-    assert block is not None
+    block = mapper(ir)
+    assert block is not None and isinstance(block, SimpleOptionBlock)
     assert block.data["programs.git"]["enable"] is True
     assert "lfs.enable" not in block.data["programs.git"]
 
 
 def test_git_mapper_full():
-    mapper = GitMapper()
+    assert git.map
+    mapper = git.map
 
     ir = {
         "enable": True,
@@ -86,8 +89,8 @@ def test_git_mapper_full():
         "promptEnable": True,
         "config": {"user": {"name": "Test"}},
     }
-    block = mapper.map(ir)
-    assert block is not None
+    block = mapper(ir)
+    assert block is not None and isinstance(block, SimpleOptionBlock)
 
     git_config = block.data["programs.git"]
     assert git_config["enable"] is True

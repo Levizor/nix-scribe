@@ -1,6 +1,6 @@
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
-from nix_scribe.modules.boot.loader.grub import GrubMapper, GrubScanner
+from nix_scribe.modules.boot.loader.grub import grub
 
 MOCK_GRUB_DEFAULT = """
 GRUB_TIMEOUT=10
@@ -13,6 +13,7 @@ GRUB_BACKGROUND="/boot/grub/background.png"
 
 
 def test_grub_scanner_efi(tmp_path, monkeypatch):
+    assert grub.scan
     (tmp_path / "etc/default").mkdir(parents=True)
     (tmp_path / "boot/grub").mkdir(parents=True)
     (tmp_path / "sys/firmware/efi").mkdir(parents=True)
@@ -30,8 +31,7 @@ def test_grub_scanner_efi(tmp_path, monkeypatch):
         lambda cmd: "/dev/sda1 on / type zfs (rw,relatime)" if cmd == ["mount"] else "",
     )
 
-    scanner = GrubScanner()
-    ir = scanner.scan(context)
+    ir = grub.scan(context)
 
     assert ir["enable"] is True
     assert ir["efiSupport"] is True
@@ -45,6 +45,7 @@ def test_grub_scanner_efi(tmp_path, monkeypatch):
 
 
 def test_grub_scanner_bios(tmp_path, monkeypatch):
+    assert grub.scan
     (tmp_path / "etc/default").mkdir(parents=True)
     (tmp_path / "boot/grub").mkdir(parents=True)
     (tmp_path / "boot/grub/grub.cfg").touch()
@@ -55,14 +56,14 @@ def test_grub_scanner_bios(tmp_path, monkeypatch):
         context, "find_executable_path", lambda x: "/usr/bin/grub-install"
     )
 
-    scanner = GrubScanner()
-    ir = scanner.scan(context)
+    ir = grub.scan(context)
 
     assert ir["enable"] is True
     assert ir["efiSupport"] is False
 
 
 def test_grub_mapper():
+    assert grub.map
     mock_ir = {
         "enable": True,
         "efiSupport": True,
@@ -70,8 +71,7 @@ def test_grub_mapper():
         "enableCryptodisk": True,
     }
 
-    mapper = GrubMapper()
-    block = mapper.map(mock_ir)
+    block = grub.map(mock_ir)
 
     assert isinstance(block, SimpleOptionBlock)
     data = block.data["boot.loader.grub"]
