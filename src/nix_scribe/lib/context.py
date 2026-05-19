@@ -57,7 +57,6 @@ class SystemContext:
             return False
 
     def find_executable_path(self, name: str) -> Optional[str]:
-        logger.debug("Find executable")
         if self.root == Path("/"):
             return shutil.which(name)
 
@@ -65,7 +64,9 @@ class SystemContext:
             path = self.root_path(bin_dir + "/" + name)
 
             if path.exists():
+                logger.debug(f"Found executable: {path}")
                 return str(path)
+        logger.debug(f"Could not find an executable with the name: {name}")
 
     def _root_command_args(self, command: list[str]) -> list[str]:
         if self.root == Path("/"):

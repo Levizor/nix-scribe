@@ -1,14 +1,13 @@
-from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
+from nix_scribe.lib.registry import Module
+
+dummy = Module("dummy")
 
 
-class TestScanner(BaseScanner):
-    def scan(self, context):
-        return {}
+@dummy.scanner()
+def scan(context):
+    return {}
 
 
-class TestMapper(BaseMapper):
-    def map(self, ir):
-        return None
-
-
-module = Module("dummy", TestScanner(), TestMapper())
+@dummy.mapper()
+def map(ir):
+    return None

@@ -4,7 +4,7 @@ import unittest.mock
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
-from nix_scribe.modules.security.sudo import SudoMapper, SudoScanner
+from nix_scribe.modules.security.sudo import sudo
 
 MOCK_TEXT_OUTPUT = """Defaults env_reset
 Defaults:root, %wheel env_keep+=TERMINFO_DIRS
@@ -24,6 +24,7 @@ MOCK_JSON_OUTPUT = {
 
 
 def test_scanner_hybrid_approach(tmp_path, monkeypatch):
+    assert sudo.scan
     (tmp_path / "etc").mkdir()
     (tmp_path / "etc/sudoers").touch()
     (tmp_path / "bin").mkdir()
@@ -47,8 +48,7 @@ def test_scanner_hybrid_approach(tmp_path, monkeypatch):
         ),
     )
 
-    scanner = SudoScanner()
-    ir = scanner.scan(context)
+    ir = sudo.scan(context)
 
     assert ir["enable"] is True
     assert ir["wheelNeedsPassword"] is False
@@ -56,6 +56,7 @@ def test_scanner_hybrid_approach(tmp_path, monkeypatch):
 
 
 def test_mapper_filtering():
+    assert sudo.map
     mock_ir = {
         "enable": True,
         "wheelNeedsPassword": False,
@@ -63,8 +64,7 @@ def test_mapper_filtering():
         "keepTerminfo": True,
     }
 
-    mapper = SudoMapper()
-    block = mapper.map(mock_ir)
+    block = sudo.map(mock_ir)
 
     assert isinstance(block, SimpleOptionBlock)
     data = block.data["security.sudo"]

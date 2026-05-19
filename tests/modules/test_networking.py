@@ -1,6 +1,6 @@
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
-from nix_scribe.modules.networking.base import NetworkingMapper, NetworkingScanner
+from nix_scribe.modules.networking.base import networking
 
 MOCK_HOSTS = """
 127.0.0.1 localhost
@@ -28,6 +28,7 @@ NTP=0.nixos.pool.ntp.org 1.nixos.pool.ntp.org
 
 
 def test_networking_scanner(tmp_path, monkeypatch):
+    assert networking.scan
     (tmp_path / "etc").mkdir()
     (tmp_path / "etc/hostname").write_text("my-hostname\n")
     (tmp_path / "etc/hosts").write_text(MOCK_HOSTS)
@@ -42,8 +43,7 @@ def test_networking_scanner(tmp_path, monkeypatch):
     context = SystemContext(tmp_path)
     monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
 
-    scanner = NetworkingScanner()
-    ir = scanner.scan(context)
+    ir = networking.scan(context)
 
     assert ir["hostName"] == "my-hostname"
     assert ir["enableIpv6"] is True
@@ -57,20 +57,21 @@ def test_networking_scanner(tmp_path, monkeypatch):
 
 
 def test_networking_scanner_dynamic_resolv(tmp_path, monkeypatch):
+    assert networking.scan
     (tmp_path / "etc").mkdir()
     (tmp_path / "etc/resolv.conf").write_text(MOCK_RESOLV_DYNAMIC)
 
     context = SystemContext(tmp_path)
     monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
 
-    scanner = NetworkingScanner()
-    ir = scanner.scan(context)
+    ir = networking.scan(context)
 
     # should be empty because it's dynamic
     assert ir["nameservers"] == []
 
 
 def test_networking_mapper():
+    assert networking.map
     mock_ir = {
         "hostName": "nixos-box",
         "enableIpv6": False,
@@ -81,8 +82,7 @@ def test_networking_mapper():
         "timeServers": ["pool.ntp.org"],
     }
 
-    mapper = NetworkingMapper()
-    block = mapper.map(mock_ir)
+    block = networking.map(mock_ir)
 
     assert isinstance(block, SimpleOptionBlock)
     data = block.data["networking"]

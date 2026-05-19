@@ -2,10 +2,7 @@ import pytest
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import SimpleOptionBlock
-from nix_scribe.modules.networking.networkmanager import (
-    NetworkManagerMapper,
-    NetworkManagerScanner,
-)
+from nix_scribe.modules.networking.networkmanager import networkmanager
 
 MOCK_NM_CONF = """
 [main]
@@ -50,8 +47,7 @@ def test_networkmanager_scanner(nm_test_root, monkeypatch):
         context.systemctl, "is_enabled", lambda x: x == "NetworkManager"
     )
 
-    scanner = NetworkManagerScanner()
-    ir = scanner.scan(context)
+    ir = networkmanager.scan(context)
 
     assert ir["enable"] is True
     config = ir["config"]
@@ -74,11 +70,10 @@ def test_networkmanager_mapper():
         },
     }
 
-    mapper = NetworkManagerMapper()
-    block = mapper.map(mock_ir)
+    block = networkmanager.map(mock_ir)
 
     assert isinstance(block, SimpleOptionBlock)
-    data = block.data["networking"]["networkmanager"]
+    data = block.data["networking.networkManager"]
     assert data["enable"] is True
     assert data["dns"] == "dnsmasq"
     assert data["dhcp"] == "dhclient"
@@ -89,6 +84,5 @@ def test_networkmanager_mapper():
 
 def test_networkmanager_mapper_disabled():
     mock_ir = {"enable": False}
-    mapper = NetworkManagerMapper()
-    block = mapper.map(mock_ir)
+    block = networkmanager.map(mock_ir)
     assert block is None
