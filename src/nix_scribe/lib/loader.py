@@ -4,7 +4,7 @@ import logging
 import pkgutil
 from pathlib import Path
 
-from nix_scribe.lib.registry import _MODULES_REGISTRY, RegisteredModule
+from nix_scribe.lib.registry import _MODULES_REGISTRY, Module
 
 logger = logging.getLogger(__name__)
 
@@ -22,22 +22,21 @@ class ModuleLoader:
                 raise ImportError(f"Could not find package {modules_package}")
             self.package_path = Path(spec.submodule_search_locations[0])
 
-    def discover(self) -> dict[str, RegisteredModule]:
+    def discover(self) -> dict[str, Module]:
         """Loads all modules and returns a flat dictionary keyed by namespace."""
         self._import_all_modules()
 
-        valid_modules: dict[str, RegisteredModule] = {}
+        valid_modules: dict[str, Module] = {}
 
-        for full_name, registered_module in _MODULES_REGISTRY.items():
-            if not registered_module.scanner:
+        for full_name, module in _MODULES_REGISTRY.items():
+            if not module.scan:
                 logger.warning(f"Module '{full_name}' skipped: No scanner.")
                 continue
-            if not registered_module.mapper:
+            if not module.map:
                 logger.warning(f"Module '{full_name}' skipped: No mapper.")
                 continue
 
-            registered_module.name = full_name
-            valid_modules[full_name] = registered_module
+            valid_modules[full_name] = module
             logger.debug(f"Successfully loaded module '{full_name}'")
 
         return valid_modules
