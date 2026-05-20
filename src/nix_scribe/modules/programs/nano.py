@@ -1,7 +1,7 @@
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 nano = Module("programs.nano")
@@ -24,7 +24,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @nano.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir.get("enable"):
         return None
 
@@ -43,7 +43,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
         if not is_default_nanorc(ir["nanorc"]):
             data["nanorc"] = ir["nanorc"]
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="nano",
         description="nano editor",
         data={"programs.nano": data},

@@ -1,7 +1,7 @@
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 groups = Module("users.groups")
@@ -51,7 +51,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @groups.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     groups_data = ir.get("groups")
     if not groups_data:
         return None
@@ -68,7 +68,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
 
         nix_groups[name] = group_conf
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="groups",
         description="Existing user groups",
         data={"users.groups": nix_groups},

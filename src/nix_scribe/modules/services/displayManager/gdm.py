@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.ini import parse_ini
 from nix_scribe.lib.parsers.parser import ConfigReader
 from nix_scribe.lib.registry import Module
@@ -37,7 +37,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @gdm.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir.get("enable"):
         return None
 
@@ -87,7 +87,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
     if settings:
         data["settings"] = settings
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="gdm",
         description="Gnome display manager",
         data={"services.displayManager.gdm": data},

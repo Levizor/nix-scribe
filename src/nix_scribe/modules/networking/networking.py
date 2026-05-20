@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.ini import parse_ini
 from nix_scribe.lib.parsers.networking import parse_hosts, parse_resolv
 from nix_scribe.lib.parsers.parser import ConfigReader
@@ -89,7 +89,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @networking.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir:
         return None
 
@@ -125,7 +125,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
     if not data:
         return None
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="networking",
         description="Basic networking configuration",
         data={"networking": data},

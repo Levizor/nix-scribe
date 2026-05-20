@@ -2,7 +2,7 @@ import re
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 vim = Module("programs.vim")
@@ -47,7 +47,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @vim.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir.get("enable"):
         return None
 
@@ -56,7 +56,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
     if ir.get("defaultEditor"):
         data["defaultEditor"] = True
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="vim",
         description="Enable vim editor",
         data={"programs.vim": data},

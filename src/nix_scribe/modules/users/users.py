@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_writer import raw
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 users_module = Module("users.users")
@@ -149,7 +149,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @users_module.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     users_data = ir.get("users")
     if not users_data:
         return None
@@ -207,7 +207,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
 
         users[name] = user_conf
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="users",
         description="User accounts and subordinate ID ranges",
         data={"users.users": users, **enabled_shells},

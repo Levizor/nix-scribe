@@ -4,7 +4,7 @@ from typing import Any
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.kv import parse_kv
 from nix_scribe.lib.parsers.parser import ConfigReader
 from nix_scribe.lib.registry import Module
@@ -90,7 +90,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @grub.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir or not ir.get("enable", False):
         return None
 
@@ -121,7 +121,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
         target_filename = f"boot-loader-grub-{Path(source_path).name}"
         grub_config["splashImage"] = Asset(source_path, target_filename)
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="grub",
         description="GRUB Bootloader Configuration",
         data={"boot.loader.grub": grub_config},
