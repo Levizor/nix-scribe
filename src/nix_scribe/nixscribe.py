@@ -8,7 +8,7 @@ from typing import Any
 from rich.console import Console
 
 from nix_scribe.lib.modularization import ModularizationLevel
-from nix_scribe.lib.option_block import BaseOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 
 from .arguments import args, confirm
 from .lib.context import ElevationRequest, SystemContext
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class ModuleResult:
     module: Module
     scan_data: dict[str, Any] = field(default_factory=dict)
-    map_data: BaseOptionBlock | None = None
+    map_data: ConfigFragment | None = None
 
 
 class NixScribe:
@@ -79,15 +79,16 @@ class NixScribe:
                 result = self.results[module_name]
                 if result.map_data:
                     if args.modularization == ModularizationLevel.COMPONENT_LEVEL:
-                        component_file = NixFile(module_name, options=[result.map_data])
+                        component_file = NixFile(result.map_data.name)
+                        component_file.add_fragment(result.map_data)
                         option_file.add_import(component_file)
                     elif args.modularization == ModularizationLevel.HIGH_LEVEL:
-                        option_file.add_option_block(result.map_data)
+                        option_file.add_fragment(result.map_data)
                     elif args.modularization == ModularizationLevel.SINGLE_FILE:
-                        self.root_file.add_option_block(result.map_data)
+                        self.root_file.add_fragment(result.map_data)
 
             if args.modularization != ModularizationLevel.SINGLE_FILE and (
-                any(option_file.imports) or any(option_file.options)
+                any(option_file.imports) or any(option_file.document._index)
             ):
                 self.root_file.add_import(option_file)
 
