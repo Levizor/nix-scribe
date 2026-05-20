@@ -1,5 +1,5 @@
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.security.rtkit import rtkit
 
 
@@ -34,14 +34,13 @@ def test_rtkit_mapper():
     block = mapper(ir)
     assert block is not None
     assert (
-        isinstance(block, SimpleOptionBlock)
-        and block.data["security.rtkit"]["enable"] is True
+        isinstance(block, ConfigFragment) and block["security.rtkit"]["enable"] is True
     )
-    assert "args" not in block.data["security.rtkit"]
+    assert "args" not in block["security.rtkit"]
 
     ir_full = {"enable": True, "args": ["--arg1", "--arg2"]}
     block_full = mapper(ir_full)
-    assert isinstance(block_full, SimpleOptionBlock)
+    assert isinstance(block_full, ConfigFragment)
     assert block_full is not None
-    assert block_full.data["security.rtkit"]["enable"] is True
-    assert block_full.data["security.rtkit"]["args"] == ["--arg1", "--arg2"]
+    assert block_full["security.rtkit"]["enable"] is True
+    assert block_full["security.rtkit"]["args"] == ["--arg1", "--arg2"]

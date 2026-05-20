@@ -1,7 +1,7 @@
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.programs.git import git
 
 
@@ -74,9 +74,10 @@ def test_git_mapper_basic():
 
     ir: dict[str, Any] = {"enable": True, "promptEnable": False}
     block = mapper(ir)
-    assert block is not None and isinstance(block, SimpleOptionBlock)
-    assert block.data["programs.git"]["enable"] is True
-    assert "lfs.enable" not in block.data["programs.git"]
+    print(block.options["programs.git"])
+    assert block is not None and isinstance(block, ConfigFragment)
+    assert block.options["programs.git"]["enable"] is True
+    assert "lfs.enable" not in block["programs.git"]
 
 
 def test_git_mapper_full():
@@ -90,9 +91,9 @@ def test_git_mapper_full():
         "config": {"user": {"name": "Test"}},
     }
     block = mapper(ir)
-    assert block is not None and isinstance(block, SimpleOptionBlock)
+    assert block is not None and isinstance(block, ConfigFragment)
 
-    git_config = block.data["programs.git"]
+    git_config = block["programs.git"]
     assert git_config["enable"] is True
     assert git_config["lfs.enable"] is True
     assert git_config["lfs.enablePureSSHTransfer"] is True

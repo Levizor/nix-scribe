@@ -1,7 +1,7 @@
 import unittest.mock
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.programs.vim import vim
 
 
@@ -61,12 +61,12 @@ def test_vim_mapper():
 
     # enabled not default
     block = mapper({"enable": True, "defaultEditor": False})
-    assert block is not None and isinstance(block, SimpleOptionBlock)
-    assert block.data["programs.vim"]["enable"] is True
-    assert "defaultEditor" not in block.data["programs.vim"]
+    assert block is not None and isinstance(block, ConfigFragment)
+    assert block["programs.vim"]["enable"] is True
+    assert "defaultEditor" not in block["programs.vim"]
 
     # enabled, default
     block = mapper({"enable": True, "defaultEditor": True})
-    assert block is not None and isinstance(block, SimpleOptionBlock)
-    assert block.data["programs.vim"]["enable"] is True
-    assert block.data["programs.vim"]["defaultEditor"] is True
+    assert block is not None and isinstance(block, ConfigFragment)
+    assert block["programs.vim"]["enable"] is True
+    assert block["programs.vim"]["defaultEditor"] is True

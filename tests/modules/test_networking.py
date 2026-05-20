@@ -1,6 +1,6 @@
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
-from nix_scribe.modules.networking.base import networking
+from nix_scribe.lib.option_block import ConfigFragment
+from nix_scribe.modules.networking.networking import networking
 
 MOCK_HOSTS = """
 127.0.0.1 localhost
@@ -84,8 +84,8 @@ def test_networking_mapper():
 
     block = networking.map(mock_ir)
 
-    assert isinstance(block, SimpleOptionBlock)
-    data = block.data["networking"]
+    assert isinstance(block, ConfigFragment)
+    data = block["networking"]
     assert data["hostName"] == "nixos-box"
     assert data["enableIpv6"] is False
     assert data["hosts"]['"10.0.0.1"'] == ["gateway"]

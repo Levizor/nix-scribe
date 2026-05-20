@@ -5,7 +5,7 @@ from pathlib import Path
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 
 
 def setup_test_hierarchy():
@@ -13,15 +13,15 @@ def setup_test_hierarchy():
     net = NixFile("networking")
 
     firewall = NixFile("firewall")
-    fw_block = SimpleOptionBlock("firewall")
+    fw_block = ConfigFragment("firewall")
     fw_asset = Asset("/etc/firewall.conf", "firewall.conf")
     fw_block["config"] = fw_asset
-    firewall.add_option_block(fw_block)
+    firewall.add_fragment(fw_block)
 
     nm = NixFile("networkmanager")
-    nm_block = SimpleOptionBlock("networkmanager")
+    nm_block = ConfigFragment("networkmanager")
     nm_block["enable"] = True
-    nm.add_option_block(nm_block)
+    nm.add_fragment(nm_block)
 
     return root, net, firewall, nm
 
@@ -35,8 +35,8 @@ def test_save_single_file():
     mock_context.copy_file.side_effect = mock_copy_file
     root, net, firewall, nm = setup_test_hierarchy()
 
-    root.add_option_block(firewall.options[0])
-    root.add_option_block(nm.options[0])
+    root.add_fragment(firewall.fragments[0])
+    root.add_fragment(nm.fragments[0])
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
@@ -51,8 +51,8 @@ def test_save_high_level():
     mock_context.copy_file.side_effect = mock_copy_file
     root, net, firewall, nm = setup_test_hierarchy()
 
-    net.add_option_block(firewall.options[0])
-    net.add_option_block(nm.options[0])
+    net.add_fragment(firewall.fragments[0])
+    net.add_fragment(nm.fragments[0])
     root.add_import(net)
 
     with tempfile.TemporaryDirectory() as tmpdir:

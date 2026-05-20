@@ -38,6 +38,6 @@ def test_groups_mapper():
     block = groups.map(mock_ir)
     assert block is not None
 
-    assert block.data["users.groups"]["mygroup"]["gid"] == 1000
-    assert block.data["users.groups"]["mygroup"]["members"] == ["alice"]
-    assert "members" not in block.data["users.groups"]["othergroup"]
+    assert block["users.groups"]["mygroup"]["gid"] == 1000
+    assert block["users.groups"]["mygroup"]["members"] == ["alice"]
+    assert "members" not in block["users.groups"]["othergroup"]

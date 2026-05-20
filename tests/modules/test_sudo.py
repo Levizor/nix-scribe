@@ -3,7 +3,7 @@ import shutil
 import unittest.mock
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.security.sudo import sudo
 
 MOCK_TEXT_OUTPUT = """Defaults env_reset
@@ -66,7 +66,7 @@ def test_mapper_filtering():
 
     block = sudo.map(mock_ir)
 
-    assert isinstance(block, SimpleOptionBlock)
-    data = block.data["security.sudo"]
+    assert isinstance(block, ConfigFragment)
+    data = block["security.sudo"]
 
     assert data["wheelNeedsPassword"] is False

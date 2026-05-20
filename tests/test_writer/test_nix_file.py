@@ -2,7 +2,7 @@ import pytest
 
 from nix_scribe.lib.nix_writer import raw
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 
 
 @pytest.fixture()
@@ -15,7 +15,7 @@ def test_file_writing(file: NixFile):
 
     file.imports = [raw("./hardware-configuration.nix")]
 
-    firewall = SimpleOptionBlock(
+    firewall = ConfigFragment(
         name="networking/firewall", description="sets up firewall options"
     )
     firewall["networking.firewall.enable"] = True
@@ -24,7 +24,7 @@ def test_file_writing(file: NixFile):
         "something.nothing": "Hello",
     }
 
-    file.add_option_block(firewall)
+    file.add_fragment(firewall)
 
     assert (
         file.gettext()
@@ -36,19 +36,16 @@ def test_file_writing(file: NixFile):
     ./hardware-configuration.nix
   ];
 
-  # sets up firewall options
+  # --- networking/firewall: sets up firewall options ---
   networking.firewall.enable = true;
 
-  networking.firewall.settings = {
-    something = true;
-    something.nothing = "Hello";
-  };
+  networking.firewall.settings.something = true;
+  networking.firewall.settings.something.nothing = "Hello";
 
-}\
-"""
+}"""
     )
-    file.add_option_block(
-        SimpleOptionBlock(
+    file.add_fragment(
+        ConfigFragment(
             name="networkmanager",
             description="NetworkManager configuration",
             data={
@@ -72,21 +69,17 @@ def test_file_writing(file: NixFile):
     ./hardware-configuration.nix
   ];
 
-  # sets up firewall options
+  # --- networking/firewall: sets up firewall options ---
   networking.firewall.enable = true;
 
-  networking.firewall.settings = {
-    something = true;
-    something.nothing = "Hello";
-  };
+  networking.firewall.settings.something = true;
+  networking.firewall.settings.something.nothing = "Hello";
 
-  # NetworkManager configuration
-  networking.networkmanager = {
-    enable = true;
-    plugins = [
-      pkgs.networkmanager-openvpn
-    ];
-  };
+  # --- networkmanager: NetworkManager configuration ---
+  networking.networkmanager.enable = true;
+  networking.networkmanager.plugins = [
+    pkgs.networkmanager-openvpn
+  ];
 
 }"""
     )
