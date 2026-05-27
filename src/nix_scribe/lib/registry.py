@@ -1,12 +1,12 @@
 from typing import Any, Callable
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import BaseOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 
 _MODULES_REGISTRY: dict[str, "Module"] = {}
 
 ScannerFunc = Callable[[SystemContext], dict[str, Any]]
-MapperFunc = Callable[[dict[str, Any]], BaseOptionBlock | None]
+MapperFunc = Callable[[dict[str, Any]], ConfigFragment | None]
 
 
 class Module:

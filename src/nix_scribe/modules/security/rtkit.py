@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @rtkit.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir.get("enable"):
         return None
 
@@ -62,7 +62,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
     if ir.get("args"):
         data["args"] = ir["args"]
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="rtkit",
         description="RealtimeKit system service",
         data={"security.rtkit": data},

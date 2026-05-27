@@ -1,7 +1,7 @@
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 cosmic = Module("services.desktopManager.cosmic")
@@ -18,11 +18,11 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @cosmic.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir.get("enable"):
         return None
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="cosmic",
         description="Cosmic desktop environment",
         data={"services.desktopManager.cosmic": {"enable": True}},

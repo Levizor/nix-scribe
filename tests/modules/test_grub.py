@@ -1,5 +1,5 @@
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.boot.loader.grub import grub
 
 MOCK_GRUB_DEFAULT = """
@@ -73,8 +73,8 @@ def test_grub_mapper():
 
     block = grub.map(mock_ir)
 
-    assert isinstance(block, SimpleOptionBlock)
-    data = block.data["boot.loader.grub"]
+    assert isinstance(block, ConfigFragment)
+    data = block["boot.loader.grub"]
     assert data["enable"] is True
     assert data["efiSupport"] is True
     assert data["useOSProber"] is True

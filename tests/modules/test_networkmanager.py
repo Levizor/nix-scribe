@@ -1,7 +1,7 @@
 import pytest
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.networking.networkmanager import networkmanager
 
 MOCK_NM_CONF = """
@@ -72,8 +72,8 @@ def test_networkmanager_mapper():
 
     block = networkmanager.map(mock_ir)
 
-    assert isinstance(block, SimpleOptionBlock)
-    data = block.data["networking.networkManager"]
+    assert isinstance(block, ConfigFragment)
+    data = block["networking.networkManager"]
     assert data["enable"] is True
     assert data["dns"] == "dnsmasq"
     assert data["dhcp"] == "dhclient"

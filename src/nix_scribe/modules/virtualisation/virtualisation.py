@@ -1,7 +1,7 @@
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 virtualisation = Module("virtualisation")
@@ -13,8 +13,8 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @virtualisation.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
-    return SimpleOptionBlock(
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
+    return ConfigFragment(
         name="virtualisation",
         description="virtualisation options for testing the machine",
         data={

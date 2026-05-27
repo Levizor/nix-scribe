@@ -1,5 +1,5 @@
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.programs.nano import nano
 
 
@@ -46,10 +46,9 @@ def test_nano_mapper_basic():
 
     block = mapper({"enable": True})
     assert (
-        isinstance(block, SimpleOptionBlock)
-        and block.data["programs.nano"]["enable"] is True
+        isinstance(block, ConfigFragment) and block["programs.nano"]["enable"] is True
     )
-    assert "nanorc" not in block.data["programs.nano"]
+    assert "nanorc" not in block["programs.nano"]
 
 
 def test_nano_mapper_with_custom_nanorc():
@@ -59,10 +58,8 @@ def test_nano_mapper_with_custom_nanorc():
     # custom nanorc
     ir = {"enable": True, "nanorc": "set tabsize 4"}
     block = mapper(ir)
-    assert (
-        isinstance(block, SimpleOptionBlock) and "enable" in block.data["programs.nano"]
-    )
-    assert block.data["programs.nano"]["nanorc"] == "set tabsize 4"
+    assert isinstance(block, ConfigFragment) and "enable" in block["programs.nano"]
+    assert block["programs.nano"]["nanorc"] == "set tabsize 4"
 
     # default nanorc (or fully commented)
     ir_default = {
@@ -72,6 +69,6 @@ def test_nano_mapper_with_custom_nanorc():
 # comment""",
     }
     block_default = mapper(ir_default)
-    assert isinstance(block_default, SimpleOptionBlock)
-    assert "enable" in block_default.data["programs.nano"]
-    assert "nanorc" not in block_default.data["programs.nano"]
+    assert isinstance(block_default, ConfigFragment)
+    assert "enable" in block_default["programs.nano"]
+    assert "nanorc" not in block_default["programs.nano"]

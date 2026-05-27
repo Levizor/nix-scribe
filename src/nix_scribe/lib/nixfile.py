@@ -3,42 +3,67 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.nix_writer import NixWriter, raw
-from nix_scribe.lib.option_block import BaseOptionBlock
+from nix_scribe.lib.option_block import (
+    CommentNode,
+    ConfigFragment,
+    EmptyLineNode,
+    NixOptionDocument,
+    OptionCollisionError,
+    OptionNode,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class NixFile(BaseOptionBlock):
+class NixFile:
     def __init__(
         self,
         name: str,
         description: str = "",
         imports: list | None = None,
-        options: list | None = None,
     ):
-        super().__init__(name, description)
+        self.name = name
+        self.description = description
+
+        self.arguments = set()
+        self.assets: set[Asset] = set()
+        self.fragments: list[ConfigFragment] = []
         self.imports: list[raw | NixFile] = [] if imports is None else imports
-        self.options: list[BaseOptionBlock] = []
-        if options:
-            for option in options:
-                self.add_option_block(option)
+
+        self.document = NixOptionDocument()
+
+    def add_fragment(self, fragment: ConfigFragment) -> None:
+        self.fragments.append(fragment)
+        self.arguments.update(fragment.arguments)
+        self.assets.update(fragment.assets)
+
+        self.document.add_header(f"--- {fragment.name}: {fragment.description} ---")
+
+        for key, nix_node in fragment.options.items():
+            try:
+                self.document.add_option(key, nix_node)
+            except OptionCollisionError as e:
+                logger.warning(
+                    f"[{self.name}.nix] Conflict in fragment '{fragment.name}'."
+                    f"Keeping '{e.existing}', rejecting '{e.rejected}' for '{e.key}'"
+                )
+                self.document.flag_collision(e.key, e.rejected, fragment.name)
 
     def add_import(self, imported: raw | NixFile):
         self.imports.append(imported)
 
-    def add_option_block(self, block: BaseOptionBlock):
-        self.options.append(block)
-        self.arguments.update(block.arguments)
-
     def render(self, writer: NixWriter) -> None:
-        """Main logic for writing out stuff into nix language using NixSyntaxWriter"""
+        """Main logic for writing out NixOptionDocument into nix language using NixSyntaxWriter"""
 
+        # file description
         if self.description:
             writer.write_comment(self.description)
 
+        # function arguments
         if len(self.arguments) > 0:
             writer._writeln(f"{{{', '.join([*sorted(self.arguments), '...'])}}}:")
 
@@ -48,9 +73,16 @@ class NixFile(BaseOptionBlock):
                 writer.write_attr("imports", self.imports)
                 writer._writeln()
 
-            if len(self.options) > 0:
-                for option_block in self.options:
-                    option_block.render(writer)
+            if len(self.document) > 0:
+                for node in self.document:
+                    if isinstance(node, OptionNode):
+                        if node.inline_comment:
+                            writer.write_comment(node.inline_comment)
+                        writer.write_attr(node.key, node.value)
+                    elif isinstance(node, CommentNode):
+                        writer.write_comment(node.text)
+                    elif isinstance(node, EmptyLineNode):
+                        writer._writeln()
 
     def gettext(self) -> str:
         writer = NixWriter()
@@ -97,10 +129,9 @@ class NixFile(BaseOptionBlock):
 
     def _save_assets(self, directory: Path, context: SystemContext):
         """Copies assets from host system to the output directory."""
-        for block in self.options:
-            for asset in block.assets:
-                dst = directory / asset.target_filename
-                context.copy_file(asset.source_path, dst)
+        for asset in self.assets:
+            dst = directory / asset.target_filename
+            context.copy_file(asset.source_path, dst)
 
     def _save_modularized(
         self,

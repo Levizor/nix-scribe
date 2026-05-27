@@ -64,8 +64,8 @@ def test_users_mapper():
     block = users_module.map(mock_ir)
     assert block is not None
 
-    alice_conf = block.data["users.users"]["alice"]
-    assert alice_conf["isNormalUser"] is True
+    alice_conf = block["users.users"]["alice"]
+    assert alice_conf["isNormalUser"]
     assert alice_conf["uid"] == 1000
     assert alice_conf["extraGroups"] == ["wheel", "video"]
-    assert block.data["programs.bash.enable"] is True
+    assert block["programs.bash.enable"]

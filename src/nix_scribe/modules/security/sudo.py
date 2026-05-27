@@ -4,7 +4,7 @@ import shutil
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
+from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.registry import Module
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
 
 @sudo.mapper()
-def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir or not ir.get("enable", False):
         return None
 
@@ -134,7 +134,7 @@ def map(ir: dict[str, Any]) -> SimpleOptionBlock | None:
     # if filtered_lines:
     #     sudo_config["extraConfig"] = "\n".join(filtered_lines)
 
-    return SimpleOptionBlock(
+    return ConfigFragment(
         name="sudo",
         description="Sudo Configuration",
         data={"security.sudo": sudo_config},
