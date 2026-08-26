@@ -36,10 +36,6 @@ def test_networking_scanner(tmp_path, monkeypatch):
     (tmp_path / "etc/systemd").mkdir()
     (tmp_path / "etc/systemd/timesyncd.conf").write_text(MOCK_TIMESYNCD)
 
-    ipv6_path = tmp_path / "proc/sys/net/ipv6/conf/all"
-    ipv6_path.mkdir(parents=True)
-    (ipv6_path / "disable_ipv6").write_text("0\n")
-
     context = SystemContext(tmp_path)
     monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
 
@@ -54,6 +50,19 @@ def test_networking_scanner(tmp_path, monkeypatch):
     assert ir["search"] == ["internal.net"]
     assert ir["domain"] == "internal.net"
     assert ir["timeServers"] == ["0.nixos.pool.ntp.org", "1.nixos.pool.ntp.org"]
+
+
+def test_networking_scanner_disable_ipv6_sysctl(tmp_path, monkeypatch):
+    (tmp_path / "etc/sysctl.d").mkdir(parents=True)
+    (tmp_path / "etc/sysctl.d/99-disable-ipv6.conf").write_text(
+        "net.ipv6.conf.all.disable_ipv6 = 1\n"
+    )
+
+    context = SystemContext(tmp_path)
+    monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
+
+    ir = networking.scan(context)
+    assert ir["enableIpv6"] is False
 
 
 def test_networking_scanner_dynamic_resolv(tmp_path, monkeypatch):

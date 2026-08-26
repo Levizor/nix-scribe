@@ -4,6 +4,7 @@ from typing import Any
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.ini import parse_ini
+from nix_scribe.lib.parsers.kv import parse_kv
 from nix_scribe.lib.parsers.networking import parse_hosts, parse_resolv
 from nix_scribe.lib.parsers.parser import ConfigReader
 from nix_scribe.lib.registry import Module
@@ -48,12 +49,20 @@ def scan(context: SystemContext) -> dict[str, Any]:
     if context.path_exists("/etc/hostname"):
         ir["hostName"] = context.read_file("/etc/hostname").strip()
 
-    if context.path_exists("/proc/sys/net/ipv6/conf/all/disable_ipv6"):
-        disable_ipv6 = context.read_file(
-            "/proc/sys/net/ipv6/conf/all/disable_ipv6"
-        ).strip()
-        if disable_ipv6 == "1":
-            ir["enableIpv6"] = False
+    sysctl_reader = ConfigReader(context, parse_kv)
+    sysctl_config = sysctl_reader.read_merge_configs_from_paths_list(
+        ["/etc/sysctl.conf", "/etc/sysctl.d"]
+    )
+    if str(sysctl_config.get("net.ipv6.conf.all.disable_ipv6")).strip() in (
+        "1",
+        "true",
+        "True",
+    ) or str(sysctl_config.get("net.ipv6.conf.default.disable_ipv6")).strip() in (
+        "1",
+        "true",
+        "True",
+    ):
+        ir["enableIpv6"] = False
 
     if context.path_exists("/etc/hosts"):
         hosts_reader = ConfigReader(context, parse_hosts)

@@ -8,11 +8,11 @@ def parse_kv(content: str) -> dict[str, Any]:
     Supports shell-style assignments: KEY=VALUE or KEY="VALUE"
     """
     result = {}
-    pattern = re.compile(r"^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$")
+    pattern = re.compile(r"^\s*([A-Za-z0-9_.-]+)\s*=\s*(.*)\s*$")
 
     for line in content.splitlines():
         line = line.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith("#") or line.startswith(";"):
             continue
 
         match = pattern.match(line)
