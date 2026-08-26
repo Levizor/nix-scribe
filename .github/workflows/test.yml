@@ -6,7 +6,46 @@ on:
   push:
     branches: [main]
 jobs:
-  test:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      nix: ${{ steps.filter.outputs.nix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Path Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            nix:
+              - 'flake.nix'
+              - 'nix/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/**'
+
+  pytest:
+    name: Pytest & Wheel Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install uv & Python environment
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      - name: Run Pytest
+        run: uv run pytest
+      - name: Verify Package Build
+        run: uv build
+
+  nix-build:
+    name: Nix Flake Build
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.nix == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,5 +56,3 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Check Build (Production)
         run: nix build -L
-      - name: Run Pytest (DevShell)
-        run: nix develop --command pytest
