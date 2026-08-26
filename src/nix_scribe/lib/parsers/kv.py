@@ -27,3 +27,16 @@ def parse_kv(content: str) -> dict[str, Any]:
             result[key] = value
 
     return result
+
+
+def is_truthy(value: Any) -> bool:
+    """
+    Returns True if value represents a truthy config state (e.g. True, 1, "1", "true", "yes", "on").
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.lower().strip() in ("1", "true", "yes", "on")
+    return False

@@ -4,7 +4,7 @@ from typing import Any
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.ini import parse_ini
-from nix_scribe.lib.parsers.kv import parse_kv
+from nix_scribe.lib.parsers.kv import is_truthy, parse_kv
 from nix_scribe.lib.parsers.networking import parse_hosts, parse_resolv
 from nix_scribe.lib.parsers.parser import ConfigReader
 from nix_scribe.lib.registry import Module
@@ -53,14 +53,8 @@ def scan(context: SystemContext) -> dict[str, Any]:
     sysctl_config = sysctl_reader.read_merge_configs_from_paths_list(
         ["/etc/sysctl.conf", "/etc/sysctl.d"]
     )
-    if str(sysctl_config.get("net.ipv6.conf.all.disable_ipv6")).strip() in (
-        "1",
-        "true",
-        "True",
-    ) or str(sysctl_config.get("net.ipv6.conf.default.disable_ipv6")).strip() in (
-        "1",
-        "true",
-        "True",
+    if is_truthy(sysctl_config.get("net.ipv6.conf.all.disable_ipv6")) or is_truthy(
+        sysctl_config.get("net.ipv6.conf.default.disable_ipv6")
     ):
         ir["enableIpv6"] = False
 
