@@ -6,7 +6,21 @@ on:
   push:
     branches: [main]
 jobs:
-  test:
+  pytest:
+    name: Pytest (Fast)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install uv & Python environment
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Run Pytest
+        run: uv run pytest
+
+  nix-build:
+    name: Nix Flake Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,5 +31,3 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Check Build (Production)
         run: nix build -L
-      - name: Run Pytest (DevShell)
-        run: nix develop --command pytest
