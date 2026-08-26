@@ -1,67 +1,70 @@
-import json
-import shutil
-import unittest.mock
-
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.modules.security.sudo import sudo
 
-MOCK_TEXT_OUTPUT = """Defaults env_reset
-Defaults:root, %wheel env_keep+=TERMINFO_DIRS
-root ALL=(ALL:ALL) SETENV: ALL
-%wheel ALL=(ALL) NOPASSWD: ALL
+SUDOERS_CONTENT = """
+Defaults env_reset
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Defaults env_keep += "TERMINFO TERMINFO_DIRS"
+root ALL=(ALL:ALL) ALL
+alice ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 """
 
-MOCK_JSON_OUTPUT = {
-    "Defaults": [{"Options": [{"env_keep": ["TERMINFO"]}]}],
-    "User_Specs": [
-        {
-            "User_List": [{"usergroup": "wheel"}],
-            "Cmnd_Specs": [{"Options": [{"authenticate": False}]}],
-        }
-    ],
-}
+WHEEL_NOPASSWD_CONTENT = "%wheel ALL=(ALL:ALL) NOPASSWD: ALL\n"
 
 
-def test_scanner_hybrid_approach(tmp_path, monkeypatch):
+def test_sudo_scanner_filesystem(tmp_path):
     assert sudo.scan
-    (tmp_path / "etc").mkdir()
-    (tmp_path / "etc/sudoers").touch()
-    (tmp_path / "bin").mkdir()
-    (tmp_path / "bin/sudo").touch()
+    etc_path = tmp_path / "etc"
+    etc_path.mkdir()
+    (etc_path / "sudoers").write_text(SUDOERS_CONTENT)
+
+    sudoers_d = etc_path / "sudoers.d"
+    sudoers_d.mkdir()
+    (sudoers_d / "10-wheel").write_text(WHEEL_NOPASSWD_CONTENT)
+
+    usr_bin = tmp_path / "usr/bin"
+    usr_bin.mkdir(parents=True)
+    sudo_bin = usr_bin / "sudo"
+    sudo_bin.touch()
+    sudo_bin.chmod(0o4755)
 
     context = SystemContext(tmp_path)
-
-    monkeypatch.setattr(
-        shutil, "which", lambda x: f"/usr/bin/{x}" if x == "cvtsudoers" else None
-    )
-
-    monkeypatch.setattr(
-        context,
-        "run_command",
-        unittest.mock.MagicMock(
-            side_effect=[
-                MOCK_TEXT_OUTPUT,
-                json.dumps(MOCK_JSON_OUTPUT),
-                "4755 root",
-            ]
-        ),
-    )
-
     ir = sudo.scan(context)
 
     assert ir["enable"] is True
     assert ir["wheelNeedsPassword"] is False
     assert ir["keepTerminfo"] is True
+    assert ir["execWheelOnly"] is False
+    assert len(ir["extraConfigLines"]) == 1
+    assert "alice ALL=(ALL) NOPASSWD" in ir["extraConfigLines"][0]
 
 
-def test_mapper_filtering():
+def test_sudo_scanner_exec_wheel_only(tmp_path):
+    etc_path = tmp_path / "etc"
+    etc_path.mkdir()
+    (etc_path / "sudoers").write_text("root ALL=(ALL:ALL) ALL\n")
+
+    usr_bin = tmp_path / "usr/bin"
+    usr_bin.mkdir(parents=True)
+    sudo_bin = usr_bin / "sudo"
+    sudo_bin.touch()
+    sudo_bin.chmod(0o4750)
+
+    context = SystemContext(tmp_path)
+    ir = sudo.scan(context)
+
+    assert ir["execWheelOnly"] is True
+
+
+def test_sudo_mapper():
     assert sudo.map
     mock_ir = {
         "enable": True,
         "wheelNeedsPassword": False,
-        "execWheelOnly": False,
+        "execWheelOnly": True,
         "keepTerminfo": True,
+        "extraConfigLines": ["bob ALL=(ALL) ALL"],
     }
 
     block = sudo.map(mock_ir)
@@ -69,4 +72,8 @@ def test_mapper_filtering():
     assert isinstance(block, ConfigFragment)
     data = block["security.sudo"]
 
+    assert data["enable"] is True
     assert data["wheelNeedsPassword"] is False
+    assert data["execWheelOnly"] is True
+    assert data["keepTerminfo"] is True
+    assert data["extraConfig"] == "bob ALL=(ALL) ALL"
