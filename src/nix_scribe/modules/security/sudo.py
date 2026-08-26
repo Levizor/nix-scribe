@@ -1,10 +1,11 @@
-import json
 import logging
-import shutil
+import re
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import ConfigFragment
+from nix_scribe.lib.parsers.parser import ConfigReader
+from nix_scribe.lib.parsers.sudoers import parse_sudoers
 from nix_scribe.lib.registry import Module
 
 logger = logging.getLogger(__name__)
@@ -12,86 +13,86 @@ logger = logging.getLogger(__name__)
 sudo = Module("security.sudo")
 
 SUDOERS_PATH = "/etc/sudoers"
+SUDOERS_DIR = "/etc/sudoers.d"
+
+WHEEL_NOPASSWD_PATTERN = re.compile(
+    r"^\s*%wheel\s+ALL\s*=\s*\([^)]*\)\s*NOPASSWD\s*:\s*ALL", re.IGNORECASE
+)
+ENV_KEEP_TERMINFO_PATTERN = re.compile(r"env_keep\s*\+?=\s*.*TERMINFO", re.IGNORECASE)
 
 
-def _get_users(member_list: list[dict[str, Any]]) -> list[str]:
-    users = []
-    for m in member_list:
-        if "usergroup" in m:
-            users.append(f"%{m['usergroup']}")
-        if "username" in m:
-            users.append(m["username"])
-    return users
-
-
-def _analyze_json(data: dict, ir: dict):
+def _should_filter_line(line: str, ir: dict[str, Any]) -> bool:
     """
-    Analyzes the structured JSON to find high-level patterns.
+    Returns True if line is a standard distro default or mapped setting.
     """
-    # Analyze Defaults for keepTerminfo
-    defaults = data.get("Defaults", [])
-    for entry in defaults:
-        for opt in entry.get("Options", []):
-            # Check for env_keep lists containing TERMINFO
-            if "env_keep" in opt:
-                values = opt["env_keep"]
-                if "TERMINFO" in values or "TERMINFO_DIRS" in values:
-                    ir["keepTerminfo"] = True
+    stripped = line.strip()
 
-    # Analyze Privileges for wheel NOPASSWD
-    specs = data.get("User_Specs", data.get("Privileges", []))
-    for spec in specs:
-        users = _get_users(spec.get("User_List", []))
+    if stripped.startswith("Defaults") and "secure_path" in stripped:
+        return True
 
-        if "%wheel" in users:
-            for cmnd_spec in spec.get("Cmnd_Specs", []):
-                opts = cmnd_spec.get("Options", [])
-                for opt in opts:
-                    if opt.get("authenticate") is False:
-                        ir["wheelNeedsPassword"] = False
+    if stripped == "Defaults env_reset":
+        return True
+
+    if (
+        ir.get("wheelNeedsPassword") is False
+        and "%wheel" in stripped
+        and "NOPASSWD" in stripped
+    ):
+        return True
+
+    if ir.get("keepTerminfo") and "env_keep" in stripped and "TERMINFO" in stripped:
+        return True
+
+    if stripped.startswith("root") and "ALL=(ALL" in stripped and "ALL" in stripped:
+        return True
+
+    return False
 
 
 @sudo.scanner()
 def scan(context: SystemContext) -> dict[str, Any]:
-    cvtsudoers_path = shutil.which("cvtsudoers")
-    sudo_path = context.find_executable_path("sudo")
+    has_sudoers_file = context.path_exists(SUDOERS_PATH)
+    has_sudoers_dir = context.path_exists(SUDOERS_DIR)
 
-    if not cvtsudoers_path or not sudo_path or not context.path_exists(SUDOERS_PATH):
-        logger.debug(f"cvtsudoers_path: {cvtsudoers_path}")
-        logger.debug(f"sudo_path: {sudo_path}")
-        logger.warning("No sudo configuration or cvtsudoers not found")
+    if not has_sudoers_file and not has_sudoers_dir:
         return {}
+
+    reader = ConfigReader(context, parse_sudoers)
+    parsed = reader.read_merge_configs_from_paths_list([SUDOERS_PATH, SUDOERS_DIR])
+
+    defaults = parsed.get("defaults", [])
+    rules = parsed.get("rules", [])
+
+    has_wheel_nopasswd = any(WHEEL_NOPASSWD_PATTERN.search(r) for r in rules)
+    has_keep_terminfo = any(ENV_KEEP_TERMINFO_PATTERN.search(d) for d in defaults)
 
     ir = {
         "enable": True,
-        "wheelNeedsPassword": True,
+        "wheelNeedsPassword": not has_wheel_nopasswd,
         "execWheelOnly": False,
-        "keepTerminfo": False,
+        "keepTerminfo": has_keep_terminfo,
         "extraConfigLines": [],
     }
 
-    # Get Effective Config as TEXT (for extraConfig)
-    text_output = context.run_command(
-        [cvtsudoers_path, "-b", "/etc", "-e", "-f", "sudoers", SUDOERS_PATH],
-    )
-    ir["extraConfigLines"] = [line for line in text_output.splitlines() if line.strip()]
+    # Native permission check for execWheelOnly
+    sudo_bin = None
+    for bpath in ["/usr/bin/sudo", "/bin/sudo", "/usr/sbin/sudo"]:
+        if context.path_exists(bpath):
+            sudo_bin = context.root_path(bpath)
+            break
 
-    # Get Effective Config as JSON (for Analysis)
-    json_output = context.run_command(
-        [cvtsudoers_path, "-f", "json", "-e", SUDOERS_PATH]
-    )
-    json_data = json.loads(json_output)
-    _analyze_json(json_data, ir)
+    if sudo_bin:
+        try:
+            st = sudo_bin.stat()
+            if (st.st_mode & 0o001) == 0:
+                ir["execWheelOnly"] = True
+        except OSError:
+            pass
 
-    # Check Permissions for execWheelOnly
-    stat_output = context.run_command(["stat", "-c", "%a %G", sudo_path]).strip()
-
-    if stat_output:
-        mode_octal, group = stat_output.split()
-        others_perm = int(mode_octal[-1])
-        is_world_exec = (others_perm & 1) == 1
-        if not is_world_exec:
-            ir["execWheelOnly"] = True
+    raw_lines = parsed.get("raw_lines", [])
+    ir["extraConfigLines"] = [
+        line for line in raw_lines if not _should_filter_line(line, ir)
+    ]
 
     return ir
 
@@ -101,7 +102,7 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not ir or not ir.get("enable", False):
         return None
 
-    sudo_config = {"enable": True}
+    sudo_config: dict[str, Any] = {"enable": True}
 
     if ir.get("execWheelOnly"):
         sudo_config["execWheelOnly"] = True
@@ -109,30 +110,12 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if ir.get("wheelNeedsPassword") is False:
         sudo_config["wheelNeedsPassword"] = False
 
-    raw_lines = ir.get("extraConfigLines", [])
-    filtered_lines = []
+    if ir.get("keepTerminfo"):
+        sudo_config["keepTerminfo"] = True
 
-    for line in raw_lines:
-        # Filter out Wheel NOPASSWD rules if mapped
-        if (
-            sudo_config.get("wheelNeedsPassword") is False
-            and "%wheel" in line
-            and "NOPASSWD" in line
-        ):
-            continue
-
-        # Filter out TERMINFO defaults if mapped
-        if ir.get("keepTerminfo") and "env_keep" in line and "TERMINFO" in line:
-            continue
-
-        # Filter out standard root rule
-        if line.startswith("root ") and "ALL" in line and "(ALL" in line:
-            continue
-
-        filtered_lines.append(line)
-
-    # if filtered_lines:
-    #     sudo_config["extraConfig"] = "\n".join(filtered_lines)
+    extra_lines = ir.get("extraConfigLines", [])
+    if extra_lines:
+        sudo_config["extraConfig"] = "\n".join(extra_lines)
 
     return ConfigFragment(
         name="sudo",
