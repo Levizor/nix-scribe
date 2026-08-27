@@ -1,4 +1,3 @@
----
 name: Pytest & Build
 on:
   pull_request:

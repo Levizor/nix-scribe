@@ -1,4 +1,3 @@
----
 name: Lint & Format Checks (Ruff)
 on:
   push:
