@@ -71,12 +71,19 @@ def scan(context: SystemContext) -> dict[str, Any]:
     if context.path_exists("/sys/firmware/efi"):
         ir["efiSupport"] = True
 
-    try:
-        mount_output = context.run_command(["mount"])
-        if "type zfs" in mount_output:
-            ir["zfsSupport"] = True
-    except Exception:
-        pass
+    if context.path_exists("/etc/fstab"):
+        try:
+            if "zfs" in context.read_file("/etc/fstab"):
+                ir["zfsSupport"] = True
+        except Exception:
+            pass
+
+    if not ir["zfsSupport"] and context.path_exists("/proc/mounts"):
+        try:
+            if "zfs" in context.read_file("/proc/mounts"):
+                ir["zfsSupport"] = True
+        except Exception:
+            pass
 
     if has_default:
         try:
