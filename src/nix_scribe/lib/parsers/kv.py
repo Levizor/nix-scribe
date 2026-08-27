@@ -40,3 +40,26 @@ def is_truthy(value: Any) -> bool:
     if isinstance(value, str):
         return value.lower().strip() in ("1", "true", "yes", "on")
     return False
+
+
+def parse_space_kv(content: str) -> dict[str, Any]:
+    """
+    Parses whitespace-delimited key-value configuration files (e.g., systemd-boot loader.conf).
+    """
+    result: dict[str, Any] = {}
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith(";"):
+            continue
+
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            key = parts[0].strip()
+            value = parts[1].strip()
+            if (value.startswith('"') and value.endswith('"')) or (
+                value.startswith("'") and value.endswith("'")
+            ):
+                value = value[1:-1]
+            result[key] = value
+
+    return result
