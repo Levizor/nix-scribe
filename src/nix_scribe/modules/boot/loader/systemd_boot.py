@@ -50,6 +50,12 @@ def scan(context: SystemContext) -> dict[str, Any]:
         if "editor" in config:
             ir["editor"] = is_truthy(config["editor"])
 
+        if "sort-key" in config:
+            ir["sortKey"] = config["sort-key"]
+
+        if "xbootldr-mount-point" in config:
+            ir["xbootldrMountPoint"] = config["xbootldr-mount-point"]
+
     return ir
 
 
@@ -65,6 +71,12 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
 
     if "editor" in ir:
         boot_config["editor"] = ir["editor"]
+
+    if "sortKey" in ir:
+        boot_config["sortKey"] = ir["sortKey"]
+
+    if "xbootldrMountPoint" in ir:
+        boot_config["xbootldrMountPoint"] = ir["xbootldrMountPoint"]
 
     return ConfigFragment(
         name="systemd-boot",
