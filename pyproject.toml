@@ -29,4 +29,4 @@ combine-as-imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = [".venv", "third_party", "systems", ".*", "build", "dist"]
+norecursedirs = ["third_party"]
