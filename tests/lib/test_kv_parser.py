@@ -1,4 +1,4 @@
-from nix_scribe.lib.parsers.kv import is_truthy, parse_kv
+from nix_scribe.lib.parsers.kv import is_truthy, parse_kv, parse_space_kv
 
 
 def test_parse_kv_dotted_keys():
@@ -25,3 +25,18 @@ def test_is_truthy():
     assert is_truthy("on") is True
     assert is_truthy("false") is False
     assert is_truthy(None) is False
+
+
+def test_parse_space_kv():
+    content = """
+    # /boot/loader/loader.conf
+    default nixos-generation-1.conf
+    timeout 10
+    console-mode max
+    editor no
+    """
+    res = parse_space_kv(content)
+    assert res["default"] == "nixos-generation-1.conf"
+    assert res["timeout"] == "10"
+    assert res["console-mode"] == "max"
+    assert res["editor"] == "no"
