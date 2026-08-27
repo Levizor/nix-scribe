@@ -50,7 +50,7 @@ class SystemContext:
         except PermissionError:
             if self.use_sudo:
                 try:
-                    self.run_command(["sudo", "test", "-e", rpath])
+                    self._run_command(["sudo", "test", "-e", rpath])
                     return True
                 except RuntimeError:
                     return False
@@ -86,7 +86,7 @@ class SystemContext:
 
         return result
 
-    def run_command(self, command: list):
+    def _run_command(self, command: list):
         command = self._root_command_args(command)
         logger.debug(f"Running command: {command}")
         if command[0] == "sudo":
@@ -105,7 +105,7 @@ class SystemContext:
             err = e.stderr.lower()
             if "permission denied" in err or "access denied" in err:
                 if self.use_sudo:
-                    return self.run_command(["sudo"] + command)
+                    return self._run_command(["sudo"] + command)
                 raise ElevationRequest(
                     " ".join(command), "Command requires root privileges."
                 ) from e
@@ -127,7 +127,7 @@ class SystemContext:
             return rpath.read_text(encoding="utf-8")
         except PermissionError:
             if self.use_sudo:
-                return self.run_command(["sudo", "cat", path])
+                return self._run_command(["sudo", "cat", path])
             raise ElevationRequest(path, "Read permission denied.") from PermissionError
 
     def list_directory(self, path: str) -> list[str]:
@@ -136,7 +136,7 @@ class SystemContext:
             return sorted(os.listdir(rpath))
         except PermissionError:
             if self.use_sudo:
-                output = self.run_command(["sudo", "ls", "-1", path])
+                output = self._run_command(["sudo", "ls", "-1", path])
                 return sorted(output.splitlines()) if output else []
             raise ElevationRequest(
                 path, "List directory permission denied."
@@ -163,7 +163,7 @@ class SystemContext:
             shutil.copy2(rsrc, dst)
         except PermissionError:
             if self.use_sudo:
-                self.run_command(["sudo", "cp", "-p", src, str(dst)])
+                self._run_command(["sudo", "cp", "-p", src, str(dst)])
             else:
                 raise ElevationRequest(
                     str(rsrc), f"Permission denied while copying to {dst}"
