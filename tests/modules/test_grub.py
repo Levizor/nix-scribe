@@ -12,7 +12,7 @@ GRUB_BACKGROUND="/boot/grub/background.png"
 """
 
 
-def test_grub_scanner_efi(tmp_path, monkeypatch):
+def test_grub_scanner_efi(tmp_path):
     assert grub.scan
     (tmp_path / "etc/default").mkdir(parents=True)
     (tmp_path / "boot/grub").mkdir(parents=True)
@@ -22,15 +22,9 @@ def test_grub_scanner_efi(tmp_path, monkeypatch):
     (tmp_path / "bin").mkdir(parents=True)
     (tmp_path / "bin/grub-install").touch()
     (tmp_path / "etc/default/grub").write_text(MOCK_GRUB_DEFAULT)
+    (tmp_path / "etc/fstab").write_text("/dev/sda1 / zfs defaults 0 0\n")
 
     context = SystemContext(tmp_path)
-
-    monkeypatch.setattr(
-        context,
-        "run_command",
-        lambda cmd: "/dev/sda1 on / type zfs (rw,relatime)" if cmd == ["mount"] else "",
-    )
-
     ir = grub.scan(context)
 
     assert ir["enable"] is True
