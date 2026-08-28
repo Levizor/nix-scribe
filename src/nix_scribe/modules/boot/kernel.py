@@ -3,88 +3,83 @@ from typing import Any
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import ConfigFragment
+from nix_scribe.lib.parsers.parser import ConfigReader
 from nix_scribe.lib.registry import Module
 
 logger = logging.getLogger(__name__)
 
 kernel = Module("boot.kernel")
 
-ETC_MODULES_PATH = "/etc/modules"
-ETC_MODULES_LOAD_D_PATH = "/etc/modules-load.d"
-ETC_MODPROBE_D_PATH = "/etc/modprobe.d"
+MODULES_PATHS = [
+    "/etc/modules",
+    "/etc/modules-load.d",
+]
+
+MODPROBE_PATHS = [
+    "/etc/modprobe.d",
+]
+
 ETC_CMDLINE_PATHS = [
     "/etc/cmdline",
     "/etc/kernel/cmdline",
 ]
 
 
-def _parse_modules_file(content: str) -> list[str]:
+def _parse_modules(content: str) -> dict[str, Any]:
     modules = []
     for line in content.splitlines():
         line = line.strip()
-        if not line or line.startswith("#") or line.startswith(";"):
+        if line and not line.startswith(("#", ";")):
+            parts = line.split()
+            if parts:
+                modules.append(parts[0])
+    return {"modules": modules}
+
+
+def _parse_modprobe(content: str) -> dict[str, Any]:
+    blacklisted = []
+    extra = []
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
             continue
-        parts = line.split()
-        if parts:
-            modules.append(parts[0])
-    return modules
+        parts = stripped.split()
+        if len(parts) >= 2 and parts[0] == "blacklist":
+            blacklisted.append(parts[1])
+        elif (
+            len(parts) >= 3
+            and parts[0] == "install"
+            and parts[2] in ("/bin/true", "/bin/false", "/bin/disabled")
+        ):
+            blacklisted.append(parts[1])
+        else:
+            extra.append(stripped)
+
+    return {"blacklisted": blacklisted, "extra": extra}
 
 
 @kernel.scanner()
 def scan(context: SystemContext) -> dict[str, Any]:
     ir: dict[str, Any] = {}
 
-    # 1. Scan auto-loaded modules (/etc/modules, /etc/modules-load.d/*.conf)
-    kernel_modules: list[str] = []
+    # 1. Scan auto-loaded modules (/etc/modules, /etc/modules-load.d)
+    modules_reader = ConfigReader(context, _parse_modules)
+    modules_config = modules_reader.read_merge_configs_from_paths_list(MODULES_PATHS)
+    if modules_config.get("modules"):
+        ir["kernelModules"] = sorted(list(dict.fromkeys(modules_config["modules"])))
 
-    if context.path_exists(ETC_MODULES_PATH):
-        content = context.read_file(ETC_MODULES_PATH)
-        kernel_modules.extend(_parse_modules_file(content))
-
-    if context.path_exists(ETC_MODULES_LOAD_D_PATH):
-        for filename in context.list_directory(ETC_MODULES_LOAD_D_PATH):
-            if filename.endswith(".conf"):
-                filepath = f"{ETC_MODULES_LOAD_D_PATH}/{filename}"
-                content = context.read_file(filepath)
-                kernel_modules.extend(_parse_modules_file(content))
-
-    if kernel_modules:
-        ir["kernelModules"] = sorted(list(dict.fromkeys(kernel_modules)))
-
-    # 2. Scan modprobe configuration (/etc/modprobe.d/*.conf)
-    blacklisted: list[str] = []
-    extra_modprobe: list[str] = []
-
-    if context.path_exists(ETC_MODPROBE_D_PATH):
-        for filename in context.list_directory(ETC_MODPROBE_D_PATH):
-            if filename.endswith(".conf"):
-                filepath = f"{ETC_MODPROBE_D_PATH}/{filename}"
-                content = context.read_file(filepath)
-                for line in content.splitlines():
-                    stripped = line.strip()
-                    if not stripped or stripped.startswith("#"):
-                        continue
-                    parts = stripped.split()
-                    if len(parts) >= 2 and parts[0] == "blacklist":
-                        blacklisted.append(parts[1])
-                    elif (
-                        len(parts) >= 3
-                        and parts[0] == "install"
-                        and parts[2] in ("/bin/true", "/bin/false", "/bin/disabled")
-                    ):
-                        blacklisted.append(parts[1])
-                    else:
-                        extra_modprobe.append(stripped)
-
-    if blacklisted:
-        ir["blacklistedKernelModules"] = sorted(list(dict.fromkeys(blacklisted)))
-
-    if extra_modprobe:
-        ir["extraModprobeConfig"] = "\n".join(extra_modprobe)
+    # 2. Scan modprobe configuration (/etc/modprobe.d)
+    modprobe_reader = ConfigReader(context, _parse_modprobe)
+    modprobe_config = modprobe_reader.read_merge_configs_from_paths_list(MODPROBE_PATHS)
+    if modprobe_config.get("blacklisted"):
+        ir["blacklistedKernelModules"] = sorted(
+            list(dict.fromkeys(modprobe_config["blacklisted"]))
+        )
+    if modprobe_config.get("extra"):
+        ir["extraModprobeConfig"] = "\n".join(modprobe_config["extra"])
 
     # 3. Scan kernel command line (/etc/cmdline or /etc/kernel/cmdline)
     cmdline_path = next((p for p in ETC_CMDLINE_PATHS if context.path_exists(p)), None)
-
     if cmdline_path:
         content = context.read_file(cmdline_path).strip()
         if content:

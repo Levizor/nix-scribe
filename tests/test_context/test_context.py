@@ -46,3 +46,17 @@ def test_root_command_args_no_prefix_non_paths(context):
     assert prefixed[0] == "grep"
     assert prefixed[1] == "root"
     assert prefixed[2] == str(GENERIC_SYSTEM_ROOT / "etc/passwd")
+
+
+def test_list_directory_full_paths(tmp_path):
+    d = tmp_path / "etc/testdir"
+    d.mkdir(parents=True)
+    (d / "a.txt").write_text("a")
+    (d / "b.txt").write_text("b")
+
+    ctx = SystemContext(tmp_path)
+    entries = ctx.list_directory("/etc/testdir")
+    assert entries == ["a.txt", "b.txt"]
+
+    full_entries = ctx.list_directory("/etc/testdir", full_paths=True)
+    assert full_entries == ["/etc/testdir/a.txt", "/etc/testdir/b.txt"]
