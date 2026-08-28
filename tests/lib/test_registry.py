@@ -5,25 +5,25 @@ from nix_scribe.lib.registry import Module, ModuleRegistry
 
 @pytest.fixture(autouse=True)
 def reset_registry():
-    ModuleRegistry.reset_instance()
+    ModuleRegistry().reset()
     yield
-    ModuleRegistry.reset_instance()
+    ModuleRegistry().reset()
 
 
 def test_singleton_instance():
-    r1 = ModuleRegistry.get_instance()
-    r2 = ModuleRegistry.get_instance()
+    r1 = ModuleRegistry()
+    r2 = ModuleRegistry()
     assert r1 is r2
 
 
 def test_module_registration():
-    registry = ModuleRegistry.get_instance()
+    registry = ModuleRegistry()
     mod = Module("boot.loader.grub")
     assert registry.get_all() == {"boot.loader.grub": mod}
 
 
 def test_parse_patterns():
-    registry = ModuleRegistry.get_instance()
+    registry = ModuleRegistry()
     assert registry._parse_patterns(["boot.*", "security.pam,networking"]) == [
         "boot.*",
         "security.pam",
@@ -33,14 +33,14 @@ def test_parse_patterns():
 
 
 def test_is_match():
-    registry = ModuleRegistry.get_instance()
+    registry = ModuleRegistry()
     assert registry.is_match("boot.loader.grub", ["boot.*"]) is True
     assert registry.is_match("boot.loader.grub", ["boot.loader.grub"]) is True
     assert registry.is_match("security.pam", ["boot.*"]) is False
 
 
 def test_filter_modules_default_and_disable():
-    registry = ModuleRegistry.get_instance()
+    registry = ModuleRegistry()
     Module("boot.loader.grub")
     Module("security.pam")
     Module("experimental.feature")

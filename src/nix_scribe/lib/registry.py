@@ -13,7 +13,7 @@ class Module:
         self.name = name
         self.scan: ScannerFunc | None = None
         self.map: MapperFunc | None = None
-        ModuleRegistry.get_instance().register(self)
+        ModuleRegistry().register(self)
 
     def scanner(self) -> Callable[[ScannerFunc], ScannerFunc]:
         """Decorator to register the scanner function."""
@@ -41,21 +41,16 @@ class ModuleRegistry:
 
     _instance: ClassVar["ModuleRegistry | None"] = None
 
-    def __init__(self) -> None:
-        self._modules: dict[str, Module] = {}
-        self.default_blacklist: set[str] = {"boot.kernel"}
-
-    @classmethod
-    def get_instance(cls) -> "ModuleRegistry":
-        """Returns the global singleton instance of ModuleRegistry."""
+    def __new__(cls) -> "ModuleRegistry":
         if cls._instance is None:
-            cls._instance = cls()
+            cls._instance = super().__new__(cls)
+            cls._instance.reset()
         return cls._instance
 
-    @classmethod
-    def reset_instance(cls) -> None:
-        """Resets the singleton instance (useful for clean unit testing)."""
-        cls._instance = cls()
+    def reset(self) -> None:
+        """Resets the singleton registry instance state (useful for clean unit testing)."""
+        self._modules: dict[str, Module] = {}
+        self.default_blacklist: set[str] = {"boot.kernel"}
 
     def register(self, module: Module) -> None:
         """Registers a module in the registry."""
@@ -140,7 +135,7 @@ def print_modules_table(console: Any = None) -> None:
 
     loader = ModuleLoader()
     modules = loader.discover()
-    registry = ModuleRegistry.get_instance()
+    registry = ModuleRegistry()
 
     if console is None:
         console = Console()
@@ -188,7 +183,7 @@ def print_modules_tree(console: Any = None) -> None:
 
     loader = ModuleLoader()
     modules = loader.discover()
-    registry = ModuleRegistry.get_instance()
+    registry = ModuleRegistry()
 
     if console is None:
         console = Console()

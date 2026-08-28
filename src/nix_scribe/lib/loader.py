@@ -29,7 +29,7 @@ class ModuleLoader:
 
         valid_modules: dict[str, Module] = {}
 
-        for full_name, module in ModuleRegistry.get_instance().get_all().items():
+        for full_name, module in ModuleRegistry().get_all().items():
             if not module.scan:
                 logger.warning(f"Module '{full_name}' skipped: No scanner.")
                 continue
