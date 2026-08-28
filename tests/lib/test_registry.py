@@ -1,0 +1,63 @@
+import pytest
+
+from nix_scribe.lib.registry import Module, ModuleRegistry
+
+
+@pytest.fixture(autouse=True)
+def reset_registry():
+    ModuleRegistry.reset_instance()
+    yield
+    ModuleRegistry.reset_instance()
+
+
+def test_singleton_instance():
+    r1 = ModuleRegistry.get_instance()
+    r2 = ModuleRegistry.get_instance()
+    assert r1 is r2
+
+
+def test_module_registration():
+    registry = ModuleRegistry.get_instance()
+    mod = Module("boot.loader.grub")
+    assert registry.get_all() == {"boot.loader.grub": mod}
+
+
+def test_parse_patterns():
+    registry = ModuleRegistry.get_instance()
+    assert registry._parse_patterns(["boot.*", "security.pam,networking"]) == [
+        "boot.*",
+        "security.pam",
+        "networking",
+    ]
+    assert registry._parse_patterns(None) == []
+
+
+def test_is_match():
+    registry = ModuleRegistry.get_instance()
+    assert registry.is_match("boot.loader.grub", ["boot.*"]) is True
+    assert registry.is_match("boot.loader.grub", ["boot.loader.grub"]) is True
+    assert registry.is_match("security.pam", ["boot.*"]) is False
+
+
+def test_filter_modules_default_and_disable():
+    registry = ModuleRegistry.get_instance()
+    Module("boot.loader.grub")
+    Module("security.pam")
+    Module("experimental.feature")
+
+    registry.default_blacklist = {"experimental.*"}
+
+    filtered = registry.filter()
+    assert "boot.loader.grub" in filtered
+    assert "security.pam" in filtered
+    assert "experimental.feature" not in filtered
+
+    filtered_enable = registry.filter(enable=["experimental.feature"])
+    assert "experimental.feature" in filtered_enable
+
+    filtered_disable = registry.filter(disable=["boot.loader.grub"])
+    assert "boot.loader.grub" not in filtered_disable
+    assert "security.pam" in filtered_disable
+
+    filtered_only = registry.filter(only=["security.*"])
+    assert list(filtered_only.keys()) == ["security.pam"]

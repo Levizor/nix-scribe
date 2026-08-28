@@ -59,6 +59,29 @@ def main(
             help="Set modules verbosity level: 0 - silent, 1 - INFO, 2 - DEBUG",
         ),
     ] = None,
+    enable_module: Annotated[
+        list[str] | None,
+        typer.Option(
+            "-e",
+            "--enable-module",
+            help="Enable/whitelist specific module(s) (comma-separated or repeated flags)",
+        ),
+    ] = None,
+    disable_module: Annotated[
+        list[str] | None,
+        typer.Option(
+            "-d",
+            "--disable-module",
+            help="Disable/blacklist specific module(s) (comma-separated or repeated flags)",
+        ),
+    ] = None,
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only",
+            help="Only run specific module(s) (comma-separated or repeated flags)",
+        ),
+    ] = None,
 ):
     args.root_path = root_path
     args.output_path = output_path
@@ -67,6 +90,9 @@ def main(
     args.mod_verbosity = verbosity if not mod_verbosity else mod_verbosity
     args.no_comment = no_comment
     args.confirm = confirm
+    args.enable_modules = enable_module or []
+    args.disable_modules = disable_module or []
+    args.only_modules = only or []
 
     console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
     log = logging.getLogger(__name__)
