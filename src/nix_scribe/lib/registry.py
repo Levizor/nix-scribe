@@ -43,7 +43,7 @@ class ModuleRegistry:
 
     def __init__(self) -> None:
         self._modules: dict[str, Module] = {}
-        self.default_blacklist: set[str] = set()
+        self.default_blacklist: set[str] = {"boot.kernel"}
 
     @classmethod
     def get_instance(cls) -> "ModuleRegistry":
