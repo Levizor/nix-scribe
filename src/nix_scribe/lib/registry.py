@@ -127,3 +127,98 @@ class ModuleRegistry:
             filtered[name] = mod
 
         return filtered
+
+
+def print_modules_table(console: Any = None) -> None:
+    """
+    Prints a formatted table of all discovered modules and their default status using Rich (with fallback).
+    """
+    from rich.console import Console
+    from rich.table import Table
+
+    from nix_scribe.lib.loader import ModuleLoader
+
+    loader = ModuleLoader()
+    modules = loader.discover()
+    registry = ModuleRegistry.get_instance()
+
+    if console is None:
+        console = Console()
+
+    try:
+        table = Table(
+            title="nix-scribe Discovered Modules",
+            show_header=True,
+            header_style="bold magenta",
+        )
+        table.add_column("Module Name", style="cyan")
+        table.add_column("Category", style="blue")
+        table.add_column("Status", style="bold")
+
+        for name in sorted(modules.keys()):
+            category = name.split(".")[0]
+            is_disabled = registry.is_match(name, list(registry.default_blacklist))
+            status = (
+                "[yellow]disabled (default)[/yellow]"
+                if is_disabled
+                else "[green]enabled[/green]"
+            )
+            table.add_row(name, category, status)
+
+        console.print(table)
+    except Exception:
+        print("nix-scribe Discovered Modules:")
+        print(f"{'Module Name':<35} {'Category':<15} {'Status'}")
+        print("-" * 65)
+        for name in sorted(modules.keys()):
+            category = name.split(".")[0]
+            is_disabled = registry.is_match(name, list(registry.default_blacklist))
+            status = "disabled (default)" if is_disabled else "enabled"
+            print(f"{name:<35} {category:<15} {status}")
+
+
+def print_modules_tree(console: Any = None) -> None:
+    """
+    Prints a hierarchical tree view of all discovered modules and their default status using Rich (with fallback).
+    """
+    from rich.console import Console
+    from rich.tree import Tree
+
+    from nix_scribe.lib.loader import ModuleLoader
+
+    loader = ModuleLoader()
+    modules = loader.discover()
+    registry = ModuleRegistry.get_instance()
+
+    if console is None:
+        console = Console()
+
+    try:
+        root_tree = Tree("nix-scribe Modules", guide_style="bold bright_blue")
+        nodes: dict[str, Tree] = {}
+
+        for name in sorted(modules.keys()):
+            parts = name.split(".")
+            current_tree = root_tree
+
+            for i in range(len(parts) - 1):
+                path = ".".join(parts[: i + 1])
+                if path not in nodes:
+                    nodes[path] = current_tree.add(f"[bold blue]{parts[i]}[/bold blue]")
+                current_tree = nodes[path]
+
+            is_disabled = registry.is_match(name, list(registry.default_blacklist))
+            status = (
+                "[yellow](disabled by default)[/yellow]"
+                if is_disabled
+                else "[green](enabled)[/green]"
+            )
+            current_tree.add(f"[cyan]{parts[-1]}[/cyan] {status}")
+
+        console.print(root_tree)
+    except Exception:
+        print("nix-scribe Modules Tree:")
+        for name in sorted(modules.keys()):
+            is_disabled = registry.is_match(name, list(registry.default_blacklist))
+            status = "(disabled by default)" if is_disabled else "(enabled)"
+            print(f"  - {name} {status}")

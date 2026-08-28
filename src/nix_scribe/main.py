@@ -82,6 +82,20 @@ def main(
             help="Only run specific module(s) (comma-separated or repeated flags)",
         ),
     ] = None,
+    list_modules: Annotated[
+        bool,
+        typer.Option(
+            "--list-modules",
+            help="List all available modules and their default states, then exit",
+        ),
+    ] = False,
+    list_modules_tree: Annotated[
+        bool,
+        typer.Option(
+            "--list-modules-tree",
+            help="List all available modules in a hierarchical tree view, then exit",
+        ),
+    ] = False,
 ):
     args.root_path = root_path
     args.output_path = output_path
@@ -97,6 +111,18 @@ def main(
     console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
     log = logging.getLogger(__name__)
     log.debug(args)
+
+    if list_modules_tree:
+        from nix_scribe.lib.registry import print_modules_tree
+
+        print_modules_tree(console)
+        raise typer.Exit(code=0)
+
+    if list_modules:
+        from nix_scribe.lib.registry import print_modules_table
+
+        print_modules_table(console)
+        raise typer.Exit(code=0)
 
     args.check()
 

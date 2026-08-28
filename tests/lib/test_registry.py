@@ -61,3 +61,19 @@ def test_filter_modules_default_and_disable():
 
     filtered_only = registry.filter(only=["security.*"])
     assert list(filtered_only.keys()) == ["security.pam"]
+
+
+def test_print_modules_table(capsys):
+    from nix_scribe.lib.registry import print_modules_table
+
+    print_modules_table()
+    captured = capsys.readouterr()
+    assert "Discovered Modules" in captured.out or "Module Name" in captured.out
+
+
+def test_print_modules_tree(capsys):
+    from nix_scribe.lib.registry import print_modules_tree
+
+    print_modules_tree()
+    captured = capsys.readouterr()
+    assert "nix-scribe Modules" in captured.out or "Modules Tree" in captured.out
