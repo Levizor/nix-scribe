@@ -115,13 +115,23 @@ def main(
     if list_modules_tree:
         from nix_scribe.lib.registry import print_modules_tree
 
-        print_modules_tree(console)
+        print_modules_tree(
+            console,
+            enable=args.enable_modules,
+            disable=args.disable_modules,
+            only=args.only_modules,
+        )
         raise typer.Exit(code=0)
 
     if list_modules:
         from nix_scribe.lib.registry import print_modules_table
 
-        print_modules_table(console)
+        print_modules_table(
+            console,
+            enable=args.enable_modules,
+            disable=args.disable_modules,
+            only=args.only_modules,
+        )
         raise typer.Exit(code=0)
 
     args.check()

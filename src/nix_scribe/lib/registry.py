@@ -124,9 +124,42 @@ class ModuleRegistry:
         return filtered
 
 
-def print_modules_table(console: Any = None) -> None:
+def _determine_status(
+    name: str,
+    registry: ModuleRegistry,
+    active_modules: dict[str, Module],
+    enable_patterns: list[str],
+    disable_patterns: list[str],
+    only_patterns: list[str],
+) -> tuple[str, str]:
     """
-    Prints a formatted table of all discovered modules and their default status using Rich (with fallback).
+    Returns (rich_status_str, plain_status_str) based on CLI filter parameters and default blacklist.
+    """
+    is_active = name in active_modules
+    is_default_blacklisted = registry.is_match(name, list(registry.default_blacklist))
+
+    if is_active:
+        if is_default_blacklisted and registry.is_match(name, enable_patterns):
+            return "[green]enabled (via CLI)[/green]", "enabled (via CLI)"
+        return "[green]enabled[/green]", "enabled"
+    else:
+        if disable_patterns and registry.is_match(name, disable_patterns):
+            return "[yellow]disabled (via CLI)[/yellow]", "disabled (via CLI)"
+        if only_patterns and not registry.is_match(name, only_patterns):
+            return "[dim]excluded (--only)[/dim]", "excluded (--only)"
+        if is_default_blacklisted:
+            return "[yellow]disabled (default)[/yellow]", "disabled (default)"
+        return "[yellow]disabled[/yellow]", "disabled"
+
+
+def print_modules_table(
+    console: Any = None,
+    enable: list[str] | None = None,
+    disable: list[str] | None = None,
+    only: list[str] | None = None,
+) -> None:
+    """
+    Prints a formatted table of all discovered modules and their status using Rich (with fallback).
     """
     from rich.console import Console
     from rich.table import Table
@@ -136,6 +169,23 @@ def print_modules_table(console: Any = None) -> None:
     loader = ModuleLoader()
     modules = loader.discover()
     registry = ModuleRegistry()
+    active_modules = registry.filter(enable=enable, disable=disable, only=only)
+
+    enable_patterns = registry._parse_patterns(enable)
+    disable_patterns = registry._parse_patterns(disable)
+    only_patterns = registry._parse_patterns(only)
+
+    statuses = {
+        name: _determine_status(
+            name,
+            registry,
+            active_modules,
+            enable_patterns,
+            disable_patterns,
+            only_patterns,
+        )
+        for name in modules
+    }
 
     if console is None:
         console = Console()
@@ -152,13 +202,7 @@ def print_modules_table(console: Any = None) -> None:
 
         for name in sorted(modules.keys()):
             category = name.split(".")[0]
-            is_disabled = registry.is_match(name, list(registry.default_blacklist))
-            status = (
-                "[yellow]disabled (default)[/yellow]"
-                if is_disabled
-                else "[green]enabled[/green]"
-            )
-            table.add_row(name, category, status)
+            table.add_row(name, category, statuses[name][0])
 
         console.print(table)
     except Exception:
@@ -167,14 +211,17 @@ def print_modules_table(console: Any = None) -> None:
         print("-" * 65)
         for name in sorted(modules.keys()):
             category = name.split(".")[0]
-            is_disabled = registry.is_match(name, list(registry.default_blacklist))
-            status = "disabled (default)" if is_disabled else "enabled"
-            print(f"{name:<35} {category:<15} {status}")
+            print(f"{name:<35} {category:<15} {statuses[name][1]}")
 
 
-def print_modules_tree(console: Any = None) -> None:
+def print_modules_tree(
+    console: Any = None,
+    enable: list[str] | None = None,
+    disable: list[str] | None = None,
+    only: list[str] | None = None,
+) -> None:
     """
-    Prints a hierarchical tree view of all discovered modules and their default status using Rich (with fallback).
+    Prints a hierarchical tree view of all discovered modules and their status using Rich (with fallback).
     """
     from rich.console import Console
     from rich.tree import Tree
@@ -184,6 +231,23 @@ def print_modules_tree(console: Any = None) -> None:
     loader = ModuleLoader()
     modules = loader.discover()
     registry = ModuleRegistry()
+    active_modules = registry.filter(enable=enable, disable=disable, only=only)
+
+    enable_patterns = registry._parse_patterns(enable)
+    disable_patterns = registry._parse_patterns(disable)
+    only_patterns = registry._parse_patterns(only)
+
+    statuses = {
+        name: _determine_status(
+            name,
+            registry,
+            active_modules,
+            enable_patterns,
+            disable_patterns,
+            only_patterns,
+        )
+        for name in modules
+    }
 
     if console is None:
         console = Console()
@@ -202,18 +266,10 @@ def print_modules_tree(console: Any = None) -> None:
                     nodes[path] = current_tree.add(f"[bold blue]{parts[i]}[/bold blue]")
                 current_tree = nodes[path]
 
-            is_disabled = registry.is_match(name, list(registry.default_blacklist))
-            status = (
-                "[yellow](disabled by default)[/yellow]"
-                if is_disabled
-                else "[green](enabled)[/green]"
-            )
-            current_tree.add(f"[cyan]{parts[-1]}[/cyan] {status}")
+            current_tree.add(f"[cyan]{parts[-1]}[/cyan] ({statuses[name][0]})")
 
         console.print(root_tree)
     except Exception:
         print("nix-scribe Modules Tree:")
         for name in sorted(modules.keys()):
-            is_disabled = registry.is_match(name, list(registry.default_blacklist))
-            status = "(disabled by default)" if is_disabled else "(enabled)"
-            print(f"  - {name} {status}")
+            print(f"  - {name} ({statuses[name][1]})")
