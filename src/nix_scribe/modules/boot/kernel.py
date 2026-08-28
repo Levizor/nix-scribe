@@ -30,13 +30,13 @@ ETC_CMDLINE_PATHS = [
 def scan(context: SystemContext) -> dict[str, Any]:
     ir: dict[str, Any] = {}
 
-    # 1. Scan auto-loaded modules (/etc/modules, /etc/modules-load.d)
+    # Scan auto-loaded modules (/etc/modules, /etc/modules-load.d)
     modules_reader = ConfigReader(context, parse_modules)
     modules_config = modules_reader.read_merge_configs_from_paths_list(MODULES_PATHS)
     if modules_config.get("modules"):
         ir["kernelModules"] = sorted(list(dict.fromkeys(modules_config["modules"])))
 
-    # 2. Scan modprobe configuration (/etc/modprobe.d)
+    # Scan modprobe configuration (/etc/modprobe.d)
     modprobe_reader = ConfigReader(context, parse_modprobe)
     modprobe_config = modprobe_reader.read_merge_configs_from_paths_list(MODPROBE_PATHS)
     if modprobe_config.get("blacklisted"):
@@ -46,7 +46,7 @@ def scan(context: SystemContext) -> dict[str, Any]:
     if modprobe_config.get("extra"):
         ir["extraModprobeConfig"] = "\n".join(modprobe_config["extra"])
 
-    # 3. Scan kernel command line (/etc/cmdline or /etc/kernel/cmdline)
+    # Scan kernel command line (/etc/cmdline or /etc/kernel/cmdline)
     cmdline_path = next((p for p in ETC_CMDLINE_PATHS if context.path_exists(p)), None)
     if cmdline_path:
         content = context.read_file(cmdline_path).strip()
