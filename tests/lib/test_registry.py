@@ -63,6 +63,18 @@ def test_filter_modules_default_and_disable():
     assert list(filtered_only.keys()) == ["security.pam"]
 
 
+def test_validate_patterns_invalid_module():
+    from nix_scribe.lib.registry import InvalidModuleError
+
+    registry = ModuleRegistry()
+    Module("boot.loader.grub")
+
+    with pytest.raises(InvalidModuleError) as exc_info:
+        registry.filter(disable=["non_existent_module"])
+
+    assert "non_existent_module" in str(exc_info.value)
+
+
 def test_print_modules_table(capsys):
     from nix_scribe.lib.registry import print_modules_table
 

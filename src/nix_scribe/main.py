@@ -112,32 +112,37 @@ def main(
     log = logging.getLogger(__name__)
     log.debug(args)
 
-    if list_modules_tree:
-        from nix_scribe.lib.registry import print_modules_tree
+    from nix_scribe.lib.registry import InvalidModuleError
 
-        print_modules_tree(
-            console,
-            enable=args.enable_modules,
-            disable=args.disable_modules,
-            only=args.only_modules,
-        )
-        raise typer.Exit(code=0)
+    try:
+        if list_modules_tree:
+            from nix_scribe.lib.registry import print_modules_tree
 
-    if list_modules:
-        from nix_scribe.lib.registry import print_modules_table
+            print_modules_tree(
+                console,
+                enable=args.enable_modules,
+                disable=args.disable_modules,
+                only=args.only_modules,
+            )
+            raise typer.Exit(code=0)
 
-        print_modules_table(
-            console,
-            enable=args.enable_modules,
-            disable=args.disable_modules,
-            only=args.only_modules,
-        )
-        raise typer.Exit(code=0)
+        if list_modules:
+            from nix_scribe.lib.registry import print_modules_table
 
-    args.check()
+            print_modules_table(
+                console,
+                enable=args.enable_modules,
+                disable=args.disable_modules,
+                only=args.only_modules,
+            )
+            raise typer.Exit(code=0)
 
-    script = NixScribe(console)
-    script.run()
+        args.check()
+
+        script = NixScribe(console)
+        script.run()
+    except InvalidModuleError as e:
+        raise typer.BadParameter(str(e)) from e
 
 
 if __name__ == "__main__":

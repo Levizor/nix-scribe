@@ -34,6 +34,12 @@ class Module:
         return decorator
 
 
+class InvalidModuleError(ValueError):
+    """Raised when a user-specified module pattern does not match any registered module."""
+
+    pass
+
+
 class ModuleRegistry:
     """
     Singleton registry managing registered modules, default blacklist/whitelist states, and CLI filtering.
@@ -84,6 +90,29 @@ class ModuleRegistry:
                 return True
         return False
 
+    def validate_patterns(
+        self,
+        enable: list[str] | None = None,
+        disable: list[str] | None = None,
+        only: list[str] | None = None,
+    ) -> None:
+        """
+        Validates that all user-supplied patterns match at least one registered module.
+        """
+        options = [
+            (enable, "--enable-module (-e)"),
+            (disable, "--disable-module (-d)"),
+            (only, "--only"),
+        ]
+
+        for raw_patterns, option_name in options:
+            parsed = self._parse_patterns(raw_patterns)
+            for pattern in parsed:
+                if not any(self.is_match(name, [pattern]) for name in self._modules):
+                    raise InvalidModuleError(
+                        f"Module pattern '{pattern}' specified in {option_name} did not match any available module."
+                    )
+
     def filter(
         self,
         enable: list[str] | None = None,
@@ -93,6 +122,8 @@ class ModuleRegistry:
         """
         Filters modules based on default_blacklist, --only, --enable-module (-e), and --disable-module (-d).
         """
+        self.validate_patterns(enable=enable, disable=disable, only=only)
+
         enable_patterns = self._parse_patterns(enable)
         disable_patterns = self._parse_patterns(disable)
         only_patterns = self._parse_patterns(only)
