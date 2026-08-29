@@ -20,6 +20,7 @@ class CLIArguments:
     enable_modules: list[str] = field(default_factory=list)
     disable_modules: list[str] = field(default_factory=list)
     only_modules: list[str] = field(default_factory=list)
+    plugins: list[str] = field(default_factory=list)
 
     def check(self):
         output = self.output_path
