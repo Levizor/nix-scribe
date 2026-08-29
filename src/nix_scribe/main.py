@@ -4,9 +4,11 @@ from typing import Annotated
 
 import typer
 
+from nix_scribe.lib.loader import ModuleLoader
 from nix_scribe.lib.registry import (
     InvalidModuleError,
     ModuleFilter,
+    ModuleRegistry,
     print_modules_table,
     print_modules_tree,
 )
@@ -118,6 +120,9 @@ def main(
     log = logging.getLogger(__name__)
     log.debug(args)
 
+    loader = ModuleLoader()
+    valid_modules = loader.discover()
+
     filter_spec = ModuleFilter.from_raw(
         enable=args.enable_modules,
         disable=args.disable_modules,
@@ -126,16 +131,20 @@ def main(
 
     try:
         if list_modules_tree:
-            print_modules_tree(console, filter_spec=filter_spec)
+            print_modules_tree(console, modules=valid_modules, filter_spec=filter_spec)
             raise typer.Exit(code=0)
 
         if list_modules:
-            print_modules_table(console, filter_spec=filter_spec)
+            print_modules_table(console, modules=valid_modules, filter_spec=filter_spec)
             raise typer.Exit(code=0)
 
         args.check()
 
-        script = NixScribe(console)
+        active_modules = ModuleRegistry().filter(
+            modules=valid_modules, filter_spec=filter_spec
+        )
+
+        script = NixScribe(console, modules=active_modules)
         script.run()
     except InvalidModuleError as e:
         raise typer.BadParameter(str(e)) from e

@@ -214,18 +214,23 @@ def _strip_markup(text: str) -> str:
 
 
 def _prepare_module_statuses(
+    modules: dict[str, Module] | None = None,
     filter_spec: ModuleFilter | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
 ) -> tuple[dict[str, Module], dict[str, str]]:
     """
-    Discovers valid modules and computes rich status strings for each module.
+    Computes rich status strings for each valid module.
     """
-    from nix_scribe.lib.loader import ModuleLoader
+    if modules is None:
+        from nix_scribe.lib.loader import ModuleLoader
 
-    loader = ModuleLoader()
-    modules = loader.discover()
+        loader = ModuleLoader()
+        target_modules = loader.discover()
+    else:
+        target_modules = modules
+
     registry = ModuleRegistry()
 
     spec = filter_spec or ModuleFilter.from_raw(
@@ -233,18 +238,19 @@ def _prepare_module_statuses(
     )
     blacklist = list(registry.default_blacklist)
 
-    registry.validate_patterns(modules, filter_spec=spec)
+    registry.validate_patterns(target_modules, filter_spec=spec)
 
     statuses = {
         name: spec.get_status(name, registry.is_match(name, blacklist))
-        for name in modules
+        for name in target_modules
     }
 
-    return modules, statuses
+    return target_modules, statuses
 
 
 def print_modules_table(
     console: Console | None = None,
+    modules: dict[str, Module] | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -253,8 +259,12 @@ def print_modules_table(
     """
     Prints a formatted table of all discovered modules and their status using Rich (with fallback).
     """
-    modules, statuses = _prepare_module_statuses(
-        filter_spec=filter_spec, enable=enable, disable=disable, only=only
+    target_modules, statuses = _prepare_module_statuses(
+        modules=modules,
+        filter_spec=filter_spec,
+        enable=enable,
+        disable=disable,
+        only=only,
     )
 
     if console is None:
@@ -270,7 +280,7 @@ def print_modules_table(
         table.add_column("Category", style="blue")
         table.add_column("Status", style="bold")
 
-        for name in sorted(modules.keys()):
+        for name in sorted(target_modules.keys()):
             category = name.split(".")[0]
             table.add_row(name, category, statuses[name])
 
@@ -279,13 +289,14 @@ def print_modules_table(
         print("nix-scribe Discovered Modules:")
         print(f"{'Module Name':<35} {'Category':<15} {'Status'}")
         print("-" * 65)
-        for name in sorted(modules.keys()):
+        for name in sorted(target_modules.keys()):
             category = name.split(".")[0]
             print(f"{name:<35} {category:<15} {_strip_markup(statuses[name])}")
 
 
 def print_modules_tree(
     console: Console | None = None,
+    modules: dict[str, Module] | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -294,8 +305,12 @@ def print_modules_tree(
     """
     Prints a hierarchical tree view of all discovered modules and their status using Rich (with fallback).
     """
-    modules, statuses = _prepare_module_statuses(
-        filter_spec=filter_spec, enable=enable, disable=disable, only=only
+    target_modules, statuses = _prepare_module_statuses(
+        modules=modules,
+        filter_spec=filter_spec,
+        enable=enable,
+        disable=disable,
+        only=only,
     )
 
     if console is None:
@@ -305,7 +320,7 @@ def print_modules_tree(
         root_tree = Tree("nix-scribe Modules", guide_style="bold bright_blue")
         nodes: dict[str, Tree] = {}
 
-        for name in sorted(modules.keys()):
+        for name in sorted(target_modules.keys()):
             parts = name.split(".")
             current_tree = root_tree
 
@@ -320,5 +335,5 @@ def print_modules_tree(
         console.print(root_tree)
     except Exception:
         print("nix-scribe Modules Tree:")
-        for name in sorted(modules.keys()):
+        for name in sorted(target_modules.keys()):
             print(f"  - {name} ({_strip_markup(statuses[name])})")
