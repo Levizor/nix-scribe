@@ -6,6 +6,7 @@ import typer
 
 from nix_scribe.lib.registry import (
     InvalidModuleError,
+    ModuleFilter,
     print_modules_table,
     print_modules_tree,
 )
@@ -117,23 +118,19 @@ def main(
     log = logging.getLogger(__name__)
     log.debug(args)
 
+    filter_spec = ModuleFilter.from_raw(
+        enable=args.enable_modules,
+        disable=args.disable_modules,
+        only=args.only_modules,
+    )
+
     try:
         if list_modules_tree:
-            print_modules_tree(
-                console,
-                enable=args.enable_modules,
-                disable=args.disable_modules,
-                only=args.only_modules,
-            )
+            print_modules_tree(console, filter_spec=filter_spec)
             raise typer.Exit(code=0)
 
         if list_modules:
-            print_modules_table(
-                console,
-                enable=args.enable_modules,
-                disable=args.disable_modules,
-                only=args.only_modules,
-            )
+            print_modules_table(console, filter_spec=filter_spec)
             raise typer.Exit(code=0)
 
         args.check()

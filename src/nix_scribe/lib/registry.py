@@ -1,6 +1,7 @@
 import fnmatch
 import re
-from typing import Any, Callable, ClassVar
+from dataclasses import dataclass
+from typing import Any, Callable, ClassVar, Sequence
 
 from rich.console import Console
 from rich.table import Table
@@ -11,6 +12,75 @@ from nix_scribe.lib.option_block import ConfigFragment
 
 ScannerFunc = Callable[[SystemContext], dict[str, Any]]
 MapperFunc = Callable[[dict[str, Any]], ConfigFragment | None]
+
+
+@dataclass(frozen=True)
+class ModuleFilter:
+    """Immutable value object holding parsed module filter rules."""
+
+    enable: tuple[str, ...] = ()
+    disable: tuple[str, ...] = ()
+    only: tuple[str, ...] = ()
+
+    @classmethod
+    def from_raw(
+        cls,
+        enable: list[str] | None = None,
+        disable: list[str] | None = None,
+        only: list[str] | None = None,
+    ) -> "ModuleFilter":
+        """Parses raw CLI pattern inputs ONCE into clean immutable tuples."""
+        return cls(
+            enable=tuple(cls._parse(enable)),
+            disable=tuple(cls._parse(disable)),
+            only=tuple(cls._parse(only)),
+        )
+
+    @staticmethod
+    def _parse(patterns: list[str] | None) -> list[str]:
+        if not patterns:
+            return []
+        return [
+            item.strip()
+            for entry in patterns
+            for item in entry.split(",")
+            if item.strip()
+        ]
+
+    def matches(self, name: str, patterns: Sequence[str]) -> bool:
+        """Returns True if module name matches any pattern in patterns."""
+        return any(
+            fnmatch.fnmatch(name, pat) or fnmatch.fnmatch(name, f"{pat}.*")
+            for pat in patterns
+        )
+
+    def is_active(self, name: str, is_default_blacklisted: bool) -> bool:
+        """Determines if a module is active under this filter spec."""
+        if self.only and not self.matches(name, self.only):
+            return False
+
+        is_cli_enabled = bool(self.enable and self.matches(name, self.enable))
+        is_cli_disabled = bool(self.disable and self.matches(name, self.disable))
+
+        if (is_cli_disabled or is_default_blacklisted) and not is_cli_enabled:
+            return False
+
+        return True
+
+    def get_status(self, name: str, is_default_blacklisted: bool) -> str:
+        """Computes the status label for a module under this filter spec."""
+        if self.is_active(name, is_default_blacklisted):
+            if is_default_blacklisted and self.matches(name, self.enable):
+                return "[green]enabled (via CLI)[/green]"
+            return "[green]enabled[/green]"
+        else:
+            if self.disable and self.matches(name, self.disable):
+                return "[yellow]disabled (via CLI)[/yellow]"
+            if self.only and not self.matches(name, self.only):
+                return "[dim]excluded (--only)[/dim]"
+            if is_default_blacklisted:
+                return "[yellow]disabled (default)[/yellow]"
+            return "[yellow]disabled[/yellow]"
 
 
 class Module:
@@ -78,22 +148,12 @@ class ModuleRegistry:
     @staticmethod
     def _parse_patterns(patterns: list[str] | None) -> list[str]:
         """Splits comma-separated or list pattern entries into a clean list of strings."""
-        if not patterns:
-            return []
-        return [
-            item.strip()
-            for entry in patterns
-            for item in entry.split(",")
-            if item.strip()
-        ]
+        return ModuleFilter._parse(patterns)
 
     @staticmethod
     def is_match(name: str, patterns: list[str]) -> bool:
         """Returns True if module name matches any pattern (exact or fnmatch wildcard)."""
-        return any(
-            fnmatch.fnmatch(name, pat) or fnmatch.fnmatch(name, f"{pat}.*")
-            for pat in patterns
-        )
+        return ModuleFilter().matches(name, patterns)
 
     def validate_patterns(
         self,
@@ -101,21 +161,24 @@ class ModuleRegistry:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
+        filter_spec: ModuleFilter | None = None,
     ) -> None:
         """
         Validates that all user-supplied patterns match at least one available module.
         """
+        spec = filter_spec or ModuleFilter.from_raw(
+            enable=enable, disable=disable, only=only
+        )
         target_modules = self._modules if modules is None else modules
         options = [
-            (enable, "--enable-module (-e)"),
-            (disable, "--disable-module (-d)"),
-            (only, "--only"),
+            (spec.enable, "--enable-module (-e)"),
+            (spec.disable, "--disable-module (-d)"),
+            (spec.only, "--only"),
         ]
 
-        for raw_patterns, option_name in options:
-            parsed = self._parse_patterns(raw_patterns)
-            for pattern in parsed:
-                if not any(self.is_match(name, [pattern]) for name in target_modules):
+        for patterns, option_name in options:
+            for pattern in patterns:
+                if not any(spec.matches(name, [pattern]) for name in target_modules):
                     raise InvalidModuleError(
                         f"Module pattern '{pattern}' specified in {option_name} did not match any available module."
                     )
@@ -126,40 +189,23 @@ class ModuleRegistry:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
+        filter_spec: ModuleFilter | None = None,
     ) -> dict[str, Module]:
         """
         Filters modules based on default_blacklist, --only, --enable-module (-e), and --disable-module (-d).
         """
-        target_modules = self._modules if modules is None else modules
-        self.validate_patterns(
-            target_modules, enable=enable, disable=disable, only=only
+        spec = filter_spec or ModuleFilter.from_raw(
+            enable=enable, disable=disable, only=only
         )
+        target_modules = self._modules if modules is None else modules
+        self.validate_patterns(target_modules, filter_spec=spec)
 
-        enable_patterns = self._parse_patterns(enable)
-        disable_patterns = self._parse_patterns(disable)
-        only_patterns = self._parse_patterns(only)
-
-        filtered: dict[str, Module] = {}
-
-        for name, mod in target_modules.items():
-            is_default_blacklisted = self.is_match(name, list(self.default_blacklist))
-
-            if only_patterns and not self.is_match(name, only_patterns):
-                continue
-
-            is_cli_enabled = bool(
-                enable_patterns and self.is_match(name, enable_patterns)
-            )
-            is_cli_disabled = bool(
-                disable_patterns and self.is_match(name, disable_patterns)
-            )
-
-            if (is_cli_disabled or is_default_blacklisted) and not is_cli_enabled:
-                continue
-
-            filtered[name] = mod
-
-        return filtered
+        blacklist = list(self.default_blacklist)
+        return {
+            name: mod
+            for name, mod in target_modules.items()
+            if spec.is_active(name, self.is_match(name, blacklist))
+        }
 
 
 def _strip_markup(text: str) -> str:
@@ -168,6 +214,7 @@ def _strip_markup(text: str) -> str:
 
 
 def _prepare_module_statuses(
+    filter_spec: ModuleFilter | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -181,35 +228,17 @@ def _prepare_module_statuses(
     modules = loader.discover()
     registry = ModuleRegistry()
 
-    enable_patterns = registry._parse_patterns(enable)
-    disable_patterns = registry._parse_patterns(disable)
-    only_patterns = registry._parse_patterns(only)
-
-    active_modules = registry.filter(
-        modules=modules, enable=enable, disable=disable, only=only
+    spec = filter_spec or ModuleFilter.from_raw(
+        enable=enable, disable=disable, only=only
     )
+    blacklist = list(registry.default_blacklist)
 
-    statuses: dict[str, str] = {}
-    for name in modules:
-        is_active = name in active_modules
-        is_default_blacklisted = registry.is_match(
-            name, list(registry.default_blacklist)
-        )
+    registry.validate_patterns(modules, filter_spec=spec)
 
-        if is_active:
-            if is_default_blacklisted and registry.is_match(name, enable_patterns):
-                statuses[name] = "[green]enabled (via CLI)[/green]"
-            else:
-                statuses[name] = "[green]enabled[/green]"
-        else:
-            if disable_patterns and registry.is_match(name, disable_patterns):
-                statuses[name] = "[yellow]disabled (via CLI)[/yellow]"
-            elif only_patterns and not registry.is_match(name, only_patterns):
-                statuses[name] = "[dim]excluded (--only)[/dim]"
-            elif is_default_blacklisted:
-                statuses[name] = "[yellow]disabled (default)[/yellow]"
-            else:
-                statuses[name] = "[yellow]disabled[/yellow]"
+    statuses = {
+        name: spec.get_status(name, registry.is_match(name, blacklist))
+        for name in modules
+    }
 
     return modules, statuses
 
@@ -219,11 +248,14 @@ def print_modules_table(
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
+    filter_spec: ModuleFilter | None = None,
 ) -> None:
     """
     Prints a formatted table of all discovered modules and their status using Rich (with fallback).
     """
-    modules, statuses = _prepare_module_statuses(enable, disable, only)
+    modules, statuses = _prepare_module_statuses(
+        filter_spec=filter_spec, enable=enable, disable=disable, only=only
+    )
 
     if console is None:
         console = Console()
@@ -257,11 +289,14 @@ def print_modules_tree(
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
+    filter_spec: ModuleFilter | None = None,
 ) -> None:
     """
     Prints a hierarchical tree view of all discovered modules and their status using Rich (with fallback).
     """
-    modules, statuses = _prepare_module_statuses(enable, disable, only)
+    modules, statuses = _prepare_module_statuses(
+        filter_spec=filter_spec, enable=enable, disable=disable, only=only
+    )
 
     if console is None:
         console = Console()

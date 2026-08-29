@@ -32,6 +32,21 @@ def test_parse_patterns():
     assert registry._parse_patterns(None) == []
 
 
+def test_module_filter_object():
+    from nix_scribe.lib.registry import ModuleFilter
+
+    spec = ModuleFilter.from_raw(
+        enable=["boot.kernel"], disable=["networking.*"], only=["boot.*"]
+    )
+    assert spec.enable == ("boot.kernel",)
+    assert spec.disable == ("networking.*",)
+    assert spec.only == ("boot.*",)
+
+    assert spec.is_active("boot.kernel", is_default_blacklisted=True) is True
+    assert spec.is_active("networking", is_default_blacklisted=False) is False
+    assert spec.is_active("programs.bash", is_default_blacklisted=False) is False
+
+
 def test_is_match():
     registry = ModuleRegistry()
     assert registry.is_match("boot.loader.grub", ["boot.*"]) is True
