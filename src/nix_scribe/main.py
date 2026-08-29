@@ -90,6 +90,14 @@ def main(
             help="Only run specific module(s) (comma-separated or repeated flags)",
         ),
     ] = None,
+    plugin: Annotated[
+        list[str] | None,
+        typer.Option(
+            "-p",
+            "--plugin",
+            help="Load plugin Python package location or file/directory path (comma-separated or repeated flags)",
+        ),
+    ] = None,
     list_modules: Annotated[
         bool,
         typer.Option(
@@ -115,6 +123,7 @@ def main(
     args.enable_modules = enable_module or []
     args.disable_modules = disable_module or []
     args.only_modules = only or []
+    args.plugins = ModuleFilter._parse(plugin)
 
     console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
     log = logging.getLogger(__name__)
@@ -122,6 +131,19 @@ def main(
 
     loader = ModuleLoader()
     valid_modules = loader.discover()
+
+    for plugin_item in args.plugins:
+        try:
+            path = Path(plugin_item)
+            if "/" in plugin_item or plugin_item.endswith(".py") or path.exists():
+                plugin_loader = ModuleLoader(modules_package=None, path=path)
+            else:
+                plugin_loader = ModuleLoader(modules_package=plugin_item)
+            valid_modules.update(plugin_loader.discover())
+        except (ImportError, FileNotFoundError) as e:
+            raise typer.BadParameter(
+                f"Failed to load plugin '{plugin_item}': {e}"
+            ) from e
 
     filter_spec = ModuleFilter.from_raw(
         enable=args.enable_modules,
