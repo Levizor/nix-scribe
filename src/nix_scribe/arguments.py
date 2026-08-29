@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import typer
@@ -17,6 +17,9 @@ class CLIArguments:
     verbosity: int = 1
     mod_verbosity: int = 1
     no_comment: bool = False
+    enable_modules: list[str] = field(default_factory=list)
+    disable_modules: list[str] = field(default_factory=list)
+    only_modules: list[str] = field(default_factory=list)
 
     def check(self):
         output = self.output_path

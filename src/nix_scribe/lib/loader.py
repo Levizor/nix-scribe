@@ -2,9 +2,10 @@ import importlib
 import importlib.util
 import logging
 import pkgutil
+import sys
 from pathlib import Path
 
-from nix_scribe.lib.registry import _MODULES_REGISTRY, Module
+from nix_scribe.lib.registry import Module, ModuleRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class ModuleLoader:
 
         valid_modules: dict[str, Module] = {}
 
-        for full_name, module in _MODULES_REGISTRY.items():
+        for full_name, module in ModuleRegistry().get_all().items():
             if not module.scan:
                 logger.warning(f"Module '{full_name}' skipped: No scanner.")
                 continue
@@ -42,17 +43,13 @@ class ModuleLoader:
         return valid_modules
 
     def _import_all_modules(self) -> None:
-        spec = importlib.util.find_spec(self.modules_package)
-        if not spec or not spec.submodule_search_locations:
-            return
+        package_paths = [str(self.package_path)]
 
-        package_path = spec.submodule_search_locations
-
-        for info in pkgutil.walk_packages(package_path, f"{self.modules_package}."):
+        for info in pkgutil.walk_packages(package_paths, f"{self.modules_package}."):
             if info.ispkg:
                 continue
-
             try:
-                importlib.import_module(info.name)
+                if info.name not in sys.modules:
+                    importlib.import_module(info.name)
             except Exception as e:
                 logger.error(f"Failed to load module {info.name}: {e}")

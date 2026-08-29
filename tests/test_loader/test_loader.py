@@ -4,18 +4,24 @@ from nix_scribe.lib.loader import ModuleLoader
 
 
 def test_module_loader_discovery_logic():
-    # Point to the directory next to this file
-    pkg_dir = Path(__file__).parent / "test_loader_pkg"
+    from nix_scribe.lib.registry import ModuleRegistry
 
-    # Use the full import path relative to the project root
-    loader = ModuleLoader(
-        modules_package="tests.test_loader.test_loader_pkg", path=pkg_dir
-    )
-    modules = loader.discover()
+    registry = ModuleRegistry()
+    saved = dict(registry._modules)
+    registry.clear()
 
-    assert "dummy" in modules
-    mod = modules["dummy"]
-    assert mod.name == "dummy"
+    try:
+        pkg_dir = Path(__file__).parent / "test_loader_pkg"
+        loader = ModuleLoader(
+            modules_package="tests.test_loader.test_loader_pkg", path=pkg_dir
+        )
+        modules = loader.discover()
+
+        assert "dummy" in modules
+        mod = modules["dummy"]
+        assert mod.name == "dummy"
+    finally:
+        registry._modules = saved
 
 
 def test_module_loader_real_discovery():
