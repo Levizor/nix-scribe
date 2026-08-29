@@ -1,5 +1,10 @@
 import fnmatch
+import re
 from typing import Any, Callable, ClassVar
+
+from rich.console import Console
+from rich.table import Table
+from rich.tree import Tree
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import ConfigFragment
@@ -50,12 +55,12 @@ class ModuleRegistry:
     def __new__(cls) -> "ModuleRegistry":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._modules: dict[str, Module] = {}
             cls._instance.reset()
         return cls._instance
 
     def reset(self) -> None:
-        """Resets the singleton registry instance state (useful for clean unit testing)."""
-        self._modules: dict[str, Module] = {}
+        """Resets default blacklist and filter state without wiping loaded modules."""
         self.default_blacklist: set[str] = {"boot.kernel"}
 
     def register(self, module: Module) -> None:
@@ -75,30 +80,32 @@ class ModuleRegistry:
         """Splits comma-separated or list pattern entries into a clean list of strings."""
         if not patterns:
             return []
-        result = []
-        for entry in patterns:
-            for item in entry.split(","):
-                cleaned = item.strip()
-                if cleaned:
-                    result.append(cleaned)
-        return result
+        return [
+            item.strip()
+            for entry in patterns
+            for item in entry.split(",")
+            if item.strip()
+        ]
 
-    def is_match(self, name: str, patterns: list[str]) -> bool:
+    @staticmethod
+    def is_match(name: str, patterns: list[str]) -> bool:
         """Returns True if module name matches any pattern (exact or fnmatch wildcard)."""
-        for pattern in patterns:
-            if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(name, f"{pattern}.*"):
-                return True
-        return False
+        return any(
+            fnmatch.fnmatch(name, pat) or fnmatch.fnmatch(name, f"{pat}.*")
+            for pat in patterns
+        )
 
     def validate_patterns(
         self,
+        modules: dict[str, Module] | None = None,
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
     ) -> None:
         """
-        Validates that all user-supplied patterns match at least one registered module.
+        Validates that all user-supplied patterns match at least one available module.
         """
+        target_modules = self._modules if modules is None else modules
         options = [
             (enable, "--enable-module (-e)"),
             (disable, "--disable-module (-d)"),
@@ -108,13 +115,14 @@ class ModuleRegistry:
         for raw_patterns, option_name in options:
             parsed = self._parse_patterns(raw_patterns)
             for pattern in parsed:
-                if not any(self.is_match(name, [pattern]) for name in self._modules):
+                if not any(self.is_match(name, [pattern]) for name in target_modules):
                     raise InvalidModuleError(
                         f"Module pattern '{pattern}' specified in {option_name} did not match any available module."
                     )
 
     def filter(
         self,
+        modules: dict[str, Module] | None = None,
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
@@ -122,7 +130,10 @@ class ModuleRegistry:
         """
         Filters modules based on default_blacklist, --only, --enable-module (-e), and --disable-module (-d).
         """
-        self.validate_patterns(enable=enable, disable=disable, only=only)
+        target_modules = self._modules if modules is None else modules
+        self.validate_patterns(
+            target_modules, enable=enable, disable=disable, only=only
+        )
 
         enable_patterns = self._parse_patterns(enable)
         disable_patterns = self._parse_patterns(disable)
@@ -130,24 +141,20 @@ class ModuleRegistry:
 
         filtered: dict[str, Module] = {}
 
-        for name, mod in self._modules.items():
+        for name, mod in target_modules.items():
             is_default_blacklisted = self.is_match(name, list(self.default_blacklist))
 
             if only_patterns and not self.is_match(name, only_patterns):
                 continue
 
-            is_cli_enabled = (
-                self.is_match(name, enable_patterns) if enable_patterns else False
+            is_cli_enabled = bool(
+                enable_patterns and self.is_match(name, enable_patterns)
+            )
+            is_cli_disabled = bool(
+                disable_patterns and self.is_match(name, disable_patterns)
             )
 
-            is_cli_disabled = (
-                self.is_match(name, disable_patterns) if disable_patterns else False
-            )
-
-            if is_cli_disabled and not is_cli_enabled:
-                continue
-
-            if is_default_blacklisted and not is_cli_enabled:
+            if (is_cli_disabled or is_default_blacklisted) and not is_cli_enabled:
                 continue
 
             filtered[name] = mod
@@ -155,36 +162,60 @@ class ModuleRegistry:
         return filtered
 
 
-def _determine_status(
-    name: str,
-    registry: ModuleRegistry,
-    active_modules: dict[str, Module],
-    enable_patterns: list[str],
-    disable_patterns: list[str],
-    only_patterns: list[str],
-) -> tuple[str, str]:
-    """
-    Returns (rich_status_str, plain_status_str) based on CLI filter parameters and default blacklist.
-    """
-    is_active = name in active_modules
-    is_default_blacklisted = registry.is_match(name, list(registry.default_blacklist))
+def _strip_markup(text: str) -> str:
+    """Strips Rich console color/style tags from a string for plain text fallback."""
+    return re.sub(r"\[.*?\]", "", text)
 
-    if is_active:
-        if is_default_blacklisted and registry.is_match(name, enable_patterns):
-            return "[green]enabled (via CLI)[/green]", "enabled (via CLI)"
-        return "[green]enabled[/green]", "enabled"
-    else:
-        if disable_patterns and registry.is_match(name, disable_patterns):
-            return "[yellow]disabled (via CLI)[/yellow]", "disabled (via CLI)"
-        if only_patterns and not registry.is_match(name, only_patterns):
-            return "[dim]excluded (--only)[/dim]", "excluded (--only)"
-        if is_default_blacklisted:
-            return "[yellow]disabled (default)[/yellow]", "disabled (default)"
-        return "[yellow]disabled[/yellow]", "disabled"
+
+def _prepare_module_statuses(
+    enable: list[str] | None = None,
+    disable: list[str] | None = None,
+    only: list[str] | None = None,
+) -> tuple[dict[str, Module], dict[str, str]]:
+    """
+    Discovers valid modules and computes rich status strings for each module.
+    """
+    from nix_scribe.lib.loader import ModuleLoader
+
+    loader = ModuleLoader()
+    modules = loader.discover()
+    registry = ModuleRegistry()
+
+    enable_patterns = registry._parse_patterns(enable)
+    disable_patterns = registry._parse_patterns(disable)
+    only_patterns = registry._parse_patterns(only)
+
+    active_modules = registry.filter(
+        modules=modules, enable=enable, disable=disable, only=only
+    )
+
+    statuses: dict[str, str] = {}
+    for name in modules:
+        is_active = name in active_modules
+        is_default_blacklisted = registry.is_match(
+            name, list(registry.default_blacklist)
+        )
+
+        if is_active:
+            if is_default_blacklisted and registry.is_match(name, enable_patterns):
+                statuses[name] = "[green]enabled (via CLI)[/green]"
+            else:
+                statuses[name] = "[green]enabled[/green]"
+        else:
+            if disable_patterns and registry.is_match(name, disable_patterns):
+                statuses[name] = "[yellow]disabled (via CLI)[/yellow]"
+            elif only_patterns and not registry.is_match(name, only_patterns):
+                statuses[name] = "[dim]excluded (--only)[/dim]"
+            elif is_default_blacklisted:
+                statuses[name] = "[yellow]disabled (default)[/yellow]"
+            else:
+                statuses[name] = "[yellow]disabled[/yellow]"
+
+    return modules, statuses
 
 
 def print_modules_table(
-    console: Any = None,
+    console: Console | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -192,31 +223,7 @@ def print_modules_table(
     """
     Prints a formatted table of all discovered modules and their status using Rich (with fallback).
     """
-    from rich.console import Console
-    from rich.table import Table
-
-    from nix_scribe.lib.loader import ModuleLoader
-
-    loader = ModuleLoader()
-    modules = loader.discover()
-    registry = ModuleRegistry()
-    active_modules = registry.filter(enable=enable, disable=disable, only=only)
-
-    enable_patterns = registry._parse_patterns(enable)
-    disable_patterns = registry._parse_patterns(disable)
-    only_patterns = registry._parse_patterns(only)
-
-    statuses = {
-        name: _determine_status(
-            name,
-            registry,
-            active_modules,
-            enable_patterns,
-            disable_patterns,
-            only_patterns,
-        )
-        for name in modules
-    }
+    modules, statuses = _prepare_module_statuses(enable, disable, only)
 
     if console is None:
         console = Console()
@@ -233,7 +240,7 @@ def print_modules_table(
 
         for name in sorted(modules.keys()):
             category = name.split(".")[0]
-            table.add_row(name, category, statuses[name][0])
+            table.add_row(name, category, statuses[name])
 
         console.print(table)
     except Exception:
@@ -242,11 +249,11 @@ def print_modules_table(
         print("-" * 65)
         for name in sorted(modules.keys()):
             category = name.split(".")[0]
-            print(f"{name:<35} {category:<15} {statuses[name][1]}")
+            print(f"{name:<35} {category:<15} {_strip_markup(statuses[name])}")
 
 
 def print_modules_tree(
-    console: Any = None,
+    console: Console | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -254,31 +261,7 @@ def print_modules_tree(
     """
     Prints a hierarchical tree view of all discovered modules and their status using Rich (with fallback).
     """
-    from rich.console import Console
-    from rich.tree import Tree
-
-    from nix_scribe.lib.loader import ModuleLoader
-
-    loader = ModuleLoader()
-    modules = loader.discover()
-    registry = ModuleRegistry()
-    active_modules = registry.filter(enable=enable, disable=disable, only=only)
-
-    enable_patterns = registry._parse_patterns(enable)
-    disable_patterns = registry._parse_patterns(disable)
-    only_patterns = registry._parse_patterns(only)
-
-    statuses = {
-        name: _determine_status(
-            name,
-            registry,
-            active_modules,
-            enable_patterns,
-            disable_patterns,
-            only_patterns,
-        )
-        for name in modules
-    }
+    modules, statuses = _prepare_module_statuses(enable, disable, only)
 
     if console is None:
         console = Console()
@@ -297,10 +280,10 @@ def print_modules_tree(
                     nodes[path] = current_tree.add(f"[bold blue]{parts[i]}[/bold blue]")
                 current_tree = nodes[path]
 
-            current_tree.add(f"[cyan]{parts[-1]}[/cyan] ({statuses[name][0]})")
+            current_tree.add(f"[cyan]{parts[-1]}[/cyan] ({statuses[name]})")
 
         console.print(root_tree)
     except Exception:
         print("nix-scribe Modules Tree:")
         for name in sorted(modules.keys()):
-            print(f"  - {name} ({statuses[name][1]})")
+            print(f"  - {name} ({_strip_markup(statuses[name])})")

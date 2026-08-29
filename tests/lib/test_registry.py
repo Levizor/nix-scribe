@@ -18,8 +18,8 @@ def test_singleton_instance():
 
 def test_module_registration():
     registry = ModuleRegistry()
-    mod = Module("boot.loader.grub")
-    assert registry.get_all() == {"boot.loader.grub": mod}
+    mod = Module("test.dummy.mod")
+    assert registry.get_all()["test.dummy.mod"] == mod
 
 
 def test_parse_patterns():
@@ -41,25 +41,31 @@ def test_is_match():
 
 def test_filter_modules_default_and_disable():
     registry = ModuleRegistry()
-    Module("boot.loader.grub")
-    Module("security.pam")
-    Module("experimental.feature")
+    mock_modules = {
+        "boot.loader.grub": Module("boot.loader.grub"),
+        "security.pam": Module("security.pam"),
+        "experimental.feature": Module("experimental.feature"),
+    }
 
     registry.default_blacklist = {"experimental.*"}
 
-    filtered = registry.filter()
+    filtered = registry.filter(modules=mock_modules)
     assert "boot.loader.grub" in filtered
     assert "security.pam" in filtered
     assert "experimental.feature" not in filtered
 
-    filtered_enable = registry.filter(enable=["experimental.feature"])
+    filtered_enable = registry.filter(
+        modules=mock_modules, enable=["experimental.feature"]
+    )
     assert "experimental.feature" in filtered_enable
 
-    filtered_disable = registry.filter(disable=["boot.loader.grub"])
+    filtered_disable = registry.filter(
+        modules=mock_modules, disable=["boot.loader.grub"]
+    )
     assert "boot.loader.grub" not in filtered_disable
     assert "security.pam" in filtered_disable
 
-    filtered_only = registry.filter(only=["security.*"])
+    filtered_only = registry.filter(modules=mock_modules, only=["security.*"])
     assert list(filtered_only.keys()) == ["security.pam"]
 
 
@@ -67,10 +73,10 @@ def test_validate_patterns_invalid_module():
     from nix_scribe.lib.registry import InvalidModuleError
 
     registry = ModuleRegistry()
-    Module("boot.loader.grub")
+    mock_modules = {"boot.loader.grub": Module("boot.loader.grub")}
 
     with pytest.raises(InvalidModuleError) as exc_info:
-        registry.filter(disable=["non_existent_module"])
+        registry.filter(modules=mock_modules, disable=["non_existent_module"])
 
     assert "non_existent_module" in str(exc_info.value)
 

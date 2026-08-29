@@ -43,20 +43,13 @@ class ModuleLoader:
         return valid_modules
 
     def _import_all_modules(self) -> None:
-        spec = importlib.util.find_spec(self.modules_package)
-        if not spec or not spec.submodule_search_locations:
-            return
+        package_paths = [str(self.package_path)]
 
-        package_path = spec.submodule_search_locations
-
-        for info in pkgutil.walk_packages(package_path, f"{self.modules_package}."):
+        for info in pkgutil.walk_packages(package_paths, f"{self.modules_package}."):
             if info.ispkg:
                 continue
-
             try:
-                if info.name in sys.modules:
-                    importlib.reload(sys.modules[info.name])
-                else:
+                if info.name not in sys.modules:
                     importlib.import_module(info.name)
             except Exception as e:
                 logger.error(f"Failed to load module {info.name}: {e}")

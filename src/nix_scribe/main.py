@@ -4,6 +4,11 @@ from typing import Annotated
 
 import typer
 
+from nix_scribe.lib.registry import (
+    InvalidModuleError,
+    print_modules_table,
+    print_modules_tree,
+)
 from nix_scribe.logger import setup_logging
 
 from .arguments import args
@@ -112,12 +117,8 @@ def main(
     log = logging.getLogger(__name__)
     log.debug(args)
 
-    from nix_scribe.lib.registry import InvalidModuleError
-
     try:
         if list_modules_tree:
-            from nix_scribe.lib.registry import print_modules_tree
-
             print_modules_tree(
                 console,
                 enable=args.enable_modules,
@@ -127,8 +128,6 @@ def main(
             raise typer.Exit(code=0)
 
         if list_modules:
-            from nix_scribe.lib.registry import print_modules_table
-
             print_modules_table(
                 console,
                 enable=args.enable_modules,
