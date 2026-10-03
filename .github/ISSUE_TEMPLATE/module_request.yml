@@ -1,34 +1,40 @@
----
-name: 🪶 New Module Proposal
-description: Propose a new system component to scan and map to NixOS options.
-title: '[Module]: '
-labels: [component/module, kind/feature]
+name: Module Proposal
+description: Propose a new module to scan system state and map it to NixOS options.
+title: "[Module]: "
+labels: ["module"]
 body:
   - type: input
     id: component-name
     attributes:
-      label: Target Component Name
-      description: The canonical name for the module (e.g., 'services/openssh' or
-        'programs/zsh').
-      placeholder: e.g., 'services/openssh'
+      label: Target Component
+      description: Service, program, or system subsystem to support (e.g. services.openssh, programs.zsh, security.pam).
+      placeholder: e.g. services.openssh
     validations:
       required: true
   - type: textarea
-    id: scanning-strategy
+    id: source-files
     attributes:
-      label: Scanning Strategy (Input)
-      description: Describe files to read (relative to the root input path), commands
-        to run, and the required privilege level.
+      label: Source Configuration & Files
+      description: Target files or directories to inspect via filesystem scanning (e.g. /etc/ssh/sshd_config, binary detection paths).
       placeholder: |
-        Files: /etc/ssh/sshd_config
-        Commands: systemctl is-enabled sshd
-        Privilege: true
+        - Paths to scan: /etc/...
+        - Detection criteria:
+    validations:
+      required: true
   - type: textarea
-    id: mapping-strategy
+    id: nixos-options
     attributes:
-      label: Mapping Strategy (Output)
-      description: Describe the intended translation logic and high-level options
-        to use, preferring idiomatic Nix options over extraConfig dumps.
-      placeholder: |-
-        Primary Options: services.openssh.enable, services.openssh.settings.PasswordAuthentication
-        Optimization: If PasswordAuthentication is 'no', set the option directly.
+      label: Target NixOS Options
+      description: NixOS options that should be configured and how source values map to them.
+      placeholder: |
+        - services.openssh.enable = true;
+        - services.openssh.settings.PasswordAuthentication = ...;
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: Edge cases, auxiliary assets to extract, or multi-distro differences if known.
+    validations:
+      required: false

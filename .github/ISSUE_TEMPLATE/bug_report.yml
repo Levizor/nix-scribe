@@ -1,32 +1,30 @@
----
-name: 🐞 Bug report
-description: Report a reproducible bug or regression in scanning or mapping logic.
-title: '[Bug]: '
-labels: [kind/bug]
+name: Bug Report
+description: Report an issue, crash, or incorrect NixOS configuration generation.
+title: "[Bug]: "
+labels: ["bug"]
 body:
-  - type: input
-    id: summary
+  - type: textarea
+    id: description
     attributes:
-      label: Summary
-      description: A short description of the problem.
-      placeholder: e.g. "Generates invalid Nix code for groups."
+      label: Description
+      description: Describe what happened. If nix-scribe crashed, include the error or traceback. If invalid Nix was generated, include the output snippet.
     validations:
       required: true
-  - type: input
-    id: module-affected
-    attributes:
-      label: Module/Component Affected
-      description: Which module or core component is involved?
-      placeholder: e.g., Sudo, Filesystems, Core Writer
   - type: textarea
-    id: steps
+    id: reproduction
     attributes:
-      label: Steps to Reproduce
-      description: Describe the exact steps taken, including commands, CLI options,
-        etc.
+      label: Environment & Reproduction
+      description: Distribution scanned, nix-scribe command/flags, and relevant source configuration files if applicable.
+      placeholder: |
+        - Target OS / Distro:
+        - Command: nix-scribe -m 2
+        - Relevant source files (e.g. /etc/fstab, /etc/ssh/...):
+    validations:
+      required: false
   - type: textarea
-    id: actual-behavior
+    id: expected
     attributes:
-      label: Actual Behavior
-      description: What is the resulting error, crash, or invalid output? Include
-        traceback or generated invalid Nix code.
+      label: Expected Behavior
+      description: What should nix-scribe have generated or done instead?
+    validations:
+      required: false
