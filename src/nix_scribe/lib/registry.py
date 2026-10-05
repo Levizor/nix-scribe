@@ -1,6 +1,7 @@
 import fnmatch
 import re
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Any, Callable, ClassVar, Sequence
 
 from rich.console import Console
@@ -83,9 +84,20 @@ class ModuleFilter:
             return "[yellow]disabled[/yellow]"
 
 
+class ModulePhase(IntEnum):
+    EARLY = 10
+    NORMAL = 50
+    LATE = 100
+
+
 class Module:
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self,
+        name: str,
+        phase: ModulePhase = ModulePhase.NORMAL,
+    ) -> None:
         self.name = name
+        self.phase = phase
         self.scan: ScannerFunc | None = None
         self.map: MapperFunc | None = None
         ModuleRegistry().register(self)
