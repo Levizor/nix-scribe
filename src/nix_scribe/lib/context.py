@@ -7,6 +7,12 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from nix_scribe.lib.packages import (
+    PackageManager,
+    PackageState,
+    get_package_resolver,
+    get_registered_package_managers,
+)
 from nix_scribe.lib.systemctl import Systemctl
 
 logger = logging.getLogger(__name__)
@@ -32,6 +38,46 @@ class SystemContext:
         self.root = root
         self.use_sudo = use_sudo
         self.systemctl = Systemctl(self)
+        self._packages: PackageState | None = None
+        self._package_manager: PackageManager | None = None
+
+    @property
+    def package_manager(self) -> PackageManager | None:
+        if self._package_manager is None:
+            self._package_manager = self._detect_package_manager()
+        return self._package_manager
+
+    @package_manager.setter
+    def package_manager(self, pm: PackageManager | None) -> None:
+        self._package_manager = pm
+        self._packages = None
+
+    def _detect_package_manager(self) -> PackageManager | None:
+        for pm_cls in get_registered_package_managers():
+            pm = pm_cls()
+            if pm.detect(self):
+                return pm
+        return None
+
+    @property
+    def packages(self) -> PackageState:
+        if self._packages is None:
+            pm = self.package_manager
+            if pm is None:
+                self._packages = PackageState.empty()
+            else:
+                discovered = pm.discover_packages(self)
+                resolver = get_package_resolver()
+                resolved, unmapped = resolver.resolve_many(discovered)
+                self._packages = PackageState(
+                    packages=resolved,
+                    unmapped=unmapped,
+                )
+        return self._packages
+
+    @packages.setter
+    def packages(self, state: PackageState | None) -> None:
+        self._packages = state
 
     def root_path(self, path: str) -> Path:
         """
