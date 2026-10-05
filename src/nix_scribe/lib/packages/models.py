@@ -5,7 +5,7 @@ from functools import cached_property
 @dataclass(frozen=True)
 class DiscoveredPackage:
     name: str
-    distro: str
+    repository: str
 
 
 @dataclass(frozen=True)
@@ -19,8 +19,8 @@ class ResolvedPackage:
         return self.original.name
 
     @property
-    def distro(self) -> str:
-        return self.original.distro
+    def repository(self) -> str:
+        return self.original.repository
 
 
 class PackageState:

@@ -16,8 +16,8 @@ class MockPackageResolver(PackageResolver):
         if mapping:
             for key, target in mapping.items():
                 if isinstance(key, tuple):
-                    distro, pkg_name = key
-                    self.add_mapping(pkg_name, target, distro=distro)
+                    repo, pkg_name = key
+                    self.add_mapping(pkg_name, target, repository=repo)
                 else:
                     self.add_mapping(key, target)
 
@@ -25,7 +25,7 @@ class MockPackageResolver(PackageResolver):
         self,
         package_name: str,
         target: str | ResolvedPackage | None,
-        distro: str | None = None,
+        repository: str | None = None,
         category: str | None = None,
     ) -> None:
         if isinstance(target, ResolvedPackage):
@@ -34,19 +34,19 @@ class MockPackageResolver(PackageResolver):
             resolved = ResolvedPackage(
                 name=target,
                 original=DiscoveredPackage(
-                    name=package_name, distro=distro or "generic"
+                    name=package_name, repository=repository or "generic"
                 ),
                 category=category,
             )
         else:
             resolved = None
 
-        if distro is not None:
-            self._mapping[(distro, package_name)] = resolved
+        if repository is not None:
+            self._mapping[(repository, package_name)] = resolved
         else:
             self._mapping[package_name] = resolved
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
-        if (package.distro, package.name) in self._mapping:
-            return self._mapping[(package.distro, package.name)]
+        if (package.repository, package.name) in self._mapping:
+            return self._mapping[(package.repository, package.name)]
         return self._mapping.get(package.name)

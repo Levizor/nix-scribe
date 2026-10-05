@@ -26,9 +26,9 @@ def test_package_resolver_resolve_many():
 
     resolved, unmapped = resolver.resolve_many(
         [
-            DiscoveredPackage(name="known", distro="arch"),
-            DiscoveredPackage(name="unknown", distro="arch"),
-            DiscoveredPackage(name="other", distro="arch"),
+            DiscoveredPackage(name="known", repository="arch"),
+            DiscoveredPackage(name="unknown", repository="arch"),
+            DiscoveredPackage(name="other", repository="arch"),
         ]
     )
     assert len(resolved) == 1
@@ -42,43 +42,45 @@ def test_mock_package_resolver_mappings():
             ("debian", "batcat"): "bat",
             "explicit_resolved": ResolvedPackage(
                 name="fd",
-                original=DiscoveredPackage(name="fd-find", distro="debian"),
+                original=DiscoveredPackage(name="fd-find", repository="debian"),
             ),
             "unmapped_tool": None,
         }
     )
 
-    resolved = mock.resolve(DiscoveredPackage(name="batcat", distro="debian"))
+    resolved = mock.resolve(DiscoveredPackage(name="batcat", repository="debian"))
     assert resolved is not None
     assert resolved.name == "bat"
     assert resolved.original_name == "batcat"
-    assert resolved.distro == "debian"
+    assert resolved.repository == "debian"
 
     explicit = mock.resolve(
-        DiscoveredPackage(name="explicit_resolved", distro="debian")
+        DiscoveredPackage(name="explicit_resolved", repository="debian")
     )
     assert explicit == ResolvedPackage(
-        name="fd", original=DiscoveredPackage(name="fd-find", distro="debian")
+        name="fd", original=DiscoveredPackage(name="fd-find", repository="debian")
     )
 
     assert (
-        mock.resolve(DiscoveredPackage(name="unmapped_tool", distro="debian")) is None
+        mock.resolve(DiscoveredPackage(name="unmapped_tool", repository="debian"))
+        is None
     )
     assert (
-        mock.resolve(DiscoveredPackage(name="not_in_mapping", distro="debian")) is None
+        mock.resolve(DiscoveredPackage(name="not_in_mapping", repository="debian"))
+        is None
     )
 
-    mock.add_mapping("new_tool", "canonical_tool", distro="arch")
-    new_resolved = mock.resolve(DiscoveredPackage(name="new_tool", distro="arch"))
+    mock.add_mapping("new_tool", "canonical_tool", repository="arch")
+    new_resolved = mock.resolve(DiscoveredPackage(name="new_tool", repository="arch"))
     assert new_resolved == ResolvedPackage(
         name="canonical_tool",
-        original=DiscoveredPackage(name="new_tool", distro="arch"),
+        original=DiscoveredPackage(name="new_tool", repository="arch"),
     )
 
 
 def test_provider_injection():
     default_resolver = get_package_resolver()
-    pkg = DiscoveredPackage(name="ripgrep", distro="arch")
+    pkg = DiscoveredPackage(name="ripgrep", repository="arch")
     assert default_resolver.resolve(pkg) == ResolvedPackage(
         name="ripgrep", original=pkg
     )

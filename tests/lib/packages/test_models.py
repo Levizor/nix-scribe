@@ -10,24 +10,26 @@ from nix_scribe.lib.packages import (
 
 
 def test_discovered_package():
-    pkg = DiscoveredPackage(name="ripgrep", distro="arch")
+    pkg = DiscoveredPackage(name="ripgrep", repository="arch")
     assert pkg.name == "ripgrep"
-    assert pkg.distro == "arch"
+    assert pkg.repository == "arch"
 
     with pytest.raises(FrozenInstanceError):
         pkg.name = "other"
 
 
 def test_resolved_package_attributes():
-    discovered = DiscoveredPackage(name="ripgrep", distro="arch")
+    discovered = DiscoveredPackage(name="ripgrep", repository="arch")
     pkg = ResolvedPackage(name="ripgrep", original=discovered)
     assert pkg.name == "ripgrep"
     assert pkg.original == discovered
     assert pkg.original_name == "ripgrep"
-    assert pkg.distro == "arch"
+    assert pkg.repository == "arch"
     assert pkg.category is None
 
-    chrome_discovered = DiscoveredPackage(name="google-chrome-stable", distro="debian")
+    chrome_discovered = DiscoveredPackage(
+        name="google-chrome-stable", repository="debian"
+    )
     foreign_pkg = ResolvedPackage(
         name="google-chrome",
         original=chrome_discovered,
@@ -36,12 +38,12 @@ def test_resolved_package_attributes():
     assert foreign_pkg.name == "google-chrome"
     assert foreign_pkg.original == chrome_discovered
     assert foreign_pkg.original_name == "google-chrome-stable"
-    assert foreign_pkg.distro == "debian"
+    assert foreign_pkg.repository == "debian"
     assert foreign_pkg.category == "web"
 
 
 def test_resolved_package_frozen():
-    discovered = DiscoveredPackage(name="batcat", distro="debian")
+    discovered = DiscoveredPackage(name="batcat", repository="debian")
     pkg = ResolvedPackage(name="bat", original=discovered)
     with pytest.raises(FrozenInstanceError):
         pkg.name = "something-else"
@@ -49,15 +51,16 @@ def test_resolved_package_frozen():
 
 def test_package_state_query_and_claim():
     bat = ResolvedPackage(
-        name="bat", original=DiscoveredPackage(name="batcat", distro="debian")
+        name="bat", original=DiscoveredPackage(name="batcat", repository="debian")
     )
     font = ResolvedPackage(
         name="fira-code",
-        original=DiscoveredPackage(name="fonts-firacode", distro="debian"),
+        original=DiscoveredPackage(name="fonts-firacode", repository="debian"),
         category="fonts",
     )
     rg = ResolvedPackage(
-        name="ripgrep", original=DiscoveredPackage(name="ripgrep", distro="arch")
+        name="ripgrep",
+        original=DiscoveredPackage(name="ripgrep", repository="arch"),
     )
 
     state = PackageState(

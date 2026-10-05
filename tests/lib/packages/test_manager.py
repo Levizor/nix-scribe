@@ -31,7 +31,7 @@ def test_package_manager_registry():
             return True
 
         def discover_packages(self, context: SystemContext) -> list[DiscoveredPackage]:
-            return [DiscoveredPackage("nano", distro="generic")]
+            return [DiscoveredPackage("nano", repository="generic")]
 
     register_package_manager(DummyPackageManager)
     assert DummyPackageManager in get_registered_package_managers()
@@ -56,9 +56,9 @@ def test_system_context_packages_discovery_and_resolution(tmp_path):
 
         def discover_packages(self, context: SystemContext) -> list[DiscoveredPackage]:
             return [
-                DiscoveredPackage("ripgrep", distro=self.distro),
-                DiscoveredPackage("bat", distro=self.distro),
-                DiscoveredPackage("unmapped-tool", distro=self.distro),
+                DiscoveredPackage("ripgrep", repository="arch"),
+                DiscoveredPackage("bat", repository="arch"),
+                DiscoveredPackage("unmapped-tool", repository="arch"),
             ]
 
     register_package_manager(MockArchManager)
@@ -68,7 +68,7 @@ def test_system_context_packages_discovery_and_resolution(tmp_path):
             ("arch", "ripgrep"): "ripgrep",
             ("arch", "bat"): ResolvedPackage(
                 name="bat",
-                original=DiscoveredPackage("bat", distro="arch"),
+                original=DiscoveredPackage("bat", repository="arch"),
                 category="apps",
             ),
             ("arch", "unmapped-tool"): None,
