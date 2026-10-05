@@ -67,7 +67,9 @@ def test_system_context_packages_discovery_and_resolution(tmp_path):
         mapping={
             ("arch", "ripgrep"): "ripgrep",
             ("arch", "bat"): ResolvedPackage(
-                name="bat", original_name="bat", repository="arch", category="apps"
+                name="bat",
+                original=DiscoveredPackage("bat", distro="arch"),
+                category="apps",
             ),
             ("arch", "unmapped-tool"): None,
         }

@@ -19,39 +19,46 @@ def test_discovered_package():
 
 
 def test_resolved_package_attributes():
-    pkg = ResolvedPackage(name="ripgrep", original_name="ripgrep")
+    discovered = DiscoveredPackage(name="ripgrep", distro="arch")
+    pkg = ResolvedPackage(name="ripgrep", original=discovered)
     assert pkg.name == "ripgrep"
+    assert pkg.original == discovered
     assert pkg.original_name == "ripgrep"
-    assert pkg.repository is None
+    assert pkg.distro == "arch"
     assert pkg.category is None
 
+    chrome_discovered = DiscoveredPackage(name="google-chrome-stable", distro="debian")
     foreign_pkg = ResolvedPackage(
         name="google-chrome",
-        original_name="google-chrome-stable",
-        repository="google-chrome",
+        original=chrome_discovered,
         category="web",
     )
     assert foreign_pkg.name == "google-chrome"
+    assert foreign_pkg.original == chrome_discovered
     assert foreign_pkg.original_name == "google-chrome-stable"
-    assert foreign_pkg.repository == "google-chrome"
+    assert foreign_pkg.distro == "debian"
     assert foreign_pkg.category == "web"
 
 
 def test_resolved_package_frozen():
-    pkg = ResolvedPackage(name="bat", original_name="batcat")
+    discovered = DiscoveredPackage(name="batcat", distro="debian")
+    pkg = ResolvedPackage(name="bat", original=discovered)
     with pytest.raises(FrozenInstanceError):
         pkg.name = "something-else"
 
 
 def test_package_state_query_and_claim():
-    bat = ResolvedPackage(name="bat", original_name="batcat", repository="debian")
+    bat = ResolvedPackage(
+        name="bat", original=DiscoveredPackage(name="batcat", distro="debian")
+    )
     font = ResolvedPackage(
         name="fira-code",
-        original_name="fonts-firacode",
-        repository="debian",
+        original=DiscoveredPackage(name="fonts-firacode", distro="debian"),
         category="fonts",
     )
-    rg = ResolvedPackage(name="ripgrep", original_name="ripgrep", repository="debian")
+    rg = ResolvedPackage(
+        name="ripgrep", original=DiscoveredPackage(name="ripgrep", distro="arch")
+    )
 
     state = PackageState(
         packages=[bat, font, rg],

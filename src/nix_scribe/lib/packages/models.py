@@ -11,9 +11,16 @@ class DiscoveredPackage:
 @dataclass(frozen=True)
 class ResolvedPackage:
     name: str
-    original_name: str
-    repository: str | None = None
+    original: DiscoveredPackage
     category: str | None = None
+
+    @property
+    def original_name(self) -> str:
+        return self.original.name
+
+    @property
+    def distro(self) -> str:
+        return self.original.distro
 
 
 class PackageState:

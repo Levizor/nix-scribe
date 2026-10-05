@@ -41,7 +41,8 @@ def test_mock_package_resolver_mappings():
         mapping={
             ("debian", "batcat"): "bat",
             "explicit_resolved": ResolvedPackage(
-                name="fd", original_name="fd-find", repository="debian"
+                name="fd",
+                original=DiscoveredPackage(name="fd-find", distro="debian"),
             ),
             "unmapped_tool": None,
         }
@@ -51,13 +52,13 @@ def test_mock_package_resolver_mappings():
     assert resolved is not None
     assert resolved.name == "bat"
     assert resolved.original_name == "batcat"
-    assert resolved.repository == "debian"
+    assert resolved.distro == "debian"
 
     explicit = mock.resolve(
         DiscoveredPackage(name="explicit_resolved", distro="debian")
     )
     assert explicit == ResolvedPackage(
-        name="fd", original_name="fd-find", repository="debian"
+        name="fd", original=DiscoveredPackage(name="fd-find", distro="debian")
     )
 
     assert (
@@ -67,10 +68,11 @@ def test_mock_package_resolver_mappings():
         mock.resolve(DiscoveredPackage(name="not_in_mapping", distro="debian")) is None
     )
 
-    mock.add_mapping("new_tool", "canonical_tool", distro="arch", repository="repo")
+    mock.add_mapping("new_tool", "canonical_tool", distro="arch")
     new_resolved = mock.resolve(DiscoveredPackage(name="new_tool", distro="arch"))
     assert new_resolved == ResolvedPackage(
-        name="canonical_tool", original_name="new_tool", repository="repo"
+        name="canonical_tool",
+        original=DiscoveredPackage(name="new_tool", distro="arch"),
     )
 
 
@@ -78,7 +80,7 @@ def test_provider_injection():
     default_resolver = get_package_resolver()
     pkg = DiscoveredPackage(name="ripgrep", distro="arch")
     assert default_resolver.resolve(pkg) == ResolvedPackage(
-        name="ripgrep", original_name="ripgrep"
+        name="ripgrep", original=pkg
     )
 
     mock = MockPackageResolver({"zsh": "zsh"})
@@ -87,6 +89,4 @@ def test_provider_injection():
 
     set_package_resolver(None)
     resolver = get_package_resolver()
-    assert resolver.resolve(pkg) == ResolvedPackage(
-        name="ripgrep", original_name="ripgrep"
-    )
+    assert resolver.resolve(pkg) == ResolvedPackage(name="ripgrep", original=pkg)

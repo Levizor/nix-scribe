@@ -32,7 +32,7 @@ class DummyPackageResolver(PackageResolver):
     """Dummy package resolver that passes every discovered package through as-is."""
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
-        return ResolvedPackage(name=package.name, original_name=package.name)
+        return ResolvedPackage(name=package.name, original=package)
 
 
 _current_resolver: PackageResolver | None = None

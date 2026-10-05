@@ -26,7 +26,6 @@ class MockPackageResolver(PackageResolver):
         package_name: str,
         target: str | ResolvedPackage | None,
         distro: str | None = None,
-        repository: str | None = None,
         category: str | None = None,
     ) -> None:
         if isinstance(target, ResolvedPackage):
@@ -34,8 +33,9 @@ class MockPackageResolver(PackageResolver):
         elif isinstance(target, str):
             resolved = ResolvedPackage(
                 name=target,
-                original_name=package_name,
-                repository=repository or distro,
+                original=DiscoveredPackage(
+                    name=package_name, distro=distro or "generic"
+                ),
                 category=category,
             )
         else:
