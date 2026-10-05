@@ -69,6 +69,8 @@ def test_package_state_query_and_claim():
     )
 
     assert state.unmapped == ["internal-tool"]
+    assert state.resolved == [bat, font, rg]
+    assert state.packages == [bat, font, rg]
     assert state.has("bat")
     assert state.has("fira-code")
     assert not state.has("unknown")
@@ -77,18 +79,26 @@ def test_package_state_query_and_claim():
     assert state.get_by_category("nonexistent") == []
 
     assert not state.is_claimed("bat")
+    assert state.claimed == set()
+    assert state.unclaimed == [bat, font, rg]
+
     assert state.claim("bat") is True
     assert state.is_claimed("bat")
+    assert state.claimed == {"bat"}
 
     assert state.claim("nonexistent") is False
     assert not state.is_claimed("nonexistent")
 
     unclaimed = state.get_unclaimed()
     assert unclaimed == [font, rg]
+    assert state.unclaimed == [font, rg]
 
 
 def test_package_state_empty():
     state = PackageState.empty()
+    assert state.resolved == []
     assert state.packages == []
     assert state.unmapped == []
+    assert state.claimed == set()
+    assert state.unclaimed == []
     assert state.get_unclaimed() == []
