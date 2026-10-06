@@ -48,10 +48,26 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not packages and not unmapped:
         return None
 
+    explicit = sorted([p for p in packages if p.is_explicit], key=lambda p: p.name)
+    preinstalled = sorted(
+        [p for p in packages if p.is_preinstalled], key=lambda p: p.name
+    )
+
     items: list[raw] = []
 
-    for pkg in sorted(packages, key=lambda p: p.name):
-        items.append(_format_package_item(pkg))
+    if explicit:
+        if preinstalled:
+            items.append(raw("# User-installed packages"))
+        for pkg in explicit:
+            items.append(_format_package_item(pkg))
+
+    if preinstalled:
+        if explicit:
+            items.append(raw("\n# Pre-installed distribution utilities"))
+        else:
+            items.append(raw("# Pre-installed distribution utilities"))
+        for pkg in preinstalled:
+            items.append(_format_package_item(pkg))
 
     for name in sorted(unmapped):
         items.append(raw(f"# unmapped: {name}"))
