@@ -1,7 +1,7 @@
 import pytest
 
 from nix_scribe.lib.asset import Asset
-from nix_scribe.lib.nix_writer import NixWriter, nix_with, raw, with_pkgs
+from nix_scribe.lib.nix_writer import NixWriter, comment, nix_with, raw, with_pkgs
 
 
 @pytest.fixture()
@@ -123,3 +123,46 @@ def test_asset_rendering_and_collection(writer: NixWriter):
     writer.write_attr("image", asset)
 
     assert writer.gettext() == "image = ./target.png;\n"
+
+
+def test_comment_formatting():
+    assert comment("simple comment") == "# simple comment"
+    assert comment("# already commented") == "# already commented"
+    assert comment("\nsecond line") == "\n# second line"
+    assert comment("line one\nline two") == "# line one\n# line two"
+
+
+def test_comment_in_list(writer: NixWriter):
+    items = [
+        comment("User-installed"),
+        raw("vim"),
+        comment("\nPre-installed"),
+        raw("curl"),
+    ]
+    writer.write_attr("packages", items)
+    expected = """packages = [
+  # User-installed
+  vim
+
+  # Pre-installed
+  curl
+];
+"""
+    assert writer.gettext() == expected
+
+
+def test_comment_in_list_no_comment(writer: NixWriter, monkeypatch):
+    monkeypatch.setattr("nix_scribe.lib.nix_writer.args.no_comment", True)
+    items = [
+        comment("User-installed"),
+        raw("vim"),
+        comment("\nPre-installed"),
+        raw("curl"),
+    ]
+    writer.write_attr("packages", items)
+    expected = """packages = [
+  vim
+  curl
+];
+"""
+    assert writer.gettext() == expected
