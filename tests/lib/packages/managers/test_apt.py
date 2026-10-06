@@ -166,8 +166,8 @@ def test_apt_manager_integration_with_system_context(tmp_path):
     assert state.has("bat")
     assert state.has("ripgrep")
     assert state.has("openssl")
-    assert len(state.unclaimed) == 2
-    assert {p.name for p in state.unclaimed} == {"bat", "ripgrep"}
+    assert len(state.unclaimed) == 3
+    assert {p.name for p in state.unclaimed} == {"bat", "openssl", "ripgrep"}
 
 
 def test_apt_manager_discover_packages_with_metapackages(tmp_path):

@@ -95,11 +95,9 @@ class PackageState:
 
     @property
     def unclaimed(self) -> list[ResolvedPackage]:
-        """Resolved packages not claimed by any specialized module, excluding pure dependencies."""
+        """Resolved packages not claimed by any specialized module."""
         return [
-            pkg
-            for attr, pkg in self.by_attribute.items()
-            if attr not in self._claimed and not pkg.is_dependency
+            pkg for attr, pkg in self.by_attribute.items() if attr not in self._claimed
         ]
 
     def has(self, attribute_name: str) -> bool:

@@ -175,3 +175,17 @@ def test_system_packages_mapper_divided_by_comments():
     assert "ripgrep" in output
     assert "# Pre-installed distribution utilities" in output
     assert "curl" in output
+
+
+def test_system_packages_mapper_ignores_dependencies():
+    libssl = ResolvedPackage(
+        name="openssl",
+        original=DiscoveredPackage(
+            "libssl3", repository="debian", reason=InstallReason.DEPENDENCY
+        ),
+    )
+    ir = {
+        "packages": [libssl],
+        "unmapped": [],
+    }
+    assert system_packages.map(ir) is None

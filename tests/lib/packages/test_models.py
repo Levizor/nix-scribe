@@ -130,4 +130,4 @@ def test_package_install_reasons():
     assert state.has("curl")
     assert state.has("ripgrep")
 
-    assert state.unclaimed == [res_pre, res_exp]
+    assert state.unclaimed == [res_dep, res_pre, res_exp]

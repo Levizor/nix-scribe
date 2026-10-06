@@ -45,13 +45,13 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     packages: list[ResolvedPackage] = ir.get("packages", [])
     unmapped: list[str] = ir.get("unmapped", [])
 
-    if not packages and not unmapped:
-        return None
-
     explicit = sorted([p for p in packages if p.is_explicit], key=lambda p: p.name)
     preinstalled = sorted(
         [p for p in packages if p.is_preinstalled], key=lambda p: p.name
     )
+
+    if not explicit and not preinstalled and not unmapped:
+        return None
 
     items: list[raw] = []
 
