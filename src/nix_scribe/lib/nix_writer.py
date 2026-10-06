@@ -15,6 +15,20 @@ class raw(str):
         return str(self)
 
 
+class comment(raw):
+    def __new__(cls, value: str):
+        lines = []
+        for line in value.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                lines.append("")
+            elif stripped.startswith("#"):
+                lines.append(stripped)
+            else:
+                lines.append(f"# {stripped}")
+        return super().__new__(cls, "\n".join(lines))
+
+
 class combination(list):
     def __new__(cls, *args):
         return super().__new__(cls, *args)
@@ -58,6 +72,10 @@ class NixWriter:
         elif value is None:
             self._write_raw("null")
 
+        elif isinstance(value, comment):
+            if not args.no_comment:
+                self._write_raw(str(value))
+
         elif isinstance(value, (int, float, raw)):
             self._write_raw(str(value))
 
@@ -86,6 +104,15 @@ class NixWriter:
         elif isinstance(value, list):
             with self.block(surrounding="[]"):
                 for inner_value in value:
+                    if isinstance(inner_value, comment):
+                        if args.no_comment:
+                            continue
+                        for line in str(inner_value).splitlines():
+                            if line:
+                                self._writeln(line)
+                            else:
+                                self.buffer.write("\n")
+                        continue
                     self._write()
                     self._write_value(inner_value)
                     self._writeln()

@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.nix_writer import nix_with, raw
+from nix_scribe.lib.nix_writer import comment, nix_with, raw
 from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.packages.models import ResolvedPackage
 from nix_scribe.lib.registry import Module, ModulePhase
@@ -45,16 +45,30 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     packages: list[ResolvedPackage] = ir.get("packages", [])
     unmapped: list[str] = ir.get("unmapped", [])
 
-    if not packages and not unmapped:
+    explicit = sorted([p for p in packages if p.is_explicit], key=lambda p: p.name)
+    preinstalled = sorted(
+        [p for p in packages if p.is_preinstalled], key=lambda p: p.name
+    )
+
+    if not explicit and not preinstalled and not unmapped:
         return None
 
     items: list[raw] = []
 
-    for pkg in sorted(packages, key=lambda p: p.name):
-        items.append(_format_package_item(pkg))
+    if explicit:
+        if preinstalled:
+            items.append(comment("User-installed packages"))
+        for pkg in explicit:
+            items.append(_format_package_item(pkg))
+
+    if preinstalled:
+        prefix = "\n" if explicit else ""
+        items.append(comment(f"{prefix}Pre-installed distribution utilities"))
+        for pkg in preinstalled:
+            items.append(_format_package_item(pkg))
 
     for name in sorted(unmapped):
-        items.append(raw(f"# unmapped: {name}"))
+        items.append(comment(f"unmapped: {name}"))
 
     return ConfigFragment(
         name="system-packages",

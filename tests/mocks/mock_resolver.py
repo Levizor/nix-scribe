@@ -28,25 +28,24 @@ class MockPackageResolver(PackageResolver):
         repository: str | None = None,
         category: str | None = None,
     ) -> None:
-        if isinstance(target, ResolvedPackage):
-            resolved = target
-        elif isinstance(target, str):
-            resolved = ResolvedPackage(
-                name=target,
-                original=DiscoveredPackage(
-                    name=package_name, repository=repository or "generic"
-                ),
-                category=category,
-            )
-        else:
-            resolved = None
-
-        if repository is not None:
-            self._mapping[(repository, package_name)] = resolved
-        else:
-            self._mapping[package_name] = resolved
+        key: str | tuple[str, str] = (
+            (repository, package_name) if repository is not None else package_name
+        )
+        self._mapping[key] = (target, category)
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
-        if (package.repository, package.name) in self._mapping:
-            return self._mapping[(package.repository, package.name)]
-        return self._mapping.get(package.name)
+        val = self._mapping.get(
+            (package.repository, package.name), self._mapping.get(package.name)
+        )
+        if val is None:
+            return None
+        target, category = val
+        if target is None:
+            return None
+        if isinstance(target, ResolvedPackage):
+            return target
+        return ResolvedPackage(
+            name=target,
+            original=package,
+            category=category,
+        )

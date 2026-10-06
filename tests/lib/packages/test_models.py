@@ -4,6 +4,7 @@ import pytest
 
 from nix_scribe.lib.packages import (
     DiscoveredPackage,
+    InstallReason,
     PackageState,
     ResolvedPackage,
 )
@@ -102,3 +103,31 @@ def test_package_state_empty():
     assert state.claimed == set()
     assert state.unclaimed == []
     assert state.get_unclaimed() == []
+
+
+def test_package_install_reasons():
+    dep = DiscoveredPackage("libssl3", "debian", reason=InstallReason.DEPENDENCY)
+    pre = DiscoveredPackage("curl", "debian", reason=InstallReason.PREINSTALLED)
+    exp = DiscoveredPackage("ripgrep", "arch", reason=InstallReason.EXPLICIT)
+
+    assert dep.is_dependency is True
+    assert dep.is_explicit is False
+    assert dep.is_preinstalled is False
+
+    assert pre.is_preinstalled is True
+    assert exp.is_explicit is True
+
+    res_dep = ResolvedPackage("openssl", dep)
+    res_pre = ResolvedPackage("curl", pre)
+    res_exp = ResolvedPackage("ripgrep", exp)
+
+    assert res_dep.is_dependency is True
+    assert res_pre.is_preinstalled is True
+    assert res_exp.is_explicit is True
+
+    state = PackageState(packages=[res_dep, res_pre, res_exp])
+    assert state.has("openssl")
+    assert state.has("curl")
+    assert state.has("ripgrep")
+
+    assert state.unclaimed == [res_dep, res_pre, res_exp]

@@ -1,11 +1,31 @@
 from dataclasses import dataclass
+from enum import Enum
 from functools import cached_property
+
+
+class InstallReason(str, Enum):
+    EXPLICIT = "explicit"
+    PREINSTALLED = "preinstalled"
+    DEPENDENCY = "dependency"
 
 
 @dataclass(frozen=True)
 class DiscoveredPackage:
     name: str
     repository: str
+    reason: InstallReason = InstallReason.EXPLICIT
+
+    @property
+    def is_explicit(self) -> bool:
+        return self.reason == InstallReason.EXPLICIT
+
+    @property
+    def is_preinstalled(self) -> bool:
+        return self.reason == InstallReason.PREINSTALLED
+
+    @property
+    def is_dependency(self) -> bool:
+        return self.reason == InstallReason.DEPENDENCY
 
 
 @dataclass(frozen=True)
@@ -21,6 +41,22 @@ class ResolvedPackage:
     @property
     def repository(self) -> str:
         return self.original.repository
+
+    @property
+    def reason(self) -> InstallReason:
+        return self.original.reason
+
+    @property
+    def is_explicit(self) -> bool:
+        return self.original.is_explicit
+
+    @property
+    def is_preinstalled(self) -> bool:
+        return self.original.is_preinstalled
+
+    @property
+    def is_dependency(self) -> bool:
+        return self.original.is_dependency
 
 
 class PackageState:

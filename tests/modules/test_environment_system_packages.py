@@ -6,6 +6,7 @@ from nix_scribe.lib.nixfile import NixFile
 from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.packages import (
     DiscoveredPackage,
+    InstallReason,
     PackageManager,
     ResolvedPackage,
     clear_package_managers,
@@ -140,3 +141,51 @@ def test_system_packages_mapper_unmapped_only():
 
     assert "environment.systemPackages = with pkgs; [" in output
     assert "# unmapped: orphan-tool" in output
+
+
+def test_system_packages_mapper_divided_by_comments():
+    curl = ResolvedPackage(
+        name="curl",
+        original=DiscoveredPackage(
+            "curl", repository="debian", reason=InstallReason.PREINSTALLED
+        ),
+    )
+    rg = ResolvedPackage(
+        name="ripgrep",
+        original=DiscoveredPackage(
+            "ripgrep", repository="arch", reason=InstallReason.EXPLICIT
+        ),
+    )
+
+    ir = {
+        "packages": [curl, rg],
+        "unmapped": [],
+    }
+
+    fragment = system_packages.map(ir)
+    assert fragment is not None
+
+    nix_file = NixFile("configuration")
+    nix_file.add_fragment(fragment)
+    writer = NixWriter()
+    nix_file.render(writer)
+    output = writer.gettext()
+
+    assert "# User-installed packages" in output
+    assert "ripgrep" in output
+    assert "# Pre-installed distribution utilities" in output
+    assert "curl" in output
+
+
+def test_system_packages_mapper_ignores_dependencies():
+    libssl = ResolvedPackage(
+        name="openssl",
+        original=DiscoveredPackage(
+            "libssl3", repository="debian", reason=InstallReason.DEPENDENCY
+        ),
+    )
+    ir = {
+        "packages": [libssl],
+        "unmapped": [],
+    }
+    assert system_packages.map(ir) is None
