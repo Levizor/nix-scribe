@@ -13,17 +13,17 @@ class PackageResolver(ABC):
 
     def resolve_many(
         self, packages: list[DiscoveredPackage]
-    ) -> tuple[list[ResolvedPackage], list[str]]:
-        """Resolves a list of DiscoveredPackage instances, returning resolved packages and unmapped names."""
+    ) -> tuple[list[ResolvedPackage], list[DiscoveredPackage]]:
+        """Resolves a list of DiscoveredPackage instances, returning resolved packages and unmapped discovered packages."""
         resolved: list[ResolvedPackage] = []
-        unmapped: list[str] = []
+        unmapped: list[DiscoveredPackage] = []
 
         for pkg in packages:
             res = self.resolve(pkg)
             if res is not None:
                 resolved.append(res)
             else:
-                unmapped.append(pkg.name)
+                unmapped.append(pkg)
 
         return resolved, unmapped
 

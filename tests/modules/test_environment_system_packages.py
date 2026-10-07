@@ -81,7 +81,9 @@ def test_system_packages_scanner_unclaimed_and_unmapped(tmp_path):
     assert "docker" not in package_names
     assert "bat" in package_names
     assert "ripgrep" in package_names
-    assert ir["packages"].unmapped == ["custom-tool"]
+    assert ir["packages"].unmapped == [
+        DiscoveredPackage("custom-tool", repository="aur")
+    ]
 
 
 def test_system_packages_mapper_empty():
@@ -103,9 +105,10 @@ def test_system_packages_mapper_formatting():
         name="ripgrep",
         original=DiscoveredPackage("ripgrep", repository="arch"),
     )
+    custom_cli = DiscoveredPackage("custom-cli", repository="debian")
 
     ir = {
-        "packages": PackageState(packages=[bat, spotify, rg], unmapped=["custom-cli"]),
+        "packages": PackageState(packages=[bat, spotify, rg], unmapped=[custom_cli]),
     }
 
     fragment = system_packages.map(ir)
@@ -123,12 +126,13 @@ def test_system_packages_mapper_formatting():
     assert "bat /* from debian:batcat */" in output
     assert "ripgrep" in output
     assert "spotify /* from aur */" in output
-    assert "# unmapped: custom-cli" in output
+    assert "# unmapped: custom-cli (repo: debian)" in output
 
 
 def test_system_packages_mapper_unmapped_only():
+    orphan_tool = DiscoveredPackage("orphan-tool", repository="aur")
     ir = {
-        "packages": PackageState(packages=[], unmapped=["orphan-tool"]),
+        "packages": PackageState(packages=[], unmapped=[orphan_tool]),
     }
 
     fragment = system_packages.map(ir)
@@ -142,7 +146,7 @@ def test_system_packages_mapper_unmapped_only():
     output = writer.gettext()
 
     assert "environment.systemPackages = with pkgs; [" in output
-    assert "# unmapped: orphan-tool" in output
+    assert "# unmapped: orphan-tool (repo: aur)" in output
 
 
 def test_system_packages_mapper_divided_by_comments():
@@ -185,7 +189,33 @@ def test_system_packages_mapper_ignores_dependencies():
             "libssl3", repository="debian", reason=InstallReason.DEPENDENCY
         ),
     )
+    unmapped_dep = DiscoveredPackage(
+        "libxyz1", repository="debian", reason=InstallReason.DEPENDENCY
+    )
     ir = {
-        "packages": PackageState(packages=[libssl]),
+        "packages": PackageState(packages=[libssl], unmapped=[unmapped_dep]),
     }
     assert system_packages.map(ir) is None
+
+
+def test_system_packages_mapper_unmapped_details_formatting():
+    pkg1 = DiscoveredPackage(
+        "custom1", repository="ppa:test", reason=InstallReason.EXPLICIT
+    )
+    pkg2 = DiscoveredPackage(
+        "custom2", repository="debian", reason=InstallReason.PREINSTALLED
+    )
+    ir = {
+        "packages": PackageState(packages=[], unmapped=[pkg1, pkg2]),
+    }
+    fragment = system_packages.map(ir)
+    assert fragment is not None
+
+    nix_file = NixFile("configuration")
+    nix_file.add_fragment(fragment)
+    writer = NixWriter()
+    nix_file.render(writer)
+    output = writer.gettext()
+
+    assert "# unmapped: custom1 (repo: ppa:test)" in output
+    assert "# unmapped: custom2 (repo: debian)" in output

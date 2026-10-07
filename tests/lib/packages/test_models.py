@@ -64,12 +64,13 @@ def test_package_state_query_and_claim():
         original=DiscoveredPackage(name="ripgrep", repository="arch"),
     )
 
+    internal_tool = DiscoveredPackage("internal-tool", repository="debian")
     state = PackageState(
         packages=[bat, font, rg],
-        unmapped=["internal-tool"],
+        unmapped=[internal_tool],
     )
 
-    assert state.unmapped == ["internal-tool"]
+    assert state.unmapped == [internal_tool]
     assert state.resolved == [bat, font, rg]
     assert state.packages == [bat, font, rg]
     assert state.has("bat")

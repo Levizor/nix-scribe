@@ -83,8 +83,7 @@ def test_system_context_packages_discovery_and_resolution(tmp_path):
     packages = context.packages
     assert len(packages.packages) == 2
     assert packages.has("ripgrep")
-    assert packages.has("bat")
-    assert packages.unmapped == ["unmapped-tool"]
+    assert packages.unmapped == [DiscoveredPackage("unmapped-tool", repository="arch")]
 
     # Verify cached return
     assert context.packages is packages

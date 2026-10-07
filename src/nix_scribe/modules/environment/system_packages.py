@@ -4,7 +4,11 @@ from typing import Any
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_writer import comment, nix_with, raw
 from nix_scribe.lib.option_block import ConfigFragment
-from nix_scribe.lib.packages.models import PackageState, ResolvedPackage
+from nix_scribe.lib.packages.models import (
+    DiscoveredPackage,
+    PackageState,
+    ResolvedPackage,
+)
 from nix_scribe.lib.registry import Module, ModulePhase
 
 logger = logging.getLogger(__name__)
@@ -29,6 +33,13 @@ def _format_package_item(pkg: ResolvedPackage) -> raw:
     return raw(pkg.name)
 
 
+def _format_unmapped_item(pkg: DiscoveredPackage) -> comment:
+    """Formats an unmapped discovered package with repository details."""
+    if pkg.repository:
+        return comment(f"unmapped: {pkg.name} (repo: {pkg.repository})")
+    return comment(f"unmapped: {pkg.name}")
+
+
 @system_packages.scanner()
 def scan(context: SystemContext) -> dict[str, Any]:
     return {
@@ -43,7 +54,7 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
 
     state: PackageState = ir["packages"]
     packages = state.unclaimed
-    unmapped = state.unmapped
+    unmapped = [p for p in state.unmapped if not p.is_dependency]
 
     explicit = sorted([p for p in packages if p.is_explicit], key=lambda p: p.name)
     preinstalled = sorted(
@@ -67,8 +78,8 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         for pkg in preinstalled:
             items.append(_format_package_item(pkg))
 
-    for name in sorted(unmapped):
-        items.append(comment(f"unmapped: {name}"))
+    for pkg in sorted(unmapped, key=lambda p: p.name):
+        items.append(_format_unmapped_item(pkg))
 
     return ConfigFragment(
         name="system-packages",
