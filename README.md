@@ -40,6 +40,9 @@ environment.systemPackages = [
 ```
 
 ## Usage
+It's advised to run the script with sudo to allow scanning as much as possible.
+But the script generally should work without it as well, asking for sudo permissions if required.
+
 ```sh
 Usage: nix-scribe [OPTIONS] [ROOT_PATH]
 
@@ -47,32 +50,45 @@ Arguments:
   [ROOT_PATH]  Path to the root directory of the system to be scanned [default: /]
 
 Options:
-  -o --output       Output path of the configuration
-  -m --mod-level    Level of modularization oft he configuration
-  --no-comment      Don't write comments in the output files
-  --confirm         Don't ask for confirmation
-  -v --verbosity    Set verbosity level (1 - Info, 2 - Debug)
+  -o, --output PATH           Output path for configuration [default: ./nix-config]
+  -m, --mod-level INTEGER     Modularity level: 0 - single file, 1 - category files, 2 - per-module files [default: 0]
+  -e, --enable-module TEXT    Enable module(s) (comma-separated or repeated)
+  -d, --disable-module TEXT   Disable module(s) (comma-separated or repeated)
+  --only TEXT                 Run only specified module(s) (comma-separated or repeated)
+  -p, --plugin TEXT           Load external plugin file, directory, or python package
+  --list-modules              List available modules and default status, then exit
+  --list-modules-tree         List available modules in a hierarchical tree, then exit
+  -v, --verbosity INTEGER     Verbosity: 0 - silent, 1 - INFO, 2 - DEBUG [default: 1]
+  --mod-verbosity INTEGER     Module log verbosity: 0 - silent, 1 - INFO, 2 - DEBUG
+  --no-comment                Don't write comments in output files
+  --confirm                   Don't ask for confirmation
 ```
 
-Run without arguments:
+Run against the current running system:
 ```sh
 nix-scribe
 ```
 
-nix-scribe will scan your system, map definitions and output the configuration in nix-config/configuration.nix
-
-It's advised to run the script with sudo to allow scanning as much as possible.
-But the script generally should work without it as well, asking for sudo permissions if required.
-
-Use -m | --mod-level option to create a divided configuration:
-- -m 0 - single file
-- -m 1 - top-level modules files (services.nix, programs.nix)
-- -m 2 - individual file for each module
-
+Scan a mounted offline root:
+```sh
+nix-scribe /mnt/target-root
 ```
+
+Run only specific modules:
+```sh
+nix-scribe --only networking,programs.git,security.sudo
+```
+
+Modularize output into subdirectories:
+- `-m 0` - Single file (`configuration.nix`)
+- `-m 1` - Top-level category files (`services.nix`, `programs.nix`)
+- `-m 2` - Individual file for each module (`programs/git.nix`, `services/sddm.nix`)
+
+```sh
 nix-scribe -m 2 -o output-dir
 ```
-result:
+
+Output tree with `-m 2`:
 ```
 output-dir
 ├── configuration.nix
@@ -80,9 +96,13 @@ output-dir
 │   ├── boot-loader-grub-background.jpg
 │   ├── default.nix
 │   └── grub.nix
+├── environment
+│   ├── default.nix
+│   └── system_packages.nix
 ├── programs
 │   ├── bash.nix
 │   ├── default.nix
+│   ├── git.nix
 │   └── hyprland.nix
 ├── security
 │   ├── default.nix
@@ -100,13 +120,6 @@ output-dir
 └── virtualisation
     ├── default.nix
     └── virtualisation.nix
-
-```
-
-You can specify the path to the root directory of the system to be scanned, in case you mount it to your current one.
-
-```
-nix-scribe /mnt/mounted_system
 ```
 
 ## Contributions

@@ -4,140 +4,158 @@ Contributions are welcome! While there are no strict rules regarding how to writ
 
 ## How to Add a Module
 
-To add a module, find (or create) the appropriate directory in `src/nix_scribe/modules/` and create a file for its definition. For example, to add a module for `vim`, you would create `vim.py` in the `src/nix_scribe/modules/programs/` directory.
+Create a file inside `src/nix_scribe/modules/<category>/`. For example, a module for `git` lives in `src/nix_scribe/modules/programs/git.py`. The category generally should follow the NixOs option the module defines.
 
-Each module file must instantiate a `Module` class assigned to a `module` variable, containing a **Scanner** and a **Mapper**.
+A module instantiates `Module`, defines a scanner with `@<mod>.scanner()`, and defines a mapper with `@<mod>.mapper()`.
 
 ### Example Module
-Here is how a simple module looks (using Hyprland as an example):
 
 ```python
 # src/nix_scribe/modules/programs/hyprland.py
 
 from typing import Any
+
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import SimpleOptionBlock
-from nix_scribe.modules.base import BaseMapper, BaseScanner, Module
+from nix_scribe.lib.option_block import ConfigFragment
+from nix_scribe.lib.registry import Module
 
-class HyprlandScanner(BaseScanner):
-    def scan(self, context: SystemContext) -> dict[str, Any]:
-        # just check if Hyprland binary exists on the target system
-        return {"enable": bool(context.find_executable_path("Hyprland"))}
+hyprland = Module("programs.hyprland")
 
-class HyprlandMapper(BaseMapper):
-    def map(self, ir: dict[str, Any]) -> SimpleOptionBlock | None:
-        # nothing to return if there's no Hyprland
-        if not ir.get("enable"):
-            return None
 
-        return SimpleOptionBlock(
-            name="programs/hyprland",
-            description="Hyprland compositor",
-            data={"programs.hyprland.enable": True},
-        )
+@hyprland.scanner()
+def scan(context: SystemContext) -> dict[str, Any]:
+    # Check if binary exists on target filesystem
+    return {"enable": bool(context.find_executable_path("Hyprland"))}
 
-module = Module("hyprland", HyprlandScanner(), HyprlandMapper())
+
+@hyprland.mapper()
+def map(ir: dict[str, Any]) -> ConfigFragment | None:
+    if not ir.get("enable"):
+        return None
+
+    return ConfigFragment(
+        name="hyprland",
+        description="Hyprland compositor",
+        data={"programs.hyprland.enable": True},
+    )
 ```
 
 ---
 
 ## Architecture Overview
 
-Essentially, nix-scribe is a lightweight framework providing abstraction for reading the state and replicating it with nixos options. The starting point is located at [src/nix_scribe/nixscribe.py](./src/nix_scribe/nixscribe.py).
+`nix-scribe` scans system state and generates corresponding NixOS configuration. The entry point is in [src/nix_scribe/nixscribe.py](./src/nix_scribe/nixscribe.py).
 
-The flow is divided in 4 stages:
-1. Collecting modules defined in [src/nix_scribe/modules](./src/nix_scribe/modules).
-2. Running a Scan for all the modules
-3. Mapping all the collected data into option blocks
-4. Writing it all down into .nix files
+The execution flow:
+1. **Module Discovery**: `ModuleLoader` imports all modules from `src/nix_scribe/modules/` and any external plugins passed via `--plugin`.
+2. **Scheduling**: `ModuleScheduler` sorts active modules by `ModulePhase` (`EARLY`, `NORMAL`, `LATE`) and name.
+3. **Scanning**: Scanners inspect the target filesystem through `SystemContext` and return an Intermediate Representation (IR) dict.
+4. **Mapping**: Mappers convert IR dicts into `ConfigFragment` instances.
+5. **Assembly & Writing**: `NixFile` and `NixWriter` format options into `.nix` files based on the requested modularization level.
 
-### The Scanner
-The **Scanner** is responsible for fetching data from the system and parsing it into an **Intermediate Representation (IR)**, which is then used by the Mapper. How to define IR in your modules is up to you.
+### The Scanner & SystemContext
 
-* **Filesystem-based Scanning:** In `nix-scribe`, all scanning should ideally be done in a filesystem-based way. This means the script should avoid running shell commands to read state whenever possible.
-* **Implementation:** Any class inheriting from `BaseScanner` must define a `scan(self, context: SystemContext)` method.
+Scanners collect state from the target system into an IR dictionary.
 
-### SystemContext
-`SystemContext` is the primary interface for communicating with the target system. It provides high-level methods to:
-* Search for executables (`find_executable_path`).
-* Read systemd services status.
-* Read files and list directories (handling permissions/sudo automatically).
-* Check path existence.
+- **Filesystem-only scanning**: Never invoke host shell binaries (`mount`, `systemctl`, `stat`). Read files and directories via `context.path_exists()`, `context.read_file()`, `context.list_directory()`, and `context.find_executable_path()`. This keeps scanning safe on mounted offline root directories.
+- **Path constants**: Define paths at the top of the module file (e.g. `CONFIG_PATH = "/etc/example.conf"`).
+- **Reusable parsers**: Place parse functions in `src/nix_scribe/lib/parsers/<name>.py`.
+- **Merged configs**: When configs are split across files and drop-in directories (like `/etc/sudoers` and `/etc/sudoers.d/`), instantiate `ConfigReader(context, parse_func)` and call `read_merge_configs_from_paths_list([FILE_PATH, DIR_PATH])`. It automatically reads all files and handles merging internally.
 
-### The Mapper
-The **Mapper**'s responsibility is to process the IR produced by the Scanner to build and return an **OptionBlock**.
+### Package Managers & Package Claiming
 
-### Option Block
-An `OptionBlock` is a Pythonic representation of a Nix configuration set. These blocks are processed by the engine and written into the final NixOS configuration files.
+`nix-scribe` detects installed packages on the target system (e.g. Debian/Ubuntu APT) through `PackageManager` implementations.
 
-An Option Block typically consists of:
-1. **Name**: Identifier for the block (may be used in debugging)
-2. **Description**: May be used as a comment in the generated Nix file.
-3. **Arguments set**: Set of arguments required by the block (e.g., `pkgs`, `lib`, `config`). These are added to the function parameters in the resulting Nix code.
-4. **Assets set**: Files that need to be copied from the target system into the Nix configuration (e.g., wallpapers, specific config files).
+- **Package State**: Access discovered packages via `context.packages`.
+- **Declarative Package Claiming**: If your module configures a package (for example, `programs.git` configuring git), declare it in the returned `ConfigFragment`:
+  ```python
+  ConfigFragment(
+      name="git",
+      data={"programs.git.enable": True},
+      claims={"git"},
+  )
+  ```
+  During the mapping phase, `NixScribe` marks claimed packages in `context.packages`.
+- **Unclaimed Packages**: Modules running in `ModulePhase.LATE` (specifically `environment.system_packages`) inspect `context.packages.unclaimed` at map time and emit all remaining user-installed packages into `environment.systemPackages`. Claiming prevents duplicate package definitions. If a module returns `None`, it claims nothing, and the package safely stays in `systemPackages`.
 
-#### SimpleOptionBlock
-For most modules, `SimpleOptionBlock` is the preferred choice. It provides a `data: dict` parameter and implements the render() method. It also handles the detection of arguments and assets to minimize frictio[.](2026-02-27_..md).
+To add support for another package manager (like pacman or dnf):
+1. Subclass `PackageManager` in `src/nix_scribe/lib/packages/managers/<name>.py`.
+2. Implement `detect(context)` and `discover_packages(context)`.
+3. Register it with `register_package_manager(YourManager)`.
 
-**Example:**
+### Execution Phases
+
+Modules can set an execution phase when instantiated:
+- `ModulePhase.EARLY` (10): Runs before standard modules.
+- `ModulePhase.NORMAL` (50): Default. Standard modules run here and emit fragments.
+- `ModulePhase.LATE` (100): Runs after standard modules. Used by `environment.system_packages` to collect unclaimed packages after all earlier modules have mapped.
+
 ```python
-SimpleOptionBlock(
+system_packages = Module("environment.system_packages", phase=ModulePhase.LATE)
+```
+
+### The Mapper & ConfigFragment
+
+Mappers take the IR dictionary and return a `ConfigFragment` or `None`.
+
+```python
+from nix_scribe.lib.nix_writer import raw
+from nix_scribe.lib.option_block import ConfigFragment
+
+ConfigFragment(
     name="networkmanager",
     description="NetworkManager configuration",
+    claims={"networkmanager"},
     data={
-        "networking.networkmanager": {
-            "enable": True,
-            "plugins": [raw("pkgs.networkmanager-openvpn")],
-        }
+        "networking.networkmanager.enable": True,
+        "networking.networkmanager.plugins": [raw("pkgs.networkmanager-openvpn")],
     },
-    arguments=["pkgs"]
 )
 ```
 
-**Generates:**
-```nix
-# NetworkManager configuration
-networking.networkmanager = {
-  enable = true;
-  plugins = [
-    pkgs.networkmanager-openvpn
-  ];
-};
-```
-
-#### Custom Option Blocks
-You can create your own option blocks by inheriting from `BaseOptionBlock` and overriding the `render()` method if you want to achieve some specific format of the resulting configuration, though this is probably unnecessary.
+Values can use helper types:
+- `raw("pkgs.foo")`: Emits raw Nix identifiers.
+- `comment("text")`: Emits comments within list structures.
+- `nix_with("pkgs", [...])` or `with_pkgs(...)`: Wraps lists in `with <scope>;`.
+- `Asset(source_path, target_filename)`: Copies external files (like wallpapers or certificates) into the generated config directory.
 
 ---
 
 ## Development Workflow
 
-### flake and direnv
-Nix flake provides a development shell:
+### Development Shell
+
+Use the Nix development shell:
 ```bash
 nix develop
 ```
 
-You can use direnv to automatically apply it upon entering the directory:
-```
+Or enable `direnv`:
+```bash
 direnv allow
 ```
 
 ### Testing
-When adding a new module, it's a good idea to include corresponding tests in the `tests/modules/` directory to ensure reliability.
 
-To run the tests:
+Write unit tests using pytest's `tmp_path` fixture:
+- Create simulated filesystem files and directories in `tmp_path`.
+- Pass `tmp_path` to `SystemContext(root=tmp_path)`.
+- Do not use complex nested `unittest.mock` calls for filesystem operations.
+- Mock only non-filesystem operations (`context.find_executable_path`, `context.systemctl`).
+
+Run tests:
 ```bash
-pytest
+direnv exec . pytest
 ```
 
-### Code Quality
-Use **ruff** for linting and formatting.
+### Linting and Formatting
 
+Run `ruff` before committing:
 ```bash
-ruff check --fix
-ruff format
+direnv exec . ruff check --fix
+direnv exec . ruff format
 ```
 
 ### Type Hints
-The project uses type hints extensively. Please provide type annotations for all function signatures and complex variables to keep the codebase maintainable and readable.
+
+Use standard lowercase types for type hints (`list[str]`, `dict[str, Any]`, `tuple[int, ...]`) instead of importing `List` or `Dict` from `typing`. Provide type hints on all public functions.
