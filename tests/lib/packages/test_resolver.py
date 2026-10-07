@@ -32,8 +32,10 @@ def test_package_resolver_resolve_many():
         ]
     )
     assert len(resolved) == 1
-    assert resolved[0].name == "known"
-    assert unmapped == ["unknown", "other"]
+    assert unmapped == [
+        DiscoveredPackage(name="unknown", repository="arch"),
+        DiscoveredPackage(name="other", repository="arch"),
+    ]
 
 
 def test_mock_package_resolver_mappings():

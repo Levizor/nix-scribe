@@ -63,10 +63,10 @@ class PackageState:
     def __init__(
         self,
         packages: list[ResolvedPackage],
-        unmapped: list[str] | None = None,
+        unmapped: list[DiscoveredPackage] | None = None,
     ) -> None:
         self._packages = packages
-        self._unmapped = sorted(unmapped or [])
+        self._unmapped = sorted(unmapped or [], key=lambda p: p.name)
         self._claimed: set[str] = set()
 
     @property
@@ -80,8 +80,8 @@ class PackageState:
         return self._packages
 
     @property
-    def unmapped(self) -> list[str]:
-        """Native package names that could not be mapped to Nixpkgs."""
+    def unmapped(self) -> list[DiscoveredPackage]:
+        """Discovered packages that could not be mapped to Nixpkgs."""
         return self._unmapped
 
     @property
