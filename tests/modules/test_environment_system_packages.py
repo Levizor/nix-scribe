@@ -8,6 +8,7 @@ from nix_scribe.lib.packages import (
     DiscoveredPackage,
     InstallReason,
     PackageManager,
+    PackageState,
     ResolvedPackage,
     clear_package_managers,
     register_package_manager,
@@ -35,7 +36,9 @@ def test_system_packages_module_metadata():
 def test_system_packages_scanner_empty(tmp_path):
     context = SystemContext(root=tmp_path)
     ir = system_packages.scan(context)
-    assert ir == {"packages": [], "unmapped": []}
+    assert isinstance(ir["packages"], PackageState)
+    assert ir["packages"].unclaimed == []
+    assert ir["packages"].unmapped == []
 
 
 def test_system_packages_scanner_unclaimed_and_unmapped(tmp_path):
@@ -72,18 +75,19 @@ def test_system_packages_scanner_unclaimed_and_unmapped(tmp_path):
     assert context.packages.claim("docker") is True
 
     ir = system_packages.scan(context)
-    package_names = [pkg.name for pkg in ir["packages"]]
+    assert isinstance(ir["packages"], PackageState)
+    package_names = [pkg.name for pkg in ir["packages"].unclaimed]
 
     assert "docker" not in package_names
     assert "bat" in package_names
     assert "ripgrep" in package_names
-    assert ir["unmapped"] == ["custom-tool"]
+    assert ir["packages"].unmapped == ["custom-tool"]
 
 
 def test_system_packages_mapper_empty():
     assert system_packages.map(None) is None
     assert system_packages.map({}) is None
-    assert system_packages.map({"packages": [], "unmapped": []}) is None
+    assert system_packages.map({"packages": PackageState.empty()}) is None
 
 
 def test_system_packages_mapper_formatting():
@@ -101,8 +105,7 @@ def test_system_packages_mapper_formatting():
     )
 
     ir = {
-        "packages": [bat, spotify, rg],
-        "unmapped": ["custom-cli"],
+        "packages": PackageState(packages=[bat, spotify, rg], unmapped=["custom-cli"]),
     }
 
     fragment = system_packages.map(ir)
@@ -125,8 +128,7 @@ def test_system_packages_mapper_formatting():
 
 def test_system_packages_mapper_unmapped_only():
     ir = {
-        "packages": [],
-        "unmapped": ["orphan-tool"],
+        "packages": PackageState(packages=[], unmapped=["orphan-tool"]),
     }
 
     fragment = system_packages.map(ir)
@@ -158,8 +160,7 @@ def test_system_packages_mapper_divided_by_comments():
     )
 
     ir = {
-        "packages": [curl, rg],
-        "unmapped": [],
+        "packages": PackageState(packages=[curl, rg]),
     }
 
     fragment = system_packages.map(ir)
@@ -185,7 +186,6 @@ def test_system_packages_mapper_ignores_dependencies():
         ),
     )
     ir = {
-        "packages": [libssl],
-        "unmapped": [],
+        "packages": PackageState(packages=[libssl]),
     }
     assert system_packages.map(ir) is None

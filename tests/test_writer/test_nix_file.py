@@ -83,3 +83,18 @@ def test_file_writing(file: NixFile):
 
 }"""
     )
+
+
+def test_config_fragment_claims():
+    fragment = ConfigFragment(
+        name="git",
+        description="Git VCS",
+        claims={"git", "git-lfs"},
+    )
+    assert fragment.claims == {"git", "git-lfs"}
+
+    fragment.claim("git-gui", "tig")
+    assert fragment.claims == {"git", "git-lfs", "git-gui", "tig"}
+
+    empty_fragment = ConfigFragment(name="empty")
+    assert empty_fragment.claims == set()
