@@ -4,7 +4,7 @@ from typing import Any
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_writer import comment, nix_with, raw
 from nix_scribe.lib.option_block import ConfigFragment
-from nix_scribe.lib.packages.models import ResolvedPackage
+from nix_scribe.lib.packages.models import PackageState, ResolvedPackage
 from nix_scribe.lib.registry import Module, ModulePhase
 
 logger = logging.getLogger(__name__)
@@ -32,18 +32,18 @@ def _format_package_item(pkg: ResolvedPackage) -> raw:
 @system_packages.scanner()
 def scan(context: SystemContext) -> dict[str, Any]:
     return {
-        "packages": context.packages.unclaimed,
-        "unmapped": context.packages.unmapped,
+        "packages": context.packages,
     }
 
 
 @system_packages.mapper()
 def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir:
+    if not ir or not ir.get("packages"):
         return None
 
-    packages: list[ResolvedPackage] = ir.get("packages", [])
-    unmapped: list[str] = ir.get("unmapped", [])
+    state: PackageState = ir["packages"]
+    packages = state.unclaimed
+    unmapped = state.unmapped
 
     explicit = sorted([p for p in packages if p.is_explicit], key=lambda p: p.name)
     preinstalled = sorted(

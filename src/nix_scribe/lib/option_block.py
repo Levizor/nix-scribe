@@ -87,16 +87,22 @@ class ConfigFragment:
         data: dict[str, Any] | None = None,
         arguments: set[str] | None = None,
         assets: set[Asset] | None = None,
+        claims: set[str] | None = None,
     ):
         self.name = name
         self.description = description
         self.options: dict[str, NixValue] = {}
         self.arguments = arguments if arguments else set()
         self.assets = assets if assets else set()
+        self.claims: set[str] = set(claims) if claims else set()
 
         if data:
             for k, v in data.items():
                 self.add_option(k, v)
+
+    def claim(self, *packages: str) -> None:
+        """Declares one or more package attribute names claimed by this fragment."""
+        self.claims.update(packages)
 
     def add_option(self, key: str, value: Any, comment: str | None = None) -> None:
         self._inspect_value(value)
