@@ -1,0 +1,14 @@
+# OpenSSH Daemon Configuration for Generic System
+Include /etc/ssh/sshd_config.d/*.conf
+
+Port 22
+Protocol 2
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+X11Forwarding yes
+LogLevel INFO
+Subsystem sftp /usr/lib/openssh/sftp-server
