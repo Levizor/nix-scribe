@@ -26,7 +26,6 @@ def test_resolved_package_attributes():
     assert pkg.original == discovered
     assert pkg.original_name == "ripgrep"
     assert pkg.repository == "arch"
-    assert pkg.category is None
 
     chrome_discovered = DiscoveredPackage(
         name="google-chrome-stable", repository="debian"
@@ -34,13 +33,11 @@ def test_resolved_package_attributes():
     foreign_pkg = ResolvedPackage(
         name="google-chrome",
         original=chrome_discovered,
-        category="web",
     )
     assert foreign_pkg.name == "google-chrome"
     assert foreign_pkg.original == chrome_discovered
     assert foreign_pkg.original_name == "google-chrome-stable"
     assert foreign_pkg.repository == "debian"
-    assert foreign_pkg.category == "web"
 
 
 def test_resolved_package_frozen():
@@ -57,7 +54,6 @@ def test_package_state_query_and_claim():
     font = ResolvedPackage(
         name="fira-code",
         original=DiscoveredPackage(name="fonts-firacode", repository="debian"),
-        category="fonts",
     )
     rg = ResolvedPackage(
         name="ripgrep",
@@ -76,9 +72,6 @@ def test_package_state_query_and_claim():
     assert state.has("bat")
     assert state.has("fira-code")
     assert not state.has("unknown")
-
-    assert state.get_by_category("fonts") == [font]
-    assert state.get_by_category("nonexistent") == []
 
     assert not state.is_claimed("bat")
     assert state.claimed == set()

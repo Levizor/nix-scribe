@@ -69,7 +69,6 @@ def test_system_context_packages_discovery_and_resolution(tmp_path):
             ("arch", "bat"): ResolvedPackage(
                 name="bat",
                 original=DiscoveredPackage("bat", repository="arch"),
-                category="apps",
             ),
             ("arch", "unmapped-tool"): None,
         }
