@@ -32,7 +32,6 @@ class DiscoveredPackage:
 class ResolvedPackage:
     name: str
     original: DiscoveredPackage
-    category: str | None = None
 
     @property
     def original_name(self) -> str:
@@ -116,10 +115,6 @@ class PackageState:
 
     def is_claimed(self, attribute_name: str) -> bool:
         return attribute_name in self._claimed
-
-    def get_by_category(self, category: str) -> list[ResolvedPackage]:
-        """Queries resolved packages by their upstream category."""
-        return [pkg for pkg in self._packages if pkg.category == category]
 
     def get_unclaimed(self) -> list[ResolvedPackage]:
         """Alias for unclaimed property."""

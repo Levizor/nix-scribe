@@ -26,20 +26,16 @@ class MockPackageResolver(PackageResolver):
         package_name: str,
         target: str | ResolvedPackage | None,
         repository: str | None = None,
-        category: str | None = None,
     ) -> None:
         key: str | tuple[str, str] = (
             (repository, package_name) if repository is not None else package_name
         )
-        self._mapping[key] = (target, category)
+        self._mapping[key] = target
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
-        val = self._mapping.get(
+        target = self._mapping.get(
             (package.repository, package.name), self._mapping.get(package.name)
         )
-        if val is None:
-            return None
-        target, category = val
         if target is None:
             return None
         if isinstance(target, ResolvedPackage):
@@ -47,5 +43,4 @@ class MockPackageResolver(PackageResolver):
         return ResolvedPackage(
             name=target,
             original=package,
-            category=category,
         )
