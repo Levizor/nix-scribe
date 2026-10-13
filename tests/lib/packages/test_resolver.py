@@ -2,7 +2,9 @@ import pytest
 
 from nix_scribe.lib.packages import (
     DiscoveredPackage,
+    DummyPackageResolver,
     PackageResolver,
+    PkgmapPackageResolver,
     ResolvedPackage,
     get_package_resolver,
     set_package_resolver,
@@ -80,12 +82,15 @@ def test_mock_package_resolver_mappings():
     )
 
 
+def test_dummy_package_resolver():
+    dummy = DummyPackageResolver()
+    pkg = DiscoveredPackage(name="ripgrep", repository="arch")
+    assert dummy.resolve(pkg) == ResolvedPackage(name="ripgrep", original=pkg)
+
+
 def test_provider_injection():
     default_resolver = get_package_resolver()
-    pkg = DiscoveredPackage(name="ripgrep", repository="arch")
-    assert default_resolver.resolve(pkg) == ResolvedPackage(
-        name="ripgrep", original=pkg
-    )
+    assert isinstance(default_resolver, PkgmapPackageResolver)
 
     mock = MockPackageResolver({"zsh": "zsh"})
     set_package_resolver(mock)
@@ -93,4 +98,4 @@ def test_provider_injection():
 
     set_package_resolver(None)
     resolver = get_package_resolver()
-    assert resolver.resolve(pkg) == ResolvedPackage(name="ripgrep", original=pkg)
+    assert isinstance(resolver, PkgmapPackageResolver)

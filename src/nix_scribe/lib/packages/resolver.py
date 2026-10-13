@@ -39,10 +39,12 @@ _current_resolver: PackageResolver | None = None
 
 
 def get_package_resolver() -> PackageResolver:
-    """Returns the globally configured package resolver, defaulting to DummyPackageResolver."""
+    """Returns the globally configured package resolver, defaulting to PkgmapPackageResolver."""
     global _current_resolver
     if _current_resolver is None:
-        _current_resolver = DummyPackageResolver()
+        from nix_scribe.lib.packages.pkgmap_resolver import PkgmapPackageResolver
+
+        _current_resolver = PkgmapPackageResolver()
     return _current_resolver
 
 
