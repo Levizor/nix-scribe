@@ -73,7 +73,7 @@ def test_networkmanager_mapper():
     block = networkmanager.map(mock_ir)
 
     assert isinstance(block, ConfigFragment)
-    data = block["networking.networkManager"]
+    data = block["networking.networkmanager"]
     assert data["enable"] is True
     assert data["dns"] == "dnsmasq"
     assert data["dhcp"] == "dhclient"

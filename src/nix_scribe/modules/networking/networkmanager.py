@@ -10,7 +10,7 @@ from nix_scribe.lib.registry import Module
 
 logger = logging.getLogger(__name__)
 
-networkmanager = Module("networking.networkManager")
+networkmanager = Module("networking.networkmanager")
 
 
 @networkmanager.scanner()
@@ -78,5 +78,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     return ConfigFragment(
         name="networkmanager",
         description="NetworkManager configuration",
-        data={"networking.networkManager": nm_config},
+        data={"networking.networkmanager": nm_config},
     )
