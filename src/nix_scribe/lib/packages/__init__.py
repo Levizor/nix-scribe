@@ -11,7 +11,9 @@ from nix_scribe.lib.packages.models import (
     PackageState,
     ResolvedPackage,
 )
+from nix_scribe.lib.packages.pkgmap_resolver import PkgmapPackageResolver
 from nix_scribe.lib.packages.resolver import (
+    DummyPackageResolver,
     PackageResolver,
     get_package_resolver,
     set_package_resolver,
@@ -20,10 +22,12 @@ from nix_scribe.lib.packages.resolver import (
 __all__ = [
     "AptManager",
     "DiscoveredPackage",
+    "DummyPackageResolver",
     "InstallReason",
     "PackageManager",
     "PackageResolver",
     "PackageState",
+    "PkgmapPackageResolver",
     "ResolvedPackage",
     "clear_package_managers",
     "get_package_resolver",
