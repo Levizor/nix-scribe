@@ -8,3 +8,5 @@ configuration.nix
 configuration/
 nix-config/
 vm-test*/
+test-root/
+ubuntu-config/

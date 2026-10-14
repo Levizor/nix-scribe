@@ -36,6 +36,7 @@
         ./nix/python.nix
         ./nix/package.nix
         ./nix/shell.nix
+        ./nix/testing.nix
       ];
     };
 }
