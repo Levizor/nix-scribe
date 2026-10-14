@@ -8,7 +8,13 @@
       ...
     }:
     rec {
-      packages.nix-scribe = pythonSet.mkVirtualEnv "nix-scribe-env" workspace.deps.default;
+      packages.nix-scribe =
+        (pythonSet.mkVirtualEnv "nix-scribe-env" workspace.deps.default).overrideAttrs
+          (old: {
+            meta = (old.meta or { }) // {
+              mainProgram = "nix-scribe";
+            };
+          });
       packages.default = packages.nix-scribe;
 
       apps.nix-scribe = {
