@@ -60,3 +60,11 @@ def test_list_directory_full_paths(tmp_path):
 
     full_entries = ctx.list_directory("/etc/testdir", full_paths=True)
     assert full_entries == ["/etc/testdir/a.txt", "/etc/testdir/b.txt"]
+
+
+def test_read_bytes(tmp_path):
+    f = tmp_path / "data.bin"
+    f.write_bytes(b"\xde\xad\xbe\xef")
+
+    ctx = SystemContext(tmp_path)
+    assert ctx.read_bytes("data.bin") == b"\xde\xad\xbe\xef"

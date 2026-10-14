@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 
 from nix_scribe.lib.asset import Asset
-from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.nix_writer import NixWriter, raw
 from nix_scribe.lib.option_block import (
@@ -93,7 +92,6 @@ class NixFile:
         self,
         output_path: Path,
         modularization_level: ModularizationLevel,
-        context: SystemContext,
     ):
         """
         Saves the NixFile structure to disk according to the specified
@@ -102,41 +100,41 @@ class NixFile:
         config_root = output_path
         config_root.mkdir(parents=True, exist_ok=True)
 
-        self._process_imports(config_root, modularization_level, context)
+        self._process_imports(config_root, modularization_level)
 
         file_path = config_root / f"{self.name}.nix"
         file_path.write_text(self.gettext())
 
-        self._save_assets(config_root, context)
+        self._save_assets(config_root)
 
     def _process_imports(
         self,
         parent_dir: Path,
         modularization_level: ModularizationLevel,
-        context: SystemContext,
     ):
         """Recursively saves child NixFiles and updates the imports list."""
         final_imports = []
         for imp in self.imports:
             if isinstance(imp, NixFile):
-                import_path = imp._save_modularized(
-                    parent_dir, modularization_level, context
-                )
+                import_path = imp._save_modularized(parent_dir, modularization_level)
                 final_imports.append(raw(import_path))
             else:
                 final_imports.append(imp)
         self.imports = final_imports
 
-    def _save_assets(self, directory: Path, context: SystemContext):
+    def _save_assets(self, directory: Path):
         """Saves all registered assets to the target output directory."""
         for asset in self.assets:
-            asset.save(directory, context)
+            dst = directory / asset.target_filename
+            if isinstance(asset.content, bytes):
+                dst.write_bytes(asset.content)
+            else:
+                dst.write_text(asset.content, encoding="utf-8")
 
     def _save_modularized(
         self,
         parent_dir: Path,
         modularization_level: ModularizationLevel,
-        context: SystemContext,
     ) -> str:
         """
         Recursively saves child NixFiles for modularization levels.
@@ -148,21 +146,21 @@ class NixFile:
             module_dir = parent_dir / self.name
             module_dir.mkdir(exist_ok=True)
 
-            self._process_imports(module_dir, modularization_level, context)
+            self._process_imports(module_dir, modularization_level)
 
             default_nix_path = module_dir / "default.nix"
             default_nix_path.write_text(self.gettext())
 
-            self._save_assets(module_dir, context)
+            self._save_assets(module_dir)
 
             return f"./{self.name}"
 
         else:
-            self._process_imports(parent_dir, modularization_level, context)
+            self._process_imports(parent_dir, modularization_level)
 
             file_path = parent_dir / f"{self.name}.nix"
             file_path.write_text(self.gettext())
 
-            self._save_assets(parent_dir, context)
+            self._save_assets(parent_dir)
 
             return f"./{file_path.name}"

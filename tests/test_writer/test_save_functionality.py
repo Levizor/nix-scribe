@@ -1,5 +1,4 @@
 import tempfile
-import unittest.mock
 from pathlib import Path
 
 from nix_scribe.lib.asset import Asset
@@ -14,7 +13,7 @@ def setup_test_hierarchy():
 
     firewall = NixFile("firewall")
     fw_block = ConfigFragment("firewall")
-    fw_asset = Asset.from_file("/etc/firewall.conf", "firewall.conf")
+    fw_asset = Asset("firewall.conf", "# firewall configuration\n")
     fw_block["config"] = fw_asset
     firewall.add_fragment(fw_block)
 
@@ -26,13 +25,7 @@ def setup_test_hierarchy():
     return root, net, firewall, nm
 
 
-def mock_copy_file(src, dst):
-    Path(dst).touch()
-
-
 def test_save_single_file():
-    mock_context = unittest.mock.MagicMock()
-    mock_context.copy_file.side_effect = mock_copy_file
     root, net, firewall, nm = setup_test_hierarchy()
 
     root.add_fragment(firewall.fragments[0])
@@ -40,15 +33,14 @@ def test_save_single_file():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.SINGLE_FILE, mock_context)
+        root.save(tmp_path, ModularizationLevel.SINGLE_FILE)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "firewall.conf").exists()
+        assert (tmp_path / "firewall.conf").read_text() == "# firewall configuration\n"
 
 
 def test_save_high_level():
-    mock_context = unittest.mock.MagicMock()
-    mock_context.copy_file.side_effect = mock_copy_file
     root, net, firewall, nm = setup_test_hierarchy()
 
     net.add_fragment(firewall.fragments[0])
@@ -57,16 +49,15 @@ def test_save_high_level():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.HIGH_LEVEL, mock_context)
+        root.save(tmp_path, ModularizationLevel.HIGH_LEVEL)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "networking.nix").exists()
         assert (tmp_path / "firewall.conf").exists()
+        assert (tmp_path / "firewall.conf").read_text() == "# firewall configuration\n"
 
 
 def test_save_component_level():
-    mock_context = unittest.mock.MagicMock()
-    mock_context.copy_file.side_effect = mock_copy_file
     root, net, firewall, nm = setup_test_hierarchy()
 
     net.add_import(firewall)
@@ -75,28 +66,30 @@ def test_save_component_level():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL, mock_context)
+        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "networking" / "default.nix").exists()
         assert (tmp_path / "networking" / "firewall.nix").exists()
         assert (tmp_path / "networking" / "networkmanager.nix").exists()
         assert (tmp_path / "networking" / "firewall.conf").exists()
+        assert (
+            tmp_path / "networking" / "firewall.conf"
+        ).read_text() == "# firewall configuration\n"
 
 
 def test_save_content_asset_modularized():
-    mock_context = unittest.mock.MagicMock()
     root = NixFile("configuration")
     module = NixFile("packages")
     frag = ConfigFragment("system-packages")
-    asset = Asset.from_content("packages.log", "audit report")
+    asset = Asset("packages.log", "audit report")
     frag.add_asset(asset)
     module.add_fragment(frag)
     root.add_import(module)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL, mock_context)
+        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "packages.nix").exists()

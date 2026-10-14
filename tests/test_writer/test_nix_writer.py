@@ -119,7 +119,7 @@ def test_write_attr_complex_keys(writer: NixWriter):
 
 
 def test_asset_rendering_and_collection(writer: NixWriter):
-    asset = Asset.from_file("/src/path", "target.png")
+    asset = Asset("target.png", b"image data")
     writer.write_attr("image", asset)
 
     assert writer.gettext() == "image = ./target.png;\n"

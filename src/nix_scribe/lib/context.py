@@ -203,25 +203,20 @@ class SystemContext:
 
         return result
 
-    def copy_file(self, src: str, dst: Path) -> None:
-        """
-        Copies a file from the target system to a destination path
-        """
-        rsrc = self.root_path(src)
-        logger.debug(f"Copying file from {rsrc} to {dst}")
+    def read_bytes(self, path: str) -> bytes:
+        rpath = self.root_path(path)
 
         try:
-            shutil.copy2(rsrc, dst)
+            return rpath.read_bytes()
         except PermissionError:
             if self.use_sudo:
-                self._run_command(["sudo", "cp", "-p", src, str(dst)])
-            else:
-                raise ElevationRequest(
-                    str(rsrc), f"Permission denied while copying to {dst}"
-                ) from PermissionError
-        except Exception as e:
-            logger.error(f"Failed to copy {rsrc} to {dst}: {e}")
-            raise
+                command = self._root_command_args(["sudo", "cat", path])
+                try:
+                    result = subprocess.run(command, check=True, capture_output=True)
+                    return result.stdout
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(f"Command failed: {e.stderr}") from e
+            raise ElevationRequest(path, "Read permission denied.") from PermissionError
 
     def readlink(self, path: str, recursive: bool = False) -> str:
         """

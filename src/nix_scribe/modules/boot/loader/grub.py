@@ -40,8 +40,15 @@ def _analyze_config(
         ir["enableCryptodisk"] = val in ("y", "yes", "true")
 
     if "GRUB_BACKGROUND" in config:
-        if context.path_exists(config["GRUB_BACKGROUND"]):
-            ir["splashImage"] = config["GRUB_BACKGROUND"]
+        bg_path = config["GRUB_BACKGROUND"]
+        if context.path_exists(bg_path):
+            try:
+                ir["splashImage"] = {
+                    "path": bg_path,
+                    "data": context.read_bytes(bg_path),
+                }
+            except Exception as e:
+                logger.warning(f"Failed to read GRUB splash image: {e}")
 
 
 @grub.scanner()
@@ -124,9 +131,15 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         grub_config["enableCryptodisk"] = True
 
     if "splashImage" in ir:
-        source_path = ir["splashImage"]
+        splash = ir["splashImage"]
+        if isinstance(splash, dict):
+            source_path = splash.get("path", "splash.png")
+            content = splash.get("data", b"")
+        else:
+            source_path = str(splash)
+            content = b""
         target_filename = f"boot-loader-grub-{Path(source_path).name}"
-        grub_config["splashImage"] = Asset.from_file(source_path, target_filename)
+        grub_config["splashImage"] = Asset(target_filename, content)
 
     return ConfigFragment(
         name="grub",
