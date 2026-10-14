@@ -1,4 +1,6 @@
 from nix_scribe.lib.parsers.apt import (
+    AptHistoryPackage,
+    parse_apt_history,
     parse_deb822,
     parse_debian_relationship_packages,
     parse_dpkg_status,
@@ -116,3 +118,53 @@ def test_parse_debian_relationship_packages():
     line = "firefox | firefox-esr, libreoffice (>= 7.0), thunderbird:amd64 [linux-any]"
     packages = parse_debian_relationship_packages(line)
     assert packages == ["firefox", "firefox-esr", "libreoffice", "thunderbird"]
+
+
+def test_parse_apt_history():
+    content = """
+Start-Date: 2026-10-14  17:04:43
+Commandline: apt-get install -y curl fastfetch
+Install: libkeyutils1:amd64 (1.6.3-6ubuntu3, automatic), fastfetch:amd64 (2.57.1+dfsg-1ubuntu1), curl (8.18.0)
+End-Date: 2026-10-14  17:04:46
+
+Start-Date: 2026-10-14  18:00:00
+Commandline: apt remove fastfetch
+Remove: fastfetch:amd64 (2.57.1+dfsg-1ubuntu1)
+End-Date: 2026-10-14  18:00:05
+"""
+    records = parse_apt_history(content)
+    assert len(records) == 2
+
+    assert records[0].start_date == "2026-10-14  17:04:43"
+    assert records[0].commandline == "apt-get install -y curl fastfetch"
+    assert records[0].end_date == "2026-10-14  17:04:46"
+    assert records[0].install == [
+        AptHistoryPackage(
+            name="libkeyutils1",
+            version="1.6.3-6ubuntu3",
+            architecture="amd64",
+            flags=("automatic",),
+        ),
+        AptHistoryPackage(
+            name="fastfetch",
+            version="2.57.1+dfsg-1ubuntu1",
+            architecture="amd64",
+            flags=(),
+        ),
+        AptHistoryPackage(
+            name="curl",
+            version="8.18.0",
+            architecture=None,
+            flags=(),
+        ),
+    ]
+
+    assert records[1].commandline == "apt remove fastfetch"
+    assert records[1].remove == [
+        AptHistoryPackage(
+            name="fastfetch",
+            version="2.57.1+dfsg-1ubuntu1",
+            architecture="amd64",
+            flags=(),
+        )
+    ]

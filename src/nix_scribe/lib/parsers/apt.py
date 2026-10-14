@@ -1,4 +1,30 @@
 import re
+from dataclasses import dataclass, field
+
+PACKAGE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9+.-]+$")
+PACKAGE_RECORD_PATTERN = re.compile(
+    r"([a-zA-Z0-9][a-zA-Z0-9+.-]*(?::[a-zA-Z0-9_-]+)?)\s*\(([^)]*)\)"
+)
+
+
+@dataclass(frozen=True)
+class AptHistoryPackage:
+    name: str
+    version: str = ""
+    architecture: str | None = None
+    flags: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class AptHistoryRecord:
+    start_date: str | None = None
+    commandline: str | None = None
+    install: list[AptHistoryPackage] = field(default_factory=list)
+    upgrade: list[AptHistoryPackage] = field(default_factory=list)
+    remove: list[AptHistoryPackage] = field(default_factory=list)
+    purge: list[AptHistoryPackage] = field(default_factory=list)
+    reinstall: list[AptHistoryPackage] = field(default_factory=list)
+    end_date: str | None = None
 
 
 def parse_deb822(content: str) -> list[dict[str, str]]:
@@ -58,6 +84,70 @@ def parse_debian_relationship_packages(relation_text: str) -> list[str]:
             token = alt_clean.split()[0]
             if ":" in token:
                 token = token.split(":", 1)[0]
-            if token and re.match(r"^[a-zA-Z0-9][a-zA-Z0-9+.-]+$", token):
+            if token and PACKAGE_NAME_PATTERN.match(token):
                 packages.append(token)
     return packages
+
+
+def parse_apt_history_packages(text: str) -> list[AptHistoryPackage]:
+    packages: list[AptHistoryPackage] = []
+    for match in PACKAGE_RECORD_PATTERN.finditer(text):
+        pkg_token, details = match.groups()
+        if ":" in pkg_token:
+            name, arch = pkg_token.split(":", 1)
+        else:
+            name, arch = pkg_token, None
+        parts = [p.strip() for p in details.split(",")]
+        version = parts[0] if parts else ""
+        flags = tuple(parts[1:]) if len(parts) > 1 else ()
+        packages.append(
+            AptHistoryPackage(
+                name=name,
+                version=version,
+                architecture=arch,
+                flags=flags,
+            )
+        )
+    return packages
+
+
+def parse_apt_history(content: str) -> list[AptHistoryRecord]:
+    """Parses Debian 822 format /var/log/apt/history.log into transaction records."""
+    records = parse_deb822(content)
+    history: list[AptHistoryRecord] = []
+
+    for record in records:
+        history.append(
+            AptHistoryRecord(
+                start_date=record.get("Start-Date"),
+                commandline=record.get("Commandline"),
+                install=(
+                    parse_apt_history_packages(record["Install"])
+                    if "Install" in record
+                    else []
+                ),
+                upgrade=(
+                    parse_apt_history_packages(record["Upgrade"])
+                    if "Upgrade" in record
+                    else []
+                ),
+                remove=(
+                    parse_apt_history_packages(record["Remove"])
+                    if "Remove" in record
+                    else []
+                ),
+                purge=(
+                    parse_apt_history_packages(record["Purge"])
+                    if "Purge" in record
+                    else []
+                ),
+                reinstall=(
+                    parse_apt_history_packages(record["Reinstall"])
+                    if "Reinstall" in record
+                    else []
+                ),
+                end_date=record.get("End-Date"),
+            )
+        )
+
+    return history
