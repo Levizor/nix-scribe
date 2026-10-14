@@ -10,10 +10,6 @@ class Asset:
         target_filename: str | None = None,
         content: str | None = None,
     ):
-        if content is not None and target_filename is None and source_path is not None:
-            target_filename = source_path
-            source_path = None
-
         if not target_filename:
             raise ValueError("Asset target_filename must not be empty.")
         if source_path is None and content is None:

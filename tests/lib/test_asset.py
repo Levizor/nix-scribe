@@ -28,13 +28,6 @@ def test_asset_init_from_content():
     assert "content_len=14" in repr(asset)
 
 
-def test_asset_init_positional_content():
-    asset = Asset("packages.log", content="report content")
-    assert asset.source_path is None
-    assert asset.target_filename == "packages.log"
-    assert asset.content == "report content"
-
-
 def test_asset_factory_methods():
     file_asset = Asset.from_file("/var/log/test.log", "test.log")
     assert file_asset.source_path == "/var/log/test.log"
