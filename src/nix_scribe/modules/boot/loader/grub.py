@@ -126,7 +126,7 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if "splashImage" in ir:
         source_path = ir["splashImage"]
         target_filename = f"boot-loader-grub-{Path(source_path).name}"
-        grub_config["splashImage"] = Asset(source_path, target_filename)
+        grub_config["splashImage"] = Asset.from_file(source_path, target_filename)
 
     return ConfigFragment(
         name="grub",

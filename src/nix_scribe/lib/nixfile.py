@@ -128,13 +128,9 @@ class NixFile:
         self.imports = final_imports
 
     def _save_assets(self, directory: Path, context: SystemContext):
-        """Copies assets from host system to the output directory or writes in-memory content."""
+        """Saves all registered assets to the target output directory."""
         for asset in self.assets:
-            dst = directory / asset.target_filename
-            if asset.content is not None:
-                dst.write_text(asset.content, encoding="utf-8")
-            elif asset.source_path is not None:
-                context.copy_file(asset.source_path, dst)
+            asset.save(directory, context)
 
     def _save_modularized(
         self,

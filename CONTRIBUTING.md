@@ -116,8 +116,8 @@ ConfigFragment(
 Values can use helper types:
 - `raw("pkgs.foo")`: Emits raw Nix identifiers.
 - `comment("text")`: Emits comments within list structures.
-- `nix_with("pkgs", [...])` or `with_pkgs(...)`: Wraps lists in `with <scope>;`.
-- `Asset(source_path, target_filename)`: Copies external files (like wallpapers or certificates) into the generated config directory.
+- `Asset.from_file(source_path, target_filename)`: Copies external files (like wallpapers or certificates) into the generated config directory.
+- `Asset.from_content(target_filename, content)`: Writes in-memory files (like logs or reports) into the generated config directory.
 
 ---
 

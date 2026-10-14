@@ -14,7 +14,7 @@ def setup_test_hierarchy():
 
     firewall = NixFile("firewall")
     fw_block = ConfigFragment("firewall")
-    fw_asset = Asset("/etc/firewall.conf", "firewall.conf")
+    fw_asset = Asset.from_file("/etc/firewall.conf", "firewall.conf")
     fw_block["config"] = fw_asset
     firewall.add_fragment(fw_block)
 
