@@ -82,3 +82,23 @@ def test_save_component_level():
         assert (tmp_path / "networking" / "firewall.nix").exists()
         assert (tmp_path / "networking" / "networkmanager.nix").exists()
         assert (tmp_path / "networking" / "firewall.conf").exists()
+
+
+def test_save_content_asset_modularized():
+    mock_context = unittest.mock.MagicMock()
+    root = NixFile("configuration")
+    module = NixFile("packages")
+    frag = ConfigFragment("system-packages")
+    asset = Asset.from_content("packages.log", "audit report")
+    frag.add_asset(asset)
+    module.add_fragment(frag)
+    root.add_import(module)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL, mock_context)
+
+        assert (tmp_path / "configuration.nix").exists()
+        assert (tmp_path / "packages.nix").exists()
+        assert (tmp_path / "packages.log").exists()
+        assert (tmp_path / "packages.log").read_text() == "audit report"

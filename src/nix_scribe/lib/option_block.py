@@ -104,6 +104,10 @@ class ConfigFragment:
         """Declares one or more package attribute names claimed by this fragment."""
         self.claims.update(packages)
 
+    def add_asset(self, asset: Asset) -> None:
+        """Registers an asset to be saved alongside this configuration fragment."""
+        self.assets.add(asset)
+
     def add_option(self, key: str, value: Any, comment: str | None = None) -> None:
         self._inspect_value(value)
         if isinstance(value, NixValue):
