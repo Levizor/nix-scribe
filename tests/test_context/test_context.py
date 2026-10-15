@@ -68,3 +68,18 @@ def test_read_bytes(tmp_path):
 
     ctx = SystemContext(tmp_path)
     assert ctx.read_bytes("data.bin") == b"\xde\xad\xbe\xef"
+
+
+def test_read_bytes_sudo(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    monkeypatch.setattr(
+        ctx,
+        "_run_command",
+        lambda cmd, text=True: b"\xca\xfe" if not text else "text",
+    )
+    monkeypatch.setattr(
+        Path,
+        "read_bytes",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    assert ctx.read_bytes("protected.bin") == b"\xca\xfe"
