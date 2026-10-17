@@ -45,7 +45,7 @@ def _analyze_config(
             try:
                 ir["splashImage"] = {
                     "path": bg_path,
-                    "data": context.read_bytes(bg_path),
+                    "data": context.read_file_bytes(bg_path),
                 }
             except Exception as e:
                 logger.warning(f"Failed to read GRUB splash image: {e}")

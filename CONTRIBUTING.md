@@ -57,7 +57,7 @@ The execution flow:
 
 Scanners collect state from the target system into an IR dictionary.
 
-- **Filesystem-only scanning**: Never invoke host shell binaries (`mount`, `systemctl`, `stat`). Read files and directories via `context.path_exists()`, `context.read_file()`, `context.list_directory()`, and `context.find_executable_path()`. This keeps scanning safe on mounted offline root directories.
+- **Filesystem-only scanning**: Never invoke host shell binaries (`mount`, `systemctl`, `stat`). Read files and directories via `context.path_exists()`, `context.read_file()`, `context.read_file_bytes()`, `context.list_directory()`, and `context.find_executable_path()`. This keeps scanning safe on mounted offline root directories.
 - **Path constants**: Define paths at the top of the module file (e.g. `CONFIG_PATH = "/etc/example.conf"`).
 - **Reusable parsers**: Place parse functions in `src/nix_scribe/lib/parsers/<name>.py`.
 - **Merged configs**: When configs are split across files and drop-in directories (like `/etc/sudoers` and `/etc/sudoers.d/`), instantiate `ConfigReader(context, parse_func)` and call `read_merge_configs_from_paths_list([FILE_PATH, DIR_PATH])`. It automatically reads all files and handles merging internally.

@@ -1,8 +1,9 @@
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.context import ElevationRequest, SystemContext
 
 GENERIC_SYSTEM_ROOT = Path(__file__).parent.parent / "systems/generic"
 
@@ -62,24 +63,73 @@ def test_list_directory_full_paths(tmp_path):
     assert full_entries == ["/etc/testdir/a.txt", "/etc/testdir/b.txt"]
 
 
-def test_read_bytes(tmp_path):
+def test_read_file_bytes(tmp_path):
     f = tmp_path / "data.bin"
     f.write_bytes(b"\xde\xad\xbe\xef")
 
     ctx = SystemContext(tmp_path)
-    assert ctx.read_bytes("data.bin") == b"\xde\xad\xbe\xef"
+    assert ctx.read_file_bytes("data.bin") == b"\xde\xad\xbe\xef"
 
 
-def test_read_bytes_sudo(monkeypatch, tmp_path):
+def test_read_file_bytes_sudo(monkeypatch, tmp_path):
     ctx = SystemContext(tmp_path, use_sudo=True)
     monkeypatch.setattr(
         ctx,
         "_run_command",
-        lambda cmd, text=True: b"\xca\xfe" if not text else "text",
+        lambda cmd, text=False: subprocess.CompletedProcess(
+            args=cmd, returncode=0, stdout=b"\xca\xfe"
+        ),
     )
     monkeypatch.setattr(
         Path,
         "read_bytes",
         lambda self: (_ for _ in ()).throw(PermissionError("denied")),
     )
-    assert ctx.read_bytes("protected.bin") == b"\xca\xfe"
+    assert ctx.read_file_bytes("protected.bin") == b"\xca\xfe"
+
+
+def test_read_file_sudo(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    monkeypatch.setattr(
+        ctx,
+        "_run_command",
+        lambda cmd, text=False: subprocess.CompletedProcess(
+            args=cmd, returncode=0, stdout="root text content\n"
+        ),
+    )
+    monkeypatch.setattr(
+        Path,
+        "read_text",
+        lambda self, encoding=None: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    assert ctx.read_file("protected.txt") == "root text content\n"
+
+
+def test_list_directory_sudo(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    recorded_cmd = []
+
+    def mock_run(cmd, text=False):
+        recorded_cmd.extend(cmd)
+        return subprocess.CompletedProcess(
+            args=cmd, returncode=0, stdout=".hidden\nfile1.txt\n"
+        )
+
+    monkeypatch.setattr(ctx, "_run_command", mock_run)
+    monkeypatch.setattr(
+        "os.listdir",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    assert ctx.list_directory("protected_dir") == [".hidden", "file1.txt"]
+    assert recorded_cmd == ["sudo", "ls", "-1A", "protected_dir"]
+
+
+def test_elevation_request_raised(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=False)
+    monkeypatch.setattr(
+        Path,
+        "read_bytes",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    with pytest.raises(ElevationRequest, match="Permission denied"):
+        ctx.read_file_bytes("protected.bin")

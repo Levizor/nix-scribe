@@ -4,8 +4,9 @@ import logging
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Literal, Optional, overload
+from typing import Optional, TypeVar
 
 from nix_scribe.lib.packages import (
     PackageManager,
@@ -16,6 +17,8 @@ from nix_scribe.lib.packages import (
 from nix_scribe.lib.systemctl import Systemctl
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 COMMON_TARGET_BINARIES_PATHS = [
     "/usr/bin",
@@ -132,40 +135,34 @@ class SystemContext:
 
         return result
 
-    @overload
-    def _run_command(self, command: list[str], text: Literal[True] = True) -> str: ...
-
-    @overload
-    def _run_command(self, command: list[str], text: Literal[False]) -> bytes: ...
-
-    def _run_command(self, command: list[str], text: bool = True) -> str | bytes:
+    def _run_command(
+        self, command: list[str], text: bool = False
+    ) -> subprocess.CompletedProcess:
         command = self._root_command_args(command)
         logger.debug(f"Running command: {command}")
-        if command[0] == "sudo":
-            try:
-                result = subprocess.run(
-                    command, check=True, capture_output=True, text=text
-                )
-                return result.stdout.strip() if text else result.stdout
-            except subprocess.CalledProcessError as e:
-                err_msg = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
-                raise RuntimeError(f"Command failed: {err_msg}") from e
-
         try:
-            result = subprocess.run(command, check=True, capture_output=True, text=text)
-            return result.stdout.strip() if text else result.stdout
+            return subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=text,
+            )
         except subprocess.CalledProcessError as e:
-            err = (
-                e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr or ""
-            ).lower()
-            if "permission denied" in err or "access denied" in err:
-                if self.use_sudo:
-                    return self._run_command(["sudo"] + command, text=text)
-                raise ElevationRequest(
-                    " ".join(command), "Command requires root privileges."
-                ) from e
-            err_msg = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
-            raise RuntimeError(f"Command failed: {err_msg}") from e
+            err = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+            raise RuntimeError(f"Command failed: {err.strip()}") from e
+
+    def _with_elevation(
+        self,
+        path: str,
+        unprivileged: Callable[[], T],
+        privileged: Callable[[], T],
+    ) -> T:
+        try:
+            return unprivileged()
+        except PermissionError:
+            if self.use_sudo:
+                return privileged()
+            raise ElevationRequest(path, "Permission denied.") from PermissionError
 
     def verify_sudo(self) -> bool:
         try:
@@ -178,26 +175,34 @@ class SystemContext:
 
     def read_file(self, path: str) -> str:
         rpath = self.root_path(path)
+        return self._with_elevation(
+            path,
+            unprivileged=lambda: rpath.read_text(encoding="utf-8"),
+            privileged=lambda: self._run_command(
+                ["sudo", "cat", path], text=True
+            ).stdout,
+        )
 
-        try:
-            return rpath.read_text(encoding="utf-8")
-        except PermissionError:
-            if self.use_sudo:
-                return self._run_command(["sudo", "cat", path])
-            raise ElevationRequest(path, "Read permission denied.") from PermissionError
+    def read_file_bytes(self, path: str) -> bytes:
+        rpath = self.root_path(path)
+        return self._with_elevation(
+            path,
+            unprivileged=lambda: rpath.read_bytes(),
+            privileged=lambda: self._run_command(["sudo", "cat", path]).stdout,
+        )
 
     def list_directory(self, path: str, full_paths: bool = False) -> list[str]:
         rpath = self.root_path(path)
         try:
-            entries = sorted(os.listdir(rpath))
-        except PermissionError:
-            if self.use_sudo:
-                output = self._run_command(["sudo", "ls", "-1", path])
-                entries = sorted(output.splitlines()) if output else []
-            else:
-                raise ElevationRequest(
-                    path, "List directory permission denied."
-                ) from PermissionError
+            entries = self._with_elevation(
+                path,
+                unprivileged=lambda: sorted(os.listdir(rpath)),
+                privileged=lambda: sorted(
+                    self._run_command(
+                        ["sudo", "ls", "-1A", path], text=True
+                    ).stdout.splitlines()
+                ),
+            )
         except FileNotFoundError:
             return []
 
@@ -212,16 +217,6 @@ class SystemContext:
             result.append(self.read_file(file_path))
 
         return result
-
-    def read_bytes(self, path: str) -> bytes:
-        rpath = self.root_path(path)
-
-        try:
-            return rpath.read_bytes()
-        except PermissionError:
-            if self.use_sudo:
-                return self._run_command(["sudo", "cat", path], text=False)
-            raise ElevationRequest(path, "Read permission denied.") from PermissionError
 
     def readlink(self, path: str, recursive: bool = False) -> str:
         """
