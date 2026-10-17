@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional, overload
 
 from nix_scribe.lib.packages import (
     PackageManager,
@@ -132,30 +132,40 @@ class SystemContext:
 
         return result
 
-    def _run_command(self, command: list):
+    @overload
+    def _run_command(self, command: list[str], text: Literal[True] = True) -> str: ...
+
+    @overload
+    def _run_command(self, command: list[str], text: Literal[False]) -> bytes: ...
+
+    def _run_command(self, command: list[str], text: bool = True) -> str | bytes:
         command = self._root_command_args(command)
         logger.debug(f"Running command: {command}")
         if command[0] == "sudo":
             try:
                 result = subprocess.run(
-                    command, check=True, capture_output=True, text=True
+                    command, check=True, capture_output=True, text=text
                 )
-                return result.stdout.strip()
+                return result.stdout.strip() if text else result.stdout
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Command failed: {e.stderr}") from e
+                err_msg = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
+                raise RuntimeError(f"Command failed: {err_msg}") from e
 
         try:
-            result = subprocess.run(command, check=True, capture_output=True, text=True)
-            return result.stdout.strip()
+            result = subprocess.run(command, check=True, capture_output=True, text=text)
+            return result.stdout.strip() if text else result.stdout
         except subprocess.CalledProcessError as e:
-            err = e.stderr.lower()
+            err = (
+                e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr or ""
+            ).lower()
             if "permission denied" in err or "access denied" in err:
                 if self.use_sudo:
-                    return self._run_command(["sudo"] + command)
+                    return self._run_command(["sudo"] + command, text=text)
                 raise ElevationRequest(
                     " ".join(command), "Command requires root privileges."
                 ) from e
-            raise RuntimeError(f"Command failed: {e.stderr}") from e
+            err_msg = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
+            raise RuntimeError(f"Command failed: {err_msg}") from e
 
     def verify_sudo(self) -> bool:
         try:
@@ -203,25 +213,15 @@ class SystemContext:
 
         return result
 
-    def copy_file(self, src: str, dst: Path) -> None:
-        """
-        Copies a file from the target system to a destination path
-        """
-        rsrc = self.root_path(src)
-        logger.debug(f"Copying file from {rsrc} to {dst}")
+    def read_bytes(self, path: str) -> bytes:
+        rpath = self.root_path(path)
 
         try:
-            shutil.copy2(rsrc, dst)
+            return rpath.read_bytes()
         except PermissionError:
             if self.use_sudo:
-                self._run_command(["sudo", "cp", "-p", src, str(dst)])
-            else:
-                raise ElevationRequest(
-                    str(rsrc), f"Permission denied while copying to {dst}"
-                ) from PermissionError
-        except Exception as e:
-            logger.error(f"Failed to copy {rsrc} to {dst}: {e}")
-            raise
+                return self._run_command(["sudo", "cat", path], text=False)
+            raise ElevationRequest(path, "Read permission denied.") from PermissionError
 
     def readlink(self, path: str, recursive: bool = False) -> str:
         """

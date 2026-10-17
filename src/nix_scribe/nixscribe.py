@@ -58,7 +58,7 @@ class NixScribe:
 
         logger.info("Writing configuration...")
         self._assemble_config(mod_level=args.modularization)
-        self.root_file.save(args.output_path, args.modularization, self.context)
+        self.root_file.save(args.output_path, args.modularization)
 
         logger.info(f"Done. Saved configuration to {args.output_path}")
 

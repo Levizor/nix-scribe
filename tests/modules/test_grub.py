@@ -35,7 +35,10 @@ def test_grub_scanner_efi(tmp_path):
     assert ir["zfsSupport"] is True
     assert ir["useOSProber"] is True
     assert ir["enableCryptodisk"] is True
-    assert ir["splashImage"] == "/boot/grub/background.png"
+    assert ir["splashImage"] == {
+        "path": "/boot/grub/background.png",
+        "data": b"",
+    }
 
 
 def test_grub_scanner_bios(tmp_path, monkeypatch):
@@ -63,6 +66,10 @@ def test_grub_mapper():
         "efiSupport": True,
         "useOSProber": True,
         "enableCryptodisk": True,
+        "splashImage": {
+            "path": "/boot/grub/splash.png",
+            "data": b"\x89PNG\r\n\x1a\n",
+        },
     }
 
     block = grub.map(mock_ir)
@@ -73,3 +80,5 @@ def test_grub_mapper():
     assert data["efiSupport"] is True
     assert data["useOSProber"] is True
     assert data["enableCryptodisk"] is True
+    assert str(data["splashImage"]) == "./boot-loader-grub-splash.png"
+    assert data["splashImage"].content == b"\x89PNG\r\n\x1a\n"

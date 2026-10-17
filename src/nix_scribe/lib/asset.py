@@ -1,30 +1,31 @@
+from __future__ import annotations
+
 import re
 
 
 class Asset:
-    """
-    Represents a file from the host system that should be copied into the
-    generated Nix configuration.
-    """
+    """Represents an in-memory file asset (text or binary) to be included in the Nix configuration."""
 
-    def __init__(self, source_path: str, target_filename: str):
-        self.source_path = source_path
+    def __init__(self, target_filename: str, content: str | bytes):
+        if not target_filename:
+            raise ValueError("Asset target_filename must not be empty.")
         # substitute illegal characters in the /nix/store to -
         self.target_filename = re.sub(r"[^a-zA-Z0-9\+\.\_\-\?\=]", "-", target_filename)
+        self.content = content
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"./{self.target_filename}"
 
-    def __repr__(self):
-        return f"Asset(source={self.source_path}, target={self.target_filename})"
+    def __repr__(self) -> str:
+        return f"Asset(target={self.target_filename}, content_len={len(self.content)})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Asset):
             return False
         return (
-            self.source_path == other.source_path
-            and self.target_filename == other.target_filename
+            self.target_filename == other.target_filename
+            and self.content == other.content
         )
 
-    def __hash__(self):
-        return hash((self.source_path, self.target_filename))
+    def __hash__(self) -> int:
+        return hash((self.target_filename, self.content))
