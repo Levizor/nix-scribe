@@ -63,15 +63,15 @@ def test_list_directory_full_paths(tmp_path):
     assert full_entries == ["/etc/testdir/a.txt", "/etc/testdir/b.txt"]
 
 
-def test_read_bytes(tmp_path):
+def test_read_file_bytes(tmp_path):
     f = tmp_path / "data.bin"
     f.write_bytes(b"\xde\xad\xbe\xef")
 
     ctx = SystemContext(tmp_path)
-    assert ctx.read_bytes("data.bin") == b"\xde\xad\xbe\xef"
+    assert ctx.read_file_bytes("data.bin") == b"\xde\xad\xbe\xef"
 
 
-def test_read_bytes_sudo(monkeypatch, tmp_path):
+def test_read_file_bytes_sudo(monkeypatch, tmp_path):
     ctx = SystemContext(tmp_path, use_sudo=True)
     monkeypatch.setattr(
         ctx,
@@ -85,7 +85,7 @@ def test_read_bytes_sudo(monkeypatch, tmp_path):
         "read_bytes",
         lambda self: (_ for _ in ()).throw(PermissionError("denied")),
     )
-    assert ctx.read_bytes("protected.bin") == b"\xca\xfe"
+    assert ctx.read_file_bytes("protected.bin") == b"\xca\xfe"
 
 
 def test_read_file_sudo(monkeypatch, tmp_path):
@@ -132,4 +132,4 @@ def test_elevation_request_raised(monkeypatch, tmp_path):
         lambda self: (_ for _ in ()).throw(PermissionError("denied")),
     )
     with pytest.raises(ElevationRequest, match="Permission denied"):
-        ctx.read_bytes("protected.bin")
+        ctx.read_file_bytes("protected.bin")

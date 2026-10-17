@@ -183,6 +183,14 @@ class SystemContext:
             ).stdout,
         )
 
+    def read_file_bytes(self, path: str) -> bytes:
+        rpath = self.root_path(path)
+        return self._with_elevation(
+            path,
+            unprivileged=lambda: rpath.read_bytes(),
+            privileged=lambda: self._run_command(["sudo", "cat", path]).stdout,
+        )
+
     def list_directory(self, path: str, full_paths: bool = False) -> list[str]:
         rpath = self.root_path(path)
         try:
@@ -209,14 +217,6 @@ class SystemContext:
             result.append(self.read_file(file_path))
 
         return result
-
-    def read_bytes(self, path: str) -> bytes:
-        rpath = self.root_path(path)
-        return self._with_elevation(
-            path,
-            unprivileged=lambda: rpath.read_bytes(),
-            privileged=lambda: self._run_command(["sudo", "cat", path]).stdout,
-        )
 
     def readlink(self, path: str, recursive: bool = False) -> str:
         """
