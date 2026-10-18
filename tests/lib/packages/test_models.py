@@ -77,9 +77,11 @@ def test_package_state_query_and_claim():
     assert state.claimed == set()
     assert state.unclaimed == [bat, font, rg]
 
-    assert state.claim("bat") is True
+    assert state.claim("bat", by="programs.bat") is True
     assert state.is_claimed("bat")
     assert state.claimed == {"bat"}
+    assert state.claimed_by("bat") == "programs.bat"
+    assert state.claimed_by("nonexistent") is None
 
     assert state.claim("nonexistent") is False
     assert not state.is_claimed("nonexistent")

@@ -66,7 +66,7 @@ class PackageState:
     ) -> None:
         self._packages = packages
         self._unmapped = sorted(unmapped or [], key=lambda p: p.name)
-        self._claimed: set[str] = set()
+        self._claimed: dict[str, str | None] = {}
 
     @property
     def resolved(self) -> list[ResolvedPackage]:
@@ -86,7 +86,7 @@ class PackageState:
     @property
     def claimed(self) -> set[str]:
         """Set of package attribute names claimed by specialized modules."""
-        return self._claimed
+        return set(self._claimed.keys())
 
     @cached_property
     def by_attribute(self) -> dict[str, ResolvedPackage]:
@@ -103,15 +103,19 @@ class PackageState:
         """Module API: check if a package exists on the system."""
         return attribute_name in self.by_attribute
 
-    def claim(self, attribute_name: str) -> bool:
+    def claim(self, attribute_name: str, by: str | None = None) -> bool:
         """Claims a package if present so it won't be emitted in systemPackages.
 
         Returns True if the package was present and claimed, False otherwise.
         """
         if self.has(attribute_name):
-            self._claimed.add(attribute_name)
+            self._claimed[attribute_name] = by
             return True
         return False
+
+    def claimed_by(self, attribute_name: str) -> str | None:
+        """Returns the module that claimed the package, if known."""
+        return self._claimed.get(attribute_name)
 
     def is_claimed(self, attribute_name: str) -> bool:
         return attribute_name in self._claimed

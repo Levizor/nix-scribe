@@ -101,7 +101,7 @@ class NixScribe:
                 result.map_data = mod.map(result.scan_data)
                 if result.map_data and result.map_data.claims:
                     for pkg in result.map_data.claims:
-                        self.context.packages.claim(pkg)
+                        self.context.packages.claim(pkg, by=mod.name)
                 logger.info(f"Mapped [cyan]{mod.name}[/]")
             else:
                 logger.warning(f"Module {mod.name} has no mapper.")

@@ -59,6 +59,7 @@ def test_nixscribe_map_module_claims_packages():
     assert result.map_data is not None
     assert result.map_data.claims == {"git"}
     assert script.context.packages.is_claimed("git")
+    assert script.context.packages.claimed_by("git") == "programs.git"
     assert script.context.packages.unclaimed == [curl_pkg]
 
 
@@ -130,3 +131,7 @@ def test_nixscribe_system_packages_claims_integration():
 
     assert "curl" in output
     assert "git" not in output
+
+    asset = next(iter(sys_res.map_data.assets))
+    assert "Claimed packages:" in asset.content
+    assert "git (from debian:git) (claimed by programs.git)" in asset.content
