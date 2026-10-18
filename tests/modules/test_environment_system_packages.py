@@ -119,8 +119,8 @@ def test_system_packages_mapper_formatting():
     assert len(fragment.assets) == 1
     asset = next(iter(fragment.assets))
     assert asset.target_filename == "packages.log"
-    assert "custom-cli (from debian:custom-cli)" in asset.content
-    assert "bat (from debian:batcat)" in asset.content
+    assert "custom-cli /* from debian:custom-cli */" in asset.content
+    assert "bat /* from debian:batcat */" in asset.content
 
     nix_file = NixFile("configuration")
     nix_file.add_fragment(fragment)
@@ -134,8 +134,8 @@ def test_system_packages_mapper_formatting():
         in output
     )
     assert "bat /* from debian:batcat */" in output
-    assert "ripgrep" in output
-    assert "spotify /* from aur */" in output
+    assert "ripgrep /* from arch:ripgrep */" in output
+    assert "spotify /* from aur:spotify */" in output
     assert "# unmapped: custom-cli" not in output
 
 
@@ -152,7 +152,7 @@ def test_system_packages_mapper_unmapped_only():
     assert len(fragment.assets) == 1
     asset = next(iter(fragment.assets))
     assert asset.target_filename == "packages.log"
-    assert "orphan-tool (from aur:orphan-tool)" in asset.content
+    assert "orphan-tool /* from aur:orphan-tool */" in asset.content
 
 
 def test_system_packages_mapper_divided_by_comments():
@@ -183,9 +183,9 @@ def test_system_packages_mapper_divided_by_comments():
     output = writer.gettext()
 
     assert "# User-installed packages" in output
-    assert "ripgrep" in output
+    assert "ripgrep /* from arch:ripgrep */" in output
     assert "# Pre-installed distribution utilities (commented out by default)" in output
-    assert "# curl" in output
+    assert "# curl /* from debian:curl */" in output
 
 
 def test_system_packages_mapper_ignores_dependencies():
@@ -216,8 +216,8 @@ def test_system_packages_mapper_unmapped_details_formatting():
 
     assert len(fragment.assets) == 1
     asset = next(iter(fragment.assets))
-    assert "custom1 (from ppa:test:custom1)" in asset.content
-    assert "custom2 (from debian:custom2)" in asset.content
+    assert "custom1 /* from ppa:test:custom1 */" in asset.content
+    assert "custom2 /* from debian:custom2 */" in asset.content
 
 
 def test_system_packages_full_report_generation():
@@ -262,12 +262,12 @@ def test_system_packages_full_report_generation():
     report = asset.content
 
     assert "User-installed packages:" in report
-    assert "curl (from ubuntu:curl)" in report
+    assert "curl /* from ubuntu:curl */" in report
     assert "Pre-installed distribution utilities:" in report
-    assert "nano (from ubuntu:nano)" in report
+    assert "nano /* from ubuntu:nano */" in report
     assert "Claimed packages:" in report
-    assert "git (from ubuntu:git) (claimed by programs.git)" in report
+    assert "git /* from ubuntu:git */ (claimed by programs.git)" in report
     assert "Excluded dependencies:" in report
-    assert "openssl (from ubuntu:libssl3)" in report
+    assert "openssl /* from ubuntu:libssl3 */" in report
     assert "Unmapped packages:" in report
-    assert "mytool (from ubuntu:mytool)" in report
+    assert "mytool /* from ubuntu:mytool */" in report

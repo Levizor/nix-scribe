@@ -16,29 +16,13 @@ logger = logging.getLogger(__name__)
 
 system_packages = Module("environment.system_packages", phase=ModulePhase.LATE)
 
-STANDARD_REPOSITORIES = {
-    "alpine",
-    "arch",
-    "debian",
-    "fedora",
-    "ubuntu",
-}
 
-
-def _format_package_item(pkg: ResolvedPackage) -> raw:
-    """Formats a resolved package into an expressive Nix package item with provenance comments."""
-    if pkg.name != pkg.original_name:
-        return raw(f"{pkg.name} /* from {pkg.repository}:{pkg.original_name} */")
-    if pkg.repository and pkg.repository not in STANDARD_REPOSITORIES:
-        return raw(f"{pkg.name} /* from {pkg.repository} */")
-    return raw(pkg.name)
-
-
-def _format_package_info(pkg: ResolvedPackage | DiscoveredPackage) -> str:
+def _format_package_item(pkg: ResolvedPackage | DiscoveredPackage) -> raw:
+    """Formats a package into an expressive Nix package item with provenance comments."""
     orig_name = getattr(pkg, "original_name", pkg.name)
     repo = pkg.repository or ""
     provenance = f"{repo}:{orig_name}" if repo else orig_name
-    return f"{pkg.name} (from {provenance})"
+    return raw(f"{pkg.name} /* from {provenance} */")
 
 
 def _build_packages_report(
@@ -50,7 +34,7 @@ def _build_packages_report(
     state: PackageState | None = None,
 ) -> str:
     def format_claimed(p: ResolvedPackage) -> str:
-        base = _format_package_info(p)
+        base = _format_package_item(p)
         if state:
             by = state.claimed_by(p.name)
             if by:
@@ -58,14 +42,14 @@ def _build_packages_report(
         return base
 
     sections = [
-        ("User-installed packages:", [_format_package_info(p) for p in explicit]),
+        ("User-installed packages:", [_format_package_item(p) for p in explicit]),
         (
             "Pre-installed distribution utilities:",
-            [_format_package_info(p) for p in preinstalled],
+            [_format_package_item(p) for p in preinstalled],
         ),
         ("Claimed packages:", [format_claimed(p) for p in claimed]),
-        ("Excluded dependencies:", [_format_package_info(p) for p in dependencies]),
-        ("Unmapped packages:", [_format_package_info(p) for p in unmapped]),
+        ("Excluded dependencies:", [_format_package_item(p) for p in dependencies]),
+        ("Unmapped packages:", [_format_package_item(p) for p in unmapped]),
     ]
     report = ["# Package Mapping Report"]
     for title, items in sections:
