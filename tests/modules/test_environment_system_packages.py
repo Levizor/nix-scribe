@@ -116,6 +116,12 @@ def test_system_packages_mapper_formatting():
     assert fragment.name == "system-packages"
     assert "environment.systemPackages" in fragment.options
 
+    assert len(fragment.assets) == 1
+    asset = next(iter(fragment.assets))
+    assert asset.target_filename == "packages.log"
+    assert "custom-cli # from debian:custom-cli" in asset.content
+    assert "bat # from debian:batcat" in asset.content
+
     nix_file = NixFile("configuration")
     nix_file.add_fragment(fragment)
     writer = NixWriter()
@@ -123,10 +129,14 @@ def test_system_packages_mapper_formatting():
     output = writer.gettext()
 
     assert "environment.systemPackages = with pkgs; [" in output
-    assert "bat /* from debian:batcat */" in output
-    assert "ripgrep" in output
-    assert "spotify /* from aur */" in output
-    assert "# unmapped: custom-cli (repo: debian)" in output
+    assert (
+        "# See packages.log for the full package mapping report and unmapped packages."
+        in output
+    )
+    assert "bat # from debian:batcat" in output
+    assert "ripgrep # from arch:ripgrep" in output
+    assert "spotify # from aur:spotify" in output
+    assert "# unmapped: custom-cli" not in output
 
 
 def test_system_packages_mapper_unmapped_only():
@@ -137,16 +147,12 @@ def test_system_packages_mapper_unmapped_only():
 
     fragment = system_packages.map(ir)
     assert isinstance(fragment, ConfigFragment)
-    assert "environment.systemPackages" in fragment.options
+    assert "environment.systemPackages" not in fragment.options
 
-    nix_file = NixFile("configuration")
-    nix_file.add_fragment(fragment)
-    writer = NixWriter()
-    nix_file.render(writer)
-    output = writer.gettext()
-
-    assert "environment.systemPackages = with pkgs; [" in output
-    assert "# unmapped: orphan-tool (repo: aur)" in output
+    assert len(fragment.assets) == 1
+    asset = next(iter(fragment.assets))
+    assert asset.target_filename == "packages.log"
+    assert "orphan-tool # from aur:orphan-tool" in asset.content
 
 
 def test_system_packages_mapper_divided_by_comments():
@@ -177,9 +183,9 @@ def test_system_packages_mapper_divided_by_comments():
     output = writer.gettext()
 
     assert "# User-installed packages" in output
-    assert "ripgrep" in output
-    assert "# Pre-installed distribution utilities" in output
-    assert "curl" in output
+    assert "ripgrep # from arch:ripgrep" in output
+    assert "# Pre-installed distribution utilities (commented out by default)" in output
+    assert "# curl # from debian:curl" in output
 
 
 def test_system_packages_mapper_ignores_dependencies():
@@ -189,11 +195,8 @@ def test_system_packages_mapper_ignores_dependencies():
             "libssl3", repository="debian", reason=InstallReason.DEPENDENCY
         ),
     )
-    unmapped_dep = DiscoveredPackage(
-        "libxyz1", repository="debian", reason=InstallReason.DEPENDENCY
-    )
     ir = {
-        "packages": PackageState(packages=[libssl], unmapped=[unmapped_dep]),
+        "packages": PackageState(packages=[libssl]),
     }
     assert system_packages.map(ir) is None
 
@@ -211,11 +214,90 @@ def test_system_packages_mapper_unmapped_details_formatting():
     fragment = system_packages.map(ir)
     assert fragment is not None
 
+    assert len(fragment.assets) == 1
+    asset = next(iter(fragment.assets))
+    assert "custom1 # from ppa:test:custom1" in asset.content
+    assert "custom2 # from debian:custom2" in asset.content
+
+
+def test_system_packages_full_report_generation():
+    curl = ResolvedPackage(
+        name="curl",
+        original=DiscoveredPackage(
+            "curl", repository="ubuntu", reason=InstallReason.EXPLICIT
+        ),
+    )
+    git = ResolvedPackage(
+        name="git",
+        original=DiscoveredPackage(
+            "git", repository="ubuntu", reason=InstallReason.EXPLICIT
+        ),
+    )
+    nano = ResolvedPackage(
+        name="nano",
+        original=DiscoveredPackage(
+            "nano", repository="ubuntu", reason=InstallReason.PREINSTALLED
+        ),
+    )
+    libssl = ResolvedPackage(
+        name="openssl",
+        original=DiscoveredPackage(
+            "libssl3", repository="ubuntu", reason=InstallReason.DEPENDENCY
+        ),
+    )
+    unmapped_explicit = DiscoveredPackage(
+        "mytool", repository="ubuntu", reason=InstallReason.EXPLICIT
+    )
+
+    state = PackageState(
+        packages=[curl, git, nano, libssl], unmapped=[unmapped_explicit]
+    )
+    state.claim("git", by="programs.git")
+
+    ir = {"packages": state}
+    fragment = system_packages.map(ir)
+    assert fragment is not None
+
+    asset = next(iter(fragment.assets))
+    report = asset.content
+
+    assert "User-installed packages:" in report
+    assert "curl # from ubuntu:curl" in report
+    assert "Pre-installed distribution utilities:" in report
+    assert "nano # from ubuntu:nano" in report
+    assert "Claimed packages:" in report
+    assert "git # from ubuntu:git (claimed by programs.git)" in report
+    assert "Excluded dependencies:" in report
+    assert "openssl # from ubuntu:libssl3" in report
+    assert "Unmapped packages:" in report
+    assert "mytool # from ubuntu:mytool" in report
+
+
+def test_system_packages_mapper_no_comment(monkeypatch):
+    monkeypatch.setattr("nix_scribe.lib.nix_writer.args.no_comment", True)
+    rg = ResolvedPackage(
+        name="ripgrep",
+        original=DiscoveredPackage(
+            "ripgrep", repository="arch", reason=InstallReason.EXPLICIT
+        ),
+    )
+    curl = ResolvedPackage(
+        name="curl",
+        original=DiscoveredPackage(
+            "curl", repository="debian", reason=InstallReason.PREINSTALLED
+        ),
+    )
+    ir = {"packages": PackageState(packages=[rg, curl])}
+    fragment = system_packages.map(ir)
+    assert fragment is not None
+
     nix_file = NixFile("configuration")
     nix_file.add_fragment(fragment)
     writer = NixWriter()
     nix_file.render(writer)
     output = writer.gettext()
 
-    assert "# unmapped: custom1 (repo: ppa:test)" in output
-    assert "# unmapped: custom2 (repo: debian)" in output
+    assert "ripgrep" in output
+    assert "# from" not in output
+    assert "curl" not in output
+    assert "#" not in output
