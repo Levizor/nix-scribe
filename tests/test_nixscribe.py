@@ -134,4 +134,4 @@ def test_nixscribe_system_packages_claims_integration():
 
     asset = next(iter(sys_res.map_data.assets))
     assert "Claimed packages:" in asset.content
-    assert "git /* from debian:git */ (claimed by programs.git)" in asset.content
+    assert "git # from debian:git (claimed by programs.git)" in asset.content

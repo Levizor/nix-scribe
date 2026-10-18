@@ -3,7 +3,7 @@ from typing import Any
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.nix_writer import comment, nix_with, raw
+from nix_scribe.lib.nix_writer import combination, comment, nix_with, raw
 from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
@@ -17,12 +17,14 @@ logger = logging.getLogger(__name__)
 system_packages = Module("environment.system_packages", phase=ModulePhase.LATE)
 
 
-def _format_package_item(pkg: ResolvedPackage | DiscoveredPackage) -> raw:
+def _format_package_item(
+    pkg: ResolvedPackage | DiscoveredPackage,
+) -> combination:
     """Formats a package into an expressive Nix package item with provenance comments."""
     orig_name = getattr(pkg, "original_name", pkg.name)
     repo = pkg.repository or ""
     provenance = f"{repo}:{orig_name}" if repo else orig_name
-    return raw(f"{pkg.name} /* from {provenance} */")
+    return combination([raw(pkg.name), comment(f" from {provenance}")])
 
 
 def _build_packages_report(
@@ -106,7 +108,7 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     )
     asset = Asset("packages.log", report)
 
-    items: list[raw] = []
+    items: list[Any] = []
 
     if explicit:
         if preinstalled:

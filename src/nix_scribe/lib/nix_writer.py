@@ -22,10 +22,14 @@ class comment(raw):
             stripped = line.strip()
             if not stripped:
                 lines.append("")
-            elif stripped.startswith("#"):
-                lines.append(stripped)
+            elif stripped.startswith("#") or (
+                stripped.startswith("/*") and stripped.endswith("*/")
+            ):
+                leading = line[: len(line) - len(line.lstrip())]
+                lines.append(f"{leading}{stripped}")
             else:
-                lines.append(f"# {stripped}")
+                leading = line[: len(line) - len(line.lstrip())]
+                lines.append(f"{leading}# {stripped}")
         return super().__new__(cls, "\n".join(lines))
 
 
