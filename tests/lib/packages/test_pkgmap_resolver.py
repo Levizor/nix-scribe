@@ -158,3 +158,21 @@ def test_resolver_custom_and_default_db_path(
     assert resolver_default.db_path is None
     resolver_default.resolve(DiscoveredPackage(name="test", repository="debian"))
     assert captured_paths[-1] is None
+
+
+def test_resolver_variant_defaults_to_core() -> None:
+    import pkgmap
+
+    resolver = PkgmapPackageResolver()
+    assert resolver.variant == "core"
+    assert pkgmap.get_default_variant() == "core"
+
+
+def test_resolver_variant_custom() -> None:
+    import pkgmap
+
+    resolver = PkgmapPackageResolver(variant="full")
+    assert resolver.variant == "full"
+    assert pkgmap.get_default_variant() == "full"
+    # Reset back to core
+    pkgmap.set_default_variant("core")

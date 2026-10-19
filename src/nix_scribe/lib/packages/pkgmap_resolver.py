@@ -8,11 +8,19 @@ import pkgmap
 from nix_scribe.lib.packages.models import DiscoveredPackage, ResolvedPackage
 from nix_scribe.lib.packages.resolver import PackageResolver
 
+pkgmap.set_default_variant("core")
+
 
 class PkgmapPackageResolver(PackageResolver):
     """Package resolver powered by the pkgmap cross-distribution resolution library."""
 
-    def __init__(self, db_path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        db_path: Path | str | None = None,
+        variant: pkgmap.DatabaseVariant = "core",
+    ) -> None:
+        self.variant = variant
+        pkgmap.set_default_variant(variant)
         self.db_path = Path(db_path) if db_path is not None else None
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
