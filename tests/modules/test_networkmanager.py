@@ -64,22 +64,56 @@ def test_networkmanager_mapper():
     mock_ir = {
         "enable": True,
         "config": {
-            "main": {"dns": "dnsmasq", "dhcp": "dhclient", "plugins": "keyfile"},
+            "main": {"dns": "dnsmasq", "dhcp": "internal", "plugins": "keyfile"},
             "connection": {"wifi.powersave": 2},
-            "device": {"wifi.scan-rand-mac-address": True},
+            "device": {
+                "wifi.scan-rand-mac-address": True,
+                "wifi.backend": "iwd",
+            },
+        },
+    }
+
+    # Verify IR immutability
+    import copy
+
+    ir_copy = copy.deepcopy(mock_ir)
+
+    block = networkmanager.map(mock_ir)
+
+    assert mock_ir == ir_copy
+    assert isinstance(block, ConfigFragment)
+    assert block.claims == {"networkmanager"}
+
+    data = block["networking.networkmanager"]
+    assert data["enable"] is True
+    assert data["dns"] == "dnsmasq"
+    assert data["dhcp"] == "internal"
+    assert data["wifi"]["powersave"] is False
+    assert data["wifi"]["scanRandMacAddress"] is True
+    assert data["wifi"]["backend"] == "iwd"
+    assert data["settings"]["main"]["plugins"] == "keyfile"
+    assert "dhcp" not in data["settings"]["main"]
+    assert "wifi.powersave" not in data["settings"].get("connection", {})
+
+
+def test_networkmanager_mapper_fallback_unknown_enums():
+    from nix_scribe.lib.nix_writer import raw
+
+    mock_ir = {
+        "enable": True,
+        "config": {
+            "main": {"dhcp": "dhclient"},
+            "connection": {"wifi.powersave": 0},
         },
     }
 
     block = networkmanager.map(mock_ir)
-
     assert isinstance(block, ConfigFragment)
     data = block["networking.networkmanager"]
-    assert data["enable"] is True
-    assert data["dns"] == "dnsmasq"
-    assert data["dhcp"] == "dhclient"
-    assert data["wifi"]["powersave"] is True
-    assert data["wifi"]["scanRandMacAddress"] is True
-    assert data["settings"]["main"]["plugins"] == "keyfile"
+    assert "dhcp" not in data
+    assert "wifi" not in data
+    assert data["settings"]["main"]["dhcp"] == "dhclient"
+    assert data["settings"]["connection"][raw('"wifi.powersave"')] == 0
 
 
 def test_networkmanager_mapper_disabled():
