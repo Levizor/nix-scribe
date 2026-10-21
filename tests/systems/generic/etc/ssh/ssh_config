@@ -1,0 +1,5 @@
+# OpenSSH Client Configuration
+Host *
+    ForwardX11 yes
+    HashKnownHosts yes
+    SendEnv LANG LC_*
