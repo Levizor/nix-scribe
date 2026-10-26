@@ -7,6 +7,41 @@ from nix_scribe.lib.registry import Module
 cosmic = Module("services.desktopManager.cosmic")
 
 
+COSMIC_PACKAGES: set[str] = {
+    # Core packages
+    "cosmic-applets",
+    "cosmic-app-library",
+    "cosmic-bg",
+    "cosmic-comp",
+    "cosmic-files",
+    "cosmic-greeter",
+    "cosmic-idle",
+    "cosmic-initial-setup",
+    "cosmic-launcher",
+    "cosmic-notifications",
+    "cosmic-osd",
+    "cosmic-panel",
+    "cosmic-session",
+    "cosmic-settings",
+    "cosmic-settings-daemon",
+    "cosmic-workspaces-epoch",
+    # Default desktop apps and themes
+    "cosmic-edit",
+    "cosmic-icons",
+    "cosmic-monitor",
+    "cosmic-player",
+    "cosmic-randr",
+    "cosmic-reader",
+    "cosmic-screenshot",
+    "cosmic-term",
+    "cosmic-wallpapers",
+    "cosmic-sound-theme",
+    "cosmic-store",
+    "pop-icon-theme",
+    "pop-launcher",
+}
+
+
 @cosmic.scanner()
 def scan(context: SystemContext) -> dict[str, Any]:
     return {
@@ -26,5 +61,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="cosmic",
         description="Cosmic desktop environment",
         data={"services.desktopManager.cosmic": {"enable": True}},
-        claims={"cosmic-session", "cosmic-comp"},
+        claims=COSMIC_PACKAGES,
     )
