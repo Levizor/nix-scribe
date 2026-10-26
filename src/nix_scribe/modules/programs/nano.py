@@ -47,4 +47,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="nano",
         description="nano editor",
         data={"programs.nano": data},
+        claims={"nano"},
     )

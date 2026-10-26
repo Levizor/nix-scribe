@@ -60,4 +60,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="vim",
         description="Enable vim editor",
         data={"programs.vim": data},
+        claims={"vim"},
     )

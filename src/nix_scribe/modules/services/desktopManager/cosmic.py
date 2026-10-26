@@ -26,4 +26,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="cosmic",
         description="Cosmic desktop environment",
         data={"services.desktopManager.cosmic": {"enable": True}},
+        claims={"cosmic-session", "cosmic-comp"},
     )

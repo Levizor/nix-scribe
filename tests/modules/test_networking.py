@@ -94,6 +94,7 @@ def test_networking_mapper():
     block = networking.map(mock_ir)
 
     assert isinstance(block, ConfigFragment)
+    assert block.claims == {"dhcpcd"}
     data = block["networking"]
     assert data["hostName"] == "nixos-box"
     assert data["enableIpv6"] is False

@@ -36,11 +36,13 @@ def test_rtkit_mapper():
     assert (
         isinstance(block, ConfigFragment) and block["security.rtkit"]["enable"] is True
     )
+    assert block.claims == {"rtkit"}
     assert "args" not in block["security.rtkit"]
 
     ir_full = {"enable": True, "args": ["--arg1", "--arg2"]}
     block_full = mapper(ir_full)
     assert isinstance(block_full, ConfigFragment)
     assert block_full is not None
+    assert block_full.claims == {"rtkit"}
     assert block_full["security.rtkit"]["enable"] is True
     assert block_full["security.rtkit"]["args"] == ["--arg1", "--arg2"]

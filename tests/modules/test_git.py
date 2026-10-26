@@ -76,6 +76,7 @@ def test_git_mapper_basic():
     block = mapper(ir)
     print(block.options["programs.git"])
     assert block is not None and isinstance(block, ConfigFragment)
+    assert block.claims == {"git"}
     assert block.options["programs.git"]["enable"] is True
     assert "lfs.enable" not in block["programs.git"]
 
@@ -92,6 +93,7 @@ def test_git_mapper_full():
     }
     block = mapper(ir)
     assert block is not None and isinstance(block, ConfigFragment)
+    assert block.claims == {"git", "git-lfs"}
 
     git_config = block["programs.git"]
     assert git_config["enable"] is True

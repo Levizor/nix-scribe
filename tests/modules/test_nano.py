@@ -48,6 +48,7 @@ def test_nano_mapper_basic():
     assert (
         isinstance(block, ConfigFragment) and block["programs.nano"]["enable"] is True
     )
+    assert block.claims == {"nano"}
     assert "nanorc" not in block["programs.nano"]
 
 

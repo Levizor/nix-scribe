@@ -128,8 +128,13 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
     if not data:
         return None
 
+    claims: set[str] = set()
+    if ir.get("useDHCP"):
+        claims.add("dhcpcd")
+
     return ConfigFragment(
         name="networking",
         description="Basic networking configuration",
         data={"networking": data},
+        claims=claims,
     )

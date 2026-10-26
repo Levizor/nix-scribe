@@ -121,4 +121,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="sudo",
         description="Sudo Configuration",
         data={"security.sudo": sudo_config},
+        claims={"sudo"},
     )

@@ -21,4 +21,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="gnome",
         description="Gnome desktop environment",
         data={"services.desktopManager.gnome": {"enable": True}},
+        claims={"gnome-shell"},
     )

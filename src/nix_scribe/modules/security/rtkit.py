@@ -66,4 +66,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="rtkit",
         description="RealtimeKit system service",
         data={"security.rtkit": data},
+        claims={"rtkit"},
     )

@@ -74,8 +74,13 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         if ir["lfs"].get("enablePureSSHTransfer"):
             git_config["lfs.enablePureSSHTransfer"] = True
 
+    claims = {"git"}
+    if ir.get("lfs", {}).get("enable"):
+        claims.add("git-lfs")
+
     return ConfigFragment(
         name="git",
         description="Git version control system",
         data={"programs.git": git_config},
+        claims=claims,
     )

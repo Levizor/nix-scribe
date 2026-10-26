@@ -70,6 +70,7 @@ def test_sudo_mapper():
     block = sudo.map(mock_ir)
 
     assert isinstance(block, ConfigFragment)
+    assert block.claims == {"sudo"}
     data = block["security.sudo"]
 
     assert data["enable"] is True
