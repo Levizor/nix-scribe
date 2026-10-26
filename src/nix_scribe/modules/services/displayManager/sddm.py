@@ -90,5 +90,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="sddm",
         description="Simple Desktop Display Manager",
         data={"services.displayManager.sddm": data},
-        claims={"sddm", "kdePackages.sddm-unwrapped"},
+        claims={"kdePackages.sddm-unwrapped"},
     )

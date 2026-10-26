@@ -75,7 +75,7 @@ def test_grub_mapper():
     block = grub.map(mock_ir)
 
     assert isinstance(block, ConfigFragment)
-    assert block.claims == {"grub", "grub2"}
+    assert block.claims == {"grub2"}
     data = block["boot.loader.grub"]
     assert data["enable"] is True
     assert data["efiSupport"] is True

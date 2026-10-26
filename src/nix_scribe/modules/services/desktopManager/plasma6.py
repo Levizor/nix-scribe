@@ -21,5 +21,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="plasma6",
         description="KDE Plasma 6 Desktop Environment",
         data={"services.desktopManager.plasma6": {"enable": True}},
-        claims={"plasma-desktop", "kdePackages.plasma-desktop"},
+        claims={"kdePackages.plasma-desktop"},
     )

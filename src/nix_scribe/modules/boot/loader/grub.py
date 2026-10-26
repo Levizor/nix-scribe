@@ -145,5 +145,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="grub",
         description="GRUB Bootloader Configuration",
         data={"boot.loader.grub": grub_config},
-        claims={"grub", "grub2"},
+        claims={"grub2"},
     )
