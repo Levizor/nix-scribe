@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/Levizor/nix-scribe/compare/v0.1.0...v0.2.0) (2026-10-30)
+
+
+### Features
+
+* **modules:** append package claims to specialized modules ([#125](https://github.com/Levizor/nix-scribe/issues/125)) ([a80d143](https://github.com/Levizor/nix-scribe/commit/a80d14306e9ec544ce96cc2f3d62b579e35fd8e8))
+* **programs:** add openssh client module ([#20](https://github.com/Levizor/nix-scribe/issues/20)) ([#89](https://github.com/Levizor/nix-scribe/issues/89)) ([d47a78a](https://github.com/Levizor/nix-scribe/commit/d47a78ae3e9ca6bc58a92943cee3972b2ef29370))
+
 ## [0.1.0](https://github.com/Levizor/nix-scribe/compare/v0.1.0...v0.1.0) (2026-10-19)
 
 
