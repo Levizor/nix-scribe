@@ -21,4 +21,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="cosmic-greeter",
         description="cosmic-greeter displayManager",
         data={"services.displayManager.cosmic-greeter": {"enable": True}},
+        claims={"cosmic-greeter"},
     )

@@ -41,4 +41,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="plasma-login-manager",
         description="Plasma Login Manager (Greeter)",
         data={"services.displayManager.plasma-login-manager": plasmalogin_config},
+        claims={"kdePackages.plasma-login-manager"},
     )

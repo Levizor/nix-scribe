@@ -91,4 +91,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="gdm",
         description="Gnome display manager",
         data={"services.displayManager.gdm": data},
+        claims={"gdm"},
     )

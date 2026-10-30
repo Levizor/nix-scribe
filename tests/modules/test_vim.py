@@ -62,11 +62,13 @@ def test_vim_mapper():
     # enabled not default
     block = mapper({"enable": True, "defaultEditor": False})
     assert block is not None and isinstance(block, ConfigFragment)
+    assert block.claims == {"vim"}
     assert block["programs.vim"]["enable"] is True
     assert "defaultEditor" not in block["programs.vim"]
 
     # enabled, default
     block = mapper({"enable": True, "defaultEditor": True})
     assert block is not None and isinstance(block, ConfigFragment)
+    assert block.claims == {"vim"}
     assert block["programs.vim"]["enable"] is True
     assert block["programs.vim"]["defaultEditor"] is True

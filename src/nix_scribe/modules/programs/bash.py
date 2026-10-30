@@ -104,4 +104,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="bash",
         description="Bash Shell Configuration",
         data={"programs.bash": bash_config},
+        claims={"bash"},
     )

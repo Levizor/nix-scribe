@@ -21,4 +21,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="hyprland",
         description="Hyprland compositor",
         data={"programs.hyprland": {"enable": True}},
+        claims={"hyprland"},
     )
