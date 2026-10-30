@@ -14,21 +14,18 @@ from nix_scribe.modules.services.desktopManager.plasma6 import (
 )
 
 
-def test_gnome_scanner(tmp_path, monkeypatch):
+def test_gnome_scanner(tmp_path):
     assert gnome.scan
     context = SystemContext(tmp_path)
 
-    monkeypatch.setattr(
-        context,
-        "find_executable_path",
-        lambda x: "/usr/bin/gnome-shell" if x == "gnome-shell" else None,
-    )
-    ir = gnome.scan(context)
-    assert ir["enable"] is True
+    # Disabled when executable not present
+    assert gnome.scan(context)["enable"] is False
 
-    monkeypatch.setattr(context, "find_executable_path", lambda _: None)
-    ir_disabled = gnome.scan(context)
-    assert ir_disabled["enable"] is False
+    # Enabled when executable is present in filesystem
+    bin_dir = tmp_path / "usr/bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "gnome-shell").touch()
+    assert gnome.scan(context)["enable"] is True
 
 
 def test_gnome_mapper():
@@ -43,21 +40,18 @@ def test_gnome_mapper():
     assert "gnome-shell" in block.claims
 
 
-def test_plasma6_scanner(tmp_path, monkeypatch):
+def test_plasma6_scanner(tmp_path):
     assert plasma6.scan
     context = SystemContext(tmp_path)
 
-    monkeypatch.setattr(
-        context,
-        "find_executable_path",
-        lambda x: "/usr/bin/plasmashell" if x == "plasmashell" else None,
-    )
-    ir = plasma6.scan(context)
-    assert ir["enable"] is True
+    # Disabled when executable not present
+    assert plasma6.scan(context)["enable"] is False
 
-    monkeypatch.setattr(context, "find_executable_path", lambda _: None)
-    ir_disabled = plasma6.scan(context)
-    assert ir_disabled["enable"] is False
+    # Enabled when executable is present in filesystem
+    bin_dir = tmp_path / "usr/bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "plasmashell").touch()
+    assert plasma6.scan(context)["enable"] is True
 
 
 def test_plasma6_mapper():
@@ -72,21 +66,18 @@ def test_plasma6_mapper():
     assert "kdePackages.plasma-desktop" in block.claims
 
 
-def test_cosmic_scanner(tmp_path, monkeypatch):
+def test_cosmic_scanner(tmp_path):
     assert cosmic.scan
     context = SystemContext(tmp_path)
 
-    monkeypatch.setattr(
-        context,
-        "find_executable_path",
-        lambda x: "/usr/bin/cosmic-session" if x == "cosmic-session" else None,
-    )
-    ir = cosmic.scan(context)
-    assert ir["enable"] is True
+    # Disabled when executable not present
+    assert cosmic.scan(context)["enable"] is False
 
-    monkeypatch.setattr(context, "find_executable_path", lambda _: None)
-    ir_disabled = cosmic.scan(context)
-    assert ir_disabled["enable"] is False
+    # Enabled when executable is present in filesystem
+    bin_dir = tmp_path / "usr/bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "cosmic-session").touch()
+    assert cosmic.scan(context)["enable"] is True
 
 
 def test_cosmic_mapper():
