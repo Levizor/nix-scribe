@@ -11,8 +11,10 @@ logger = logging.getLogger(__name__)
 
 openssh = Module("services.openssh")
 
-SSHD_CONFIG_PATH = "/etc/ssh/sshd_config"
-SSHD_CONFIG_DIR = "/etc/ssh/sshd_config.d"
+SSHD_CONFIG_PATHS = [
+    "/etc/ssh/sshd_config",
+    "/etc/ssh/sshd_config.d",
+]
 
 SETTINGS_KEYS = {
     "PermitRootLogin",
@@ -49,23 +51,12 @@ def scan(context: SystemContext) -> dict[str, Any]:
 
     ir: dict[str, Any] = {"enable": True}
 
-    paths = []
-    if context.path_exists(SSHD_CONFIG_PATH):
-        paths.append(SSHD_CONFIG_PATH)
-
-    if context.path_exists(SSHD_CONFIG_DIR):
-        dir_files = context.list_directory(SSHD_CONFIG_DIR)
-        for fname in sorted(dir_files):
-            if fname.endswith(".conf"):
-                paths.append(f"{SSHD_CONFIG_DIR}/{fname}")
-
     raw_config: dict[str, Any] = {}
-    if paths:
-        try:
-            reader = ConfigReader(context, parse_openssh_config)
-            raw_config = reader.read_merge_configs_from_paths_list(paths)
-        except Exception as e:
-            logger.warning(f"Failed to read sshd configuration: {e}")
+    try:
+        reader = ConfigReader(context, parse_openssh_config)
+        raw_config = reader.read_merge_configs_from_paths_list(SSHD_CONFIG_PATHS)
+    except Exception as e:
+        logger.warning(f"Failed to read sshd configuration: {e}")
 
     # Extract ports
     if "Port" in raw_config:
