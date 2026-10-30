@@ -2,16 +2,27 @@ from nix_scribe.lib.context import SystemContext
 from nix_scribe.modules.services.openssh import map as map_openssh, scan as scan_openssh
 
 
+def _enable_sshd_service(tmp_path):
+    systemd_dir = tmp_path / "usr/lib/systemd/system"
+    systemd_dir.mkdir(parents=True, exist_ok=True)
+    (systemd_dir / "sshd.service").touch()
+
+    wants_dir = tmp_path / "etc/systemd/system/multi-user.target.wants"
+    wants_dir.mkdir(parents=True, exist_ok=True)
+    (wants_dir / "sshd.service").symlink_to("/usr/lib/systemd/system/sshd.service")
+
+
 def test_openssh_service_disabled(tmp_path):
     ctx = SystemContext(root=tmp_path)
     ir = scan_openssh(ctx)
-    assert ir["enable"] is False
+    assert ir == {}
 
     fragment = map_openssh(ir)
     assert fragment is None
 
 
 def test_openssh_service_enabled_with_config(tmp_path):
+    _enable_sshd_service(tmp_path)
     ssh_dir = tmp_path / "etc" / "ssh"
     ssh_dir.mkdir(parents=True)
     sshd_config = ssh_dir / "sshd_config"
@@ -36,6 +47,7 @@ def test_openssh_service_enabled_with_config(tmp_path):
     fragment = map_openssh(ir)
     assert fragment is not None
     assert fragment.name == "openssh"
+    assert fragment.claims == {"openssh"}
     assert fragment["services.openssh"].value == {
         "enable": True,
         "ports": [2222],
@@ -48,6 +60,7 @@ def test_openssh_service_enabled_with_config(tmp_path):
 
 
 def test_openssh_service_config_directory(tmp_path):
+    _enable_sshd_service(tmp_path)
     ssh_dir = tmp_path / "etc" / "ssh"
     config_d = ssh_dir / "sshd_config.d"
     config_d.mkdir(parents=True)

@@ -44,15 +44,10 @@ def _infer_key_type(path: str) -> str:
 
 @openssh.scanner()
 def scan(context: SystemContext) -> dict[str, Any]:
-    sshd_enabled = (
-        context.systemctl.is_enabled("sshd")
-        or context.path_exists(SSHD_CONFIG_PATH)
-        or context.find_executable_path("sshd") is not None
-    )
+    if not context.systemctl.is_enabled("sshd"):
+        return {}
 
-    ir: dict[str, Any] = {"enable": sshd_enabled}
-    if not ir["enable"]:
-        return ir
+    ir: dict[str, Any] = {"enable": True}
 
     paths = []
     if context.path_exists(SSHD_CONFIG_PATH):
@@ -125,4 +120,5 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         name="openssh",
         description="OpenSSH Secure Shell Service",
         data={"services.openssh": config},
+        claims={"openssh"},
     )
