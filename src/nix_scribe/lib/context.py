@@ -94,7 +94,7 @@ class SystemContext:
         try:
             rpath.stat()
             return True
-        except FileNotFoundError:
+        except (FileNotFoundError, NotADirectoryError):
             return False
         except PermissionError:
             if self.use_sudo:
