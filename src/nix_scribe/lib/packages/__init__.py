@@ -4,7 +4,7 @@ from nix_scribe.lib.packages.manager import (
     get_registered_package_managers,
     register_package_manager,
 )
-from nix_scribe.lib.packages.managers import AptManager, PacmanManager
+from nix_scribe.lib.packages.managers import AptManager, DnfManager, PacmanManager
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
     InstallReason,
@@ -22,6 +22,7 @@ from nix_scribe.lib.packages.resolver import (
 __all__ = [
     "AptManager",
     "DiscoveredPackage",
+    "DnfManager",
     "DummyPackageResolver",
     "InstallReason",
     "PackageManager",
