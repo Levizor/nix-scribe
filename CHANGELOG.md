@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0](https://github.com/Levizor/nix-scribe/compare/v0.1.0...v0.2.0) (2026-10-31)
+
+
+### Features
+
+* **modules:** append package claims to specialized modules ([#125](https://github.com/Levizor/nix-scribe/issues/125)) ([a80d143](https://github.com/Levizor/nix-scribe/commit/a80d14306e9ec544ce96cc2f3d62b579e35fd8e8))
+* **packages:** implement Arch Linux PacmanManager and parser ([#93](https://github.com/Levizor/nix-scribe/issues/93)) ([#127](https://github.com/Levizor/nix-scribe/issues/127)) ([3da8816](https://github.com/Levizor/nix-scribe/commit/3da88163634637b46720c522095a9440f4efb4a7))
+* **packages:** implement Fedora DnfManager ([#128](https://github.com/Levizor/nix-scribe/issues/128)) ([#130](https://github.com/Levizor/nix-scribe/issues/130)) ([4b56720](https://github.com/Levizor/nix-scribe/commit/4b567201735ae7557b030cf5d3a5b11a4bdea423))
+* **programs:** add openssh client module ([#20](https://github.com/Levizor/nix-scribe/issues/20)) ([#89](https://github.com/Levizor/nix-scribe/issues/89)) ([d47a78a](https://github.com/Levizor/nix-scribe/commit/d47a78ae3e9ca6bc58a92943cee3972b2ef29370))
+
 ## [0.1.0](https://github.com/Levizor/nix-scribe/compare/v0.1.0...v0.1.0) (2026-10-19)
 
 
