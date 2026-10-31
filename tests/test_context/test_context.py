@@ -133,3 +133,20 @@ def test_elevation_request_raised(monkeypatch, tmp_path):
     )
     with pytest.raises(ElevationRequest, match="Permission denied"):
         ctx.read_file_bytes("protected.bin")
+
+
+def test_open_sqlite(tmp_path):
+    import sqlite3
+
+    db_file = tmp_path / "test.db"
+    conn = sqlite3.connect(db_file)
+    conn.execute("CREATE TABLE users (name TEXT)")
+    conn.execute("INSERT INTO users VALUES ('alice')")
+    conn.commit()
+    conn.close()
+
+    ctx = SystemContext(tmp_path)
+    with ctx.open_sqlite("test.db") as read_conn:
+        cursor = read_conn.cursor()
+        cursor.execute("SELECT name FROM users")
+        assert cursor.fetchall() == [("alice",)]

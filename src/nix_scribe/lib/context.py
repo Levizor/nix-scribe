@@ -3,8 +3,10 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import sqlite3
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional, TypeVar
 
@@ -249,3 +251,13 @@ class SystemContext:
                 )
 
         return current_path
+
+    @contextmanager
+    def open_sqlite(self, path: str) -> Iterator[sqlite3.Connection]:
+        """Opens a read-only SQLite database connection within the target root."""
+        rpath = self.root_path(path)
+        conn = sqlite3.connect(f"file:{rpath}?mode=ro", uri=True)
+        try:
+            yield conn
+        finally:
+            conn.close()
