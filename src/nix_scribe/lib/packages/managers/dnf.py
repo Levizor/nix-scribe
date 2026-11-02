@@ -120,16 +120,17 @@ class DnfManager(PackageManager):
         ) or context.path_exists("/var/lib/dnf")
 
     def _detect_repository(self, context: SystemContext) -> str:
-        """Detects distribution from os-release to match pkgmap repository namespace."""
-        # Defaults to the 'fedora' alias in pkgmap. Can be extended for other
-        # DNF-based derivatives (e.g. centos, almalinux, rocky) in the future.
+        """Detects distribution and version from os-release to determine repository."""
         for path in OS_RELEASE_PATHS:
             if context.path_exists(path):
                 try:
                     data = parse_kv(context.read_file(path))
                     os_id = data.get("ID", "").lower()
                     id_like = data.get("ID_LIKE", "").lower()
+                    version = str(data.get("VERSION_ID", "")).strip().strip('"')
                     if os_id == "fedora" or "fedora" in id_like:
+                        if version.isdigit():
+                            return f"fedora_{version}"
                         return "fedora"
                 except Exception:
                     pass

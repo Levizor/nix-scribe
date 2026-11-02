@@ -16,6 +16,7 @@ def test_resolve_single_package(monkeypatch: pytest.MonkeyPatch) -> None:
         from_repo: str | None = None,
         to_repo: str | None = None,
         db_path: Path | str | None = None,
+        fallback: bool = False,
     ) -> PackageResolution | None:
         assert from_repo == "debian"
         assert to_repo == "nixpkgs"
@@ -60,6 +61,7 @@ def test_resolve_many_mixed_repositories(monkeypatch: pytest.MonkeyPatch) -> Non
         from_repo: str | None = None,
         to_repo: str | None = None,
         db_path: Path | str | None = None,
+        fallback: bool = False,
     ) -> dict[str, PackageResolution | None]:
         batch_calls.append((tuple(packages), from_repo, to_repo, db_path))
         if from_repo == "debian":
@@ -141,6 +143,7 @@ def test_resolver_custom_and_default_db_path(
         from_repo: str | None = None,
         to_repo: str | None = None,
         db_path: Path | str | None = None,
+        fallback: bool = False,
     ) -> PackageResolution | None:
         captured_paths.append(Path(db_path) if db_path else None)
         return PackageResolution(
@@ -174,5 +177,135 @@ def test_resolver_variant_custom() -> None:
     resolver = PkgmapPackageResolver(variant="full")
     assert resolver.variant == "full"
     assert pkgmap.get_default_variant() == "full"
-    # Reset back to core
     pkgmap.set_default_variant("core")
+
+
+def test_resolver_passes_fallback_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_calls: list[tuple[str, str | None, str | None, bool]] = []
+
+    def mock_resolve(
+        package: str,
+        from_repo: str | None = None,
+        to_repo: str | None = None,
+        db_path: Path | str | None = None,
+        fallback: bool = False,
+    ) -> PackageResolution | None:
+        captured_calls.append((package, from_repo, to_repo, fallback))
+        if package == "curl":
+            return PackageResolution(
+                name="curl", version="8.22.0", repo="nix_unstable", repo_family="nix"
+            )
+        return None
+
+    monkeypatch.setattr("pkgmap.resolve", mock_resolve)
+
+    resolver = PkgmapPackageResolver()
+    pkg = DiscoveredPackage(
+        name="curl", repository="fedora_41", reason=InstallReason.EXPLICIT
+    )
+
+    resolved = resolver.resolve(pkg)
+
+    assert resolved is not None
+    assert captured_calls == [("curl", "fedora_41", "nixpkgs", True)]
+    assert resolved.name == "curl"
+    assert resolved.original == pkg
+    assert resolved.repository == "fedora_41"
+
+
+def test_resolver_resolve_many_passes_fallback_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batch_calls: list[tuple[tuple[str, ...], str | None, str | None, bool]] = []
+
+    def mock_resolve_batch(
+        packages: list[str],
+        from_repo: str | None = None,
+        to_repo: str | None = None,
+        db_path: Path | str | None = None,
+        fallback: bool = False,
+    ) -> dict[str, PackageResolution | None]:
+        batch_calls.append((tuple(packages), from_repo, to_repo, fallback))
+        if from_repo == "fedora_41":
+            return {
+                "curl": PackageResolution(
+                    name="curl",
+                    version="8.22.0",
+                    repo="nix_unstable",
+                    repo_family="nix",
+                )
+            }
+        elif from_repo == "ubuntu_24_04":
+            return {
+                "ripgrep": PackageResolution(
+                    name="ripgrep",
+                    version="14.1.0",
+                    repo="nix_unstable",
+                    repo_family="nix",
+                )
+            }
+        return {}
+
+    monkeypatch.setattr("pkgmap.resolve_batch", mock_resolve_batch)
+
+    resolver = PkgmapPackageResolver()
+    packages = [
+        DiscoveredPackage(name="curl", repository="fedora_41"),
+        DiscoveredPackage(name="ripgrep", repository="ubuntu_24_04"),
+    ]
+
+    resolved, unmapped = resolver.resolve_many(packages)
+
+    assert len(batch_calls) == 2
+    assert (("curl",), "fedora_41", "nixpkgs", True) in batch_calls
+    assert (("ripgrep",), "ubuntu_24_04", "nixpkgs", True) in batch_calls
+
+    assert len(resolved) == 2
+    assert resolved[0].name == "curl"
+    assert resolved[0].repository == "fedora_41"
+    assert resolved[1].name == "ripgrep"
+    assert resolved[1].repository == "ubuntu_24_04"
+    assert unmapped == []
+
+
+def test_resolver_custom_fallback_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_calls: list[tuple[str, str | None, bool]] = []
+
+    def mock_resolve(
+        package: str,
+        from_repo: str | None = None,
+        to_repo: str | None = None,
+        db_path: Path | str | None = None,
+        fallback: bool = False,
+    ) -> PackageResolution | None:
+        captured_calls.append((package, from_repo, fallback))
+        return PackageResolution(
+            name="curl", version="8.22.0", repo="nix_unstable", repo_family="nix"
+        )
+
+    monkeypatch.setattr("pkgmap.resolve", mock_resolve)
+
+    resolver = PkgmapPackageResolver(fallback=False)
+    pkg = DiscoveredPackage(name="curl", repository="fedora_41")
+    resolved = resolver.resolve(pkg)
+
+    assert resolved is not None
+    assert captured_calls == [("curl", "fedora_41", False)]
+
+
+def test_resolver_real_db_fedora_versioned_fallback() -> None:
+    resolver = PkgmapPackageResolver(variant="core")
+    pkg = DiscoveredPackage(
+        name="curl", repository="fedora_41", reason=InstallReason.EXPLICIT
+    )
+
+    resolved = resolver.resolve(pkg)
+    assert resolved is not None
+    assert resolved.name == "curl"
+    assert resolved.repository == "fedora_41"
+
+    resolved_list, unmapped = resolver.resolve_many([pkg])
+    assert len(resolved_list) == 1
+    assert resolved_list[0].name == "curl"
+    assert resolved_list[0].repository == "fedora_41"
+    assert unmapped == []
