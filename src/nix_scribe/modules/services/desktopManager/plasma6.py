@@ -46,7 +46,6 @@ PLASMA6_PACKAGES: set[str] = {
     "kdePackages.plasma-browser-integration",
     "kdePackages.plasma-workspace-wallpapers",
     "kdePackages.konsole",
-    "kdePackages.kwin-x11",
     "kdePackages.ark",
     "kdePackages.elisa",
     "kdePackages.gwenview",
@@ -64,12 +63,12 @@ PLASMA6_PACKAGES: set[str] = {
     "kdePackages.plasma-keyboard",
     "kdePackages.kwallet",
     "kdePackages.kwalletmanager",
-    "kdePackages.kcalc",
     "kdePackages.powerdevil",
     "kdePackages.bluedevil",
     "kdePackages.plasma-nm",
     "kdePackages.plasma-pa",
     "kdePackages.discover",
+    "kdePackages.xdg-desktop-portal-kde",
 }
 
 

@@ -20,6 +20,7 @@ COSMIC_PACKAGES: set[str] = {
     "cosmic-launcher",
     "cosmic-notifications",
     "cosmic-osd",
+    "cosmic-osk",
     "cosmic-panel",
     "cosmic-session",
     "cosmic-settings",
@@ -34,11 +35,12 @@ COSMIC_PACKAGES: set[str] = {
     "cosmic-reader",
     "cosmic-screenshot",
     "cosmic-term",
+    "cosmic-viewer",
     "cosmic-wallpapers",
     "cosmic-sound-theme",
-    "cosmic-store",
     "pop-icon-theme",
     "pop-launcher",
+    "xdg-desktop-portal-cosmic",
 }
 
 

@@ -37,7 +37,6 @@ GNOME_PACKAGES: set[str] = {
     "gnome-maps",
     "gnome-music",
     "gnome-system-monitor",
-    "gnome-tecla",
     "tecla",
     "gnome-weather",
     "loupe",
@@ -49,7 +48,9 @@ GNOME_PACKAGES: set[str] = {
     "snapshot",
     "yelp",
     # Default tools & services
+    "adwaita-icon-theme",
     "gnome-disk-utility",
+    "gnome-keyring",
     "seahorse",
     "sushi",
     "gnome-initial-setup",
@@ -58,6 +59,7 @@ GNOME_PACKAGES: set[str] = {
     "rygel",
     "gnome-browser-connector",
     "gnome-online-accounts",
+    "xdg-desktop-portal-gnome",
 }
 
 
