@@ -135,3 +135,99 @@ def test_pacman_manager_system_context_detection(tmp_path):
     assert isinstance(context.package_manager, PacmanManager)
     assert context.package_manager.name == "pacman"
     assert context.package_manager.distro == "arch"
+
+
+def test_pacman_manager_discover_packages_with_history(tmp_path):
+    local_dir = tmp_path / "var/lib/pacman/local"
+
+    (local_dir / "curl-8.23.0-1").mkdir(parents=True)
+    (local_dir / "curl-8.23.0-1/desc").write_text("%NAME%\ncurl\n\n%REASON%\n1\n")
+
+    (local_dir / "fastfetch-2.70.0-1").mkdir(parents=True)
+    (local_dir / "fastfetch-2.70.0-1/desc").write_text(
+        "%NAME%\nfastfetch\n\n%REASON%\n0\n"
+    )
+
+    (local_dir / "yyjson-0.13.0-1").mkdir(parents=True)
+    (local_dir / "yyjson-0.13.0-1/desc").write_text("%NAME%\nyyjson\n\n%REASON%\n1\n")
+
+    (local_dir / "sudo-1.9.15-1").mkdir(parents=True)
+    (local_dir / "sudo-1.9.15-1/desc").write_text("%NAME%\nsudo\n\n%REASON%\n0\n")
+
+    (local_dir / "base-3-2").mkdir(parents=True)
+    (local_dir / "base-3-2/desc").write_text(SAMPLE_BASE_DESC)
+
+    log_dir = tmp_path / "var/log"
+    log_dir.mkdir(parents=True)
+    (log_dir / "pacman.log").write_text(
+        "[2026-10-25T00:03:55+0000] [ALPM] installed base (3-2)\n"
+        "[2026-10-25T00:03:55+0000] [ALPM] installed sudo (1.9.15-1)\n"
+        "[2026-10-31T19:59:16+0000] [PACMAN] Running 'pacman -Sy --noconfirm curl fastfetch'\n"
+    )
+
+    context = SystemContext(root=tmp_path)
+    manager = PacmanManager()
+    packages = manager.discover_packages(context)
+
+    packages_by_name = {pkg.name: pkg.reason for pkg in packages}
+    assert packages_by_name == {
+        "base": InstallReason.DEPENDENCY,
+        "curl": InstallReason.EXPLICIT,
+        "fastfetch": InstallReason.EXPLICIT,
+        "sudo": InstallReason.PREINSTALLED,
+        "yyjson": InstallReason.DEPENDENCY,
+    }
+
+
+def test_pacman_manager_discover_packages_with_removed_and_asdeps(tmp_path):
+    local_dir = tmp_path / "var/lib/pacman/local"
+
+    (local_dir / "ripgrep-14.1.0-1").mkdir(parents=True)
+    (local_dir / "ripgrep-14.1.0-1/desc").write_text("%NAME%\nripgrep\n\n%REASON%\n1\n")
+
+    (local_dir / "bat-0.24.0-1").mkdir(parents=True)
+    (local_dir / "bat-0.24.0-1/desc").write_text("%NAME%\nbat\n\n%REASON%\n0\n")
+
+    log_dir = tmp_path / "var/log"
+    log_dir.mkdir(parents=True)
+    (log_dir / "pacman.log").write_text(
+        "[2026-10-25T10:00:00+0000] [PACMAN] Running 'pacman -S ripgrep htop'\n"
+        "[2026-10-26T10:00:00+0000] [PACMAN] Running 'pacman -R htop'\n"
+        "[2026-10-27T10:00:00+0000] [PACMAN] Running 'pacman -D --asdeps ripgrep'\n"
+    )
+
+    context = SystemContext(root=tmp_path)
+    manager = PacmanManager()
+    packages = manager.discover_packages(context)
+
+    packages_by_name = {pkg.name: pkg.reason for pkg in packages}
+    assert packages_by_name == {
+        "bat": InstallReason.PREINSTALLED,
+        "ripgrep": InstallReason.DEPENDENCY,
+    }
+
+
+def test_pacman_manager_discover_packages_empty_log(tmp_path):
+    local_dir = tmp_path / "var/lib/pacman/local"
+
+    (local_dir / "vim-9.1-1").mkdir(parents=True)
+    (local_dir / "vim-9.1-1/desc").write_text("%NAME%\nvim\n\n%REASON%\n0\n")
+
+    (local_dir / "glibc-2.40-1").mkdir(parents=True)
+    (local_dir / "glibc-2.40-1/desc").write_text("%NAME%\nglibc\n\n%REASON%\n1\n")
+
+    log_dir = tmp_path / "var/log"
+    log_dir.mkdir(parents=True)
+    (log_dir / "pacman.log").write_text(
+        "[2026-10-25T00:03:55+0000] [ALPM] installed vim (9.1-1)\n"
+    )
+
+    context = SystemContext(root=tmp_path)
+    manager = PacmanManager()
+    packages = manager.discover_packages(context)
+
+    packages_by_name = {pkg.name: pkg.reason for pkg in packages}
+    assert packages_by_name == {
+        "vim": InstallReason.PREINSTALLED,
+        "glibc": InstallReason.DEPENDENCY,
+    }
