@@ -18,10 +18,12 @@ class PkgmapPackageResolver(PackageResolver):
         self,
         db_path: Path | str | None = None,
         variant: pkgmap.DatabaseVariant = "core",
+        fallback: bool = True,
     ) -> None:
         self.variant = variant
         pkgmap.set_default_variant(variant)
         self.db_path = Path(db_path) if db_path is not None else None
+        self.fallback = fallback
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
         """Resolves a single DiscoveredPackage into a ResolvedPackage using pkgmap."""
@@ -30,6 +32,7 @@ class PkgmapPackageResolver(PackageResolver):
             from_repo=package.repository,
             to_repo="nixpkgs",
             db_path=self.db_path,
+            fallback=self.fallback,
         )
         if match is None:
             return None
@@ -54,6 +57,7 @@ class PkgmapPackageResolver(PackageResolver):
                 from_repo=repo,
                 to_repo="nixpkgs",
                 db_path=self.db_path,
+                fallback=self.fallback,
             )
             for pkg_name, res in results.items():
                 match_map[(repo, pkg_name)] = res

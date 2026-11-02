@@ -118,7 +118,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "deepmerge", specifier = ">=2.0" },
-    { name = "pkgmap-py", specifier = ">=0.2.0" },
+    { name = "pkgmap-py", specifier = ">=0.3.0" },
     { name = "typer", specifier = ">=0.20.0" },
 ]
 
@@ -149,15 +149,15 @@ wheels = [
 
 [[package]]
 name = "pkgmap-py"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typer" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/87/51a53c99847575930f0413fc2b1c984401b05cc3a9954cf0bdf250feb887/pkgmap_py-0.2.0.tar.gz", hash = "sha256:3db1bf00c348232a35ce8df92dbf8265a1127420f08f8beca97f10be00ef5c7f", size = 17422, upload-time = "2026-10-12T23:37:41.468Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/33/4502622eb848e6ae07cf16160fa6555b309b2b896308bee99a0ef52fd958/pkgmap_py-0.3.0.tar.gz", hash = "sha256:a32c0e16766f868ea80122dc9d73256f1ff06c2ada4dc24dde479ac7b3b07b96", size = 18085, upload-time = "2026-11-02T11:11:10.002Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/ac/ac685a3258ca7808ffecbbc40e7ab4eba822d397dd30b59c0a79e2567c9c/pkgmap_py-0.2.0-py3-none-any.whl", hash = "sha256:ff4d0a22f45d1460cc3641376d705e6d892e87f62a437bec0ae0dd3f85c0ec9f", size = 20994, upload-time = "2026-10-12T23:37:40.149Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/a6/a13bf74bf01877feb16e315ea799d78bdd911467fa76ac8c1a2041a36cdd/pkgmap_py-0.3.0-py3-none-any.whl", hash = "sha256:7e4b1d2aef2ae4d759f77c4f13193906e9f32bd403237835105a4a57249cfa2a", size = 21681, upload-time = "2026-11-02T11:11:08.844Z" },
 ]
 
 [[package]]

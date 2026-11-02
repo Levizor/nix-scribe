@@ -165,16 +165,16 @@ def test_dnf_manager_discover_packages_with_history(tmp_path):
 
     assert packages == [
         DiscoveredPackage(
-            name="curl", repository="fedora", reason=InstallReason.PREINSTALLED
+            name="curl", repository="fedora_41", reason=InstallReason.PREINSTALLED
         ),
         DiscoveredPackage(
-            name="glibc", repository="fedora", reason=InstallReason.DEPENDENCY
+            name="glibc", repository="fedora_41", reason=InstallReason.DEPENDENCY
         ),
         DiscoveredPackage(
-            name="htop", repository="fedora", reason=InstallReason.EXPLICIT
+            name="htop", repository="fedora_41", reason=InstallReason.EXPLICIT
         ),
         DiscoveredPackage(
-            name="libgit2", repository="fedora", reason=InstallReason.DEPENDENCY
+            name="libgit2", repository="fedora_41", reason=InstallReason.DEPENDENCY
         ),
     ]
 
@@ -202,13 +202,13 @@ def test_dnf5_manager_discover_packages_with_history(tmp_path):
 
     assert packages == [
         DiscoveredPackage(
-            name="bash", repository="fedora", reason=InstallReason.DEPENDENCY
+            name="bash", repository="fedora_41", reason=InstallReason.DEPENDENCY
         ),
         DiscoveredPackage(
-            name="curl", repository="fedora", reason=InstallReason.DEPENDENCY
+            name="curl", repository="fedora_41", reason=InstallReason.DEPENDENCY
         ),
         DiscoveredPackage(
-            name="fastfetch", repository="fedora", reason=InstallReason.EXPLICIT
+            name="fastfetch", repository="fedora_41", reason=InstallReason.EXPLICIT
         ),
     ]
 
@@ -241,16 +241,16 @@ def test_dnf5_manager_bootstrap_and_cmdline_classification(tmp_path):
 
     assert packages == [
         DiscoveredPackage(
-            name="bash", repository="fedora", reason=InstallReason.DEPENDENCY
+            name="bash", repository="fedora_41", reason=InstallReason.DEPENDENCY
         ),
         DiscoveredPackage(
-            name="bzip2", repository="fedora", reason=InstallReason.PREINSTALLED
+            name="bzip2", repository="fedora_41", reason=InstallReason.PREINSTALLED
         ),
         DiscoveredPackage(
-            name="curl", repository="fedora", reason=InstallReason.EXPLICIT
+            name="curl", repository="fedora_41", reason=InstallReason.EXPLICIT
         ),
         DiscoveredPackage(
-            name="fastfetch", repository="fedora", reason=InstallReason.EXPLICIT
+            name="fastfetch", repository="fedora_41", reason=InstallReason.EXPLICIT
         ),
     ]
 
@@ -269,8 +269,27 @@ def test_dnf_manager_discover_packages_without_history(tmp_path):
 
     assert packages == [
         DiscoveredPackage(
-            name="glibc", repository="fedora", reason=InstallReason.DEPENDENCY
+            name="glibc", repository="fedora_40", reason=InstallReason.DEPENDENCY
         ),
+        DiscoveredPackage(
+            name="ripgrep", repository="fedora_40", reason=InstallReason.EXPLICIT
+        ),
+    ]
+
+
+def test_dnf_manager_discover_packages_without_version_id(tmp_path):
+    rpm_db = tmp_path / "var/lib/rpm/rpmdb.sqlite"
+    _create_rpmdb(rpm_db, ["ripgrep"])
+
+    os_release = tmp_path / "etc/os-release"
+    os_release.parent.mkdir(parents=True, exist_ok=True)
+    os_release.write_text("ID=fedora\n")
+
+    context = SystemContext(root=tmp_path)
+    manager = DnfManager()
+    packages = manager.discover_packages(context)
+
+    assert packages == [
         DiscoveredPackage(
             name="ripgrep", repository="fedora", reason=InstallReason.EXPLICIT
         ),
