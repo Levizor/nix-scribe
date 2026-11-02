@@ -7,26 +7,27 @@
       ...
     }:
     let
-      setupTestUbuntu = pkgs.writeShellApplication {
-        name = "setup-test-ubuntu";
+      setupTestRoot = pkgs.writeShellApplication {
+        name = "setup-test-root";
         runtimeInputs = with pkgs; [
           coreutils
           gnutar
+          gnused
         ];
         text = ''
-          TARGET_DIR="./test-root/ubuntu"
           IMAGE="ubuntu:latest"
+          TARGET_DIR=""
           PACKAGES="curl fastfetch"
           CLEAN=0
 
           while [ "$#" -gt 0 ]; do
             case "$1" in
-              -t|--target)
-                TARGET_DIR="$2"
-                shift 2
-                ;;
               -i|--image)
                 IMAGE="$2"
+                shift 2
+                ;;
+              -t|--target)
+                TARGET_DIR="$2"
                 shift 2
                 ;;
               -p|--packages)
@@ -38,11 +39,11 @@
                 shift
                 ;;
               -h|--help)
-                echo "Usage: setup-test-ubuntu [OPTIONS]"
+                echo "Usage: setup-test-root [OPTIONS]"
                 echo ""
                 echo "Options:"
-                echo "  -t, --target DIR      Target directory for rootfs export (default: ./test-root/ubuntu)"
                 echo "  -i, --image IMAGE     Base container image (default: ubuntu:latest)"
+                echo "  -t, --target DIR      Target directory for rootfs export (default: ./test-root/<image-slug>)"
                 echo "  -p, --packages PKGS   Space-separated packages to install (default: 'curl fastfetch')"
                 echo "  -c, --clean           Remove target directory before exporting"
                 echo "  -h, --help            Show this help"
@@ -54,6 +55,11 @@
                 ;;
             esac
           done
+
+          if [ -z "$TARGET_DIR" ]; then
+            IMAGE_SLUG="$(echo "$IMAGE" | sed 's|^.*/||; s|:.*$||')"
+            TARGET_DIR="./test-root/$IMAGE_SLUG"
+          fi
 
           if command -v podman >/dev/null 2>&1; then
             CONTAINER_CLI="podman"
@@ -68,6 +74,9 @@
           REPO_ROOT="$(pwd)"
 
           case "$CANONICAL_TARGET" in
+            "$REPO_ROOT/test-root"/*|/tmp/*)
+              # Permitted target directories
+              ;;
             /|/root|/home|/home/*|/etc|/etc/*|/usr|/usr/*|/var|/var/*|/bin|/sbin|/boot|/boot/*|/sys|/proc|/dev|/nix|/nix/*|"$HOME")
               echo "Error: Refusing to use protected directory as target: $CANONICAL_TARGET" >&2
               exit 1
@@ -103,10 +112,23 @@
           trap cleanup EXIT
 
           echo "Creating and provisioning container from $IMAGE..."
-          INSTALL_CMD="DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES"
-
           if [ -n "$PACKAGES" ]; then
-            "$CONTAINER_CLI" run --name "$CONTAINER_NAME" "$IMAGE" sh -c "$INSTALL_CMD"
+            INSTALL_SCRIPT="
+              if command -v dnf >/dev/null 2>&1; then
+                dnf install -y $PACKAGES
+              elif command -v pacman >/dev/null 2>&1; then
+                pacman -Sy --noconfirm $PACKAGES
+              elif command -v apt-get >/dev/null 2>&1; then
+                DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES
+              elif command -v apk >/dev/null 2>&1; then
+                apk add --no-cache $PACKAGES
+              elif command -v zypper >/dev/null 2>&1; then
+                zypper --non-interactive install $PACKAGES
+              else
+                echo 'Error: Unknown package manager in container.' >&2; exit 1
+              fi
+            "
+            "$CONTAINER_CLI" run --name "$CONTAINER_NAME" "$IMAGE" sh -c "$INSTALL_SCRIPT"
           else
             "$CONTAINER_CLI" create --name "$CONTAINER_NAME" "$IMAGE"
           fi
@@ -119,28 +141,89 @@
         '';
       };
 
-      testUbuntu = pkgs.writeShellApplication {
-        name = "test-ubuntu";
+      testSystem = pkgs.writeShellApplication {
+        name = "test-system";
         runtimeInputs = with pkgs; [
           coreutils
+          gnused
         ];
         text = ''
-          TARGET_DIR="./test-root/ubuntu"
-          OUTPUT_DIR="./ubuntu-config"
+          IMAGE="ubuntu:latest"
+          PACKAGES="curl fastfetch"
+          TARGET_DIR=""
+          OUTPUT_DIR=""
+          EXTRA_ARGS=()
+
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -i|--image)
+                IMAGE="$2"
+                shift 2
+                ;;
+              -p|--packages)
+                PACKAGES="$2"
+                shift 2
+                ;;
+              -t|--target)
+                TARGET_DIR="$2"
+                shift 2
+                ;;
+              -o|--output)
+                OUTPUT_DIR="$2"
+                shift 2
+                ;;
+              *)
+                EXTRA_ARGS+=("$1")
+                shift
+                ;;
+            esac
+          done
+
+          IMAGE_SLUG="$(echo "$IMAGE" | sed 's|^.*/||; s|:.*$||')"
+          [ -z "$TARGET_DIR" ] && TARGET_DIR="./test-root/$IMAGE_SLUG"
+          [ -z "$OUTPUT_DIR" ] && OUTPUT_DIR="./$IMAGE_SLUG-config"
 
           if [ ! -d "$TARGET_DIR" ] || [ ! -f "$TARGET_DIR/etc/os-release" ]; then
-            echo "Target test directory $TARGET_DIR does not exist or is empty. Setting up..."
-            ${pkgs.lib.getExe setupTestUbuntu} --target "$TARGET_DIR"
+            echo "Target test directory $TARGET_DIR does not exist or is empty. Setting up from $IMAGE..."
+            ${pkgs.lib.getExe setupTestRoot} --target "$TARGET_DIR" --image "$IMAGE" --packages "$PACKAGES"
           fi
 
           echo "Running nix-scribe on $TARGET_DIR..."
-          ${pkgs.lib.getExe' self'.packages.default "nix-scribe"} --confirm "$TARGET_DIR" -o "$OUTPUT_DIR" "$@"
+          ${pkgs.lib.getExe' self'.packages.default "nix-scribe"} --confirm "$TARGET_DIR" -o "$OUTPUT_DIR" "''${EXTRA_ARGS[@]}"
+        '';
+      };
+
+      setupTestUbuntu = pkgs.writeShellApplication {
+        name = "setup-test-ubuntu";
+        runtimeInputs = [ setupTestRoot ];
+        text = ''
+          exec setup-test-root --image "ubuntu:latest" "$@"
+        '';
+      };
+
+      testUbuntu = pkgs.writeShellApplication {
+        name = "test-ubuntu";
+        runtimeInputs = [ testSystem ];
+        text = ''
+          exec test-system --image "ubuntu:latest" "$@"
         '';
       };
     in
     {
+      packages.setup-test-root = setupTestRoot;
+      packages.test-system = testSystem;
       packages.setup-test-ubuntu = setupTestUbuntu;
       packages.test-ubuntu = testUbuntu;
+
+      apps.setup-test-root = {
+        type = "app";
+        program = pkgs.lib.getExe setupTestRoot;
+      };
+
+      apps.test-system = {
+        type = "app";
+        program = pkgs.lib.getExe testSystem;
+      };
 
       apps.setup-test-ubuntu = {
         type = "app";
