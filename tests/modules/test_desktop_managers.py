@@ -38,6 +38,8 @@ def test_gnome_mapper():
     assert block.claims == GNOME_PACKAGES
     assert "nautilus" in block.claims
     assert "gnome-shell" in block.claims
+    assert "xdg-desktop-portal-gnome" in block.claims
+    assert "gnome-keyring" in block.claims
 
 
 def test_plasma6_scanner(tmp_path):
@@ -64,6 +66,9 @@ def test_plasma6_mapper():
     assert block.claims == PLASMA6_PACKAGES
     assert "kdePackages.dolphin" in block.claims
     assert "kdePackages.plasma-desktop" in block.claims
+    assert "kdePackages.xdg-desktop-portal-kde" in block.claims
+    assert "kdePackages.kcalc" not in block.claims
+    assert "kdePackages.kwin-x11" not in block.claims
 
 
 def test_cosmic_scanner(tmp_path):
@@ -90,3 +95,5 @@ def test_cosmic_mapper():
     assert block.claims == COSMIC_PACKAGES
     assert "cosmic-session" in block.claims
     assert "cosmic-files" in block.claims
+    assert "xdg-desktop-portal-cosmic" in block.claims
+    assert "cosmic-store" not in block.claims
