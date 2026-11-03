@@ -112,6 +112,20 @@ def main(
             help="List all available modules in a hierarchical tree view, then exit",
         ),
     ] = False,
+    log_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--log-file",
+            help="Path to write log file (defaults to <output>/nix-scribe.log)",
+        ),
+    ] = None,
+    no_log_file: Annotated[
+        bool,
+        typer.Option(
+            "--no-log-file",
+            help="Disable writing log file",
+        ),
+    ] = False,
 ):
     args.root_path = root_path
     args.output_path = output_path
@@ -124,10 +138,12 @@ def main(
     args.disable_modules = disable_module or []
     args.only_modules = only or []
     args.plugins = ModuleFilter._parse(plugin)
+    args.no_log_file = no_log_file
+    args.log_file = (
+        None if no_log_file else (log_file or (output_path / "nix-scribe.log"))
+    )
 
-    console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
-    log = logging.getLogger(__name__)
-    log.debug(args)
+    console = setup_logging(args.verbosity, args.mod_verbosity, log_file=None)
 
     loader = ModuleLoader()
     valid_modules = loader.discover()
@@ -161,6 +177,14 @@ def main(
             raise typer.Exit(code=0)
 
         args.check()
+
+        if not args.no_log_file and args.log_file:
+            console = setup_logging(
+                args.verbosity, args.mod_verbosity, log_file=args.log_file
+            )
+
+        log = logging.getLogger(__name__)
+        log.debug(args)
 
         active_modules = ModuleRegistry().filter(
             modules=valid_modules, filter_spec=filter_spec

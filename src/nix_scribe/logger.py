@@ -67,8 +67,11 @@ def setup_logging(
     root_handlers = []
 
     if log_file:
+        log_file = Path(log_file)
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file)
-        file_formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+        file_handler.setLevel(logging.DEBUG)
+        file_formatter = logging.Formatter("%(levelname)-7s [%(name)s] %(message)s")
         file_handler.setFormatter(file_formatter)
         root_handlers.append(file_handler)
 
@@ -76,40 +79,47 @@ def setup_logging(
 
     logging.basicConfig(
         level=logging.DEBUG,
-        format="%(name)s - $(levelname)s: %(message)s",
+        format="%(levelname)-7s [%(name)s] %(message)s",
         handlers=root_handlers,
         force=True,
     )
 
+    show_core_debug = verbosity >= 2
+    show_mod_debug = mod_verbosity >= 2
+
     # Core logger
     core_logger = logging.getLogger("nix_scribe")
-    core_logger.setLevel(core_level)
+    core_logger.setLevel(logging.DEBUG)
     core_logger.propagate = True
+    core_logger.handlers.clear()
 
     core_console = RichHandler(
         console=console,
         rich_tracebacks=True,
         markup=True,
         show_time=False,
-        show_level=False,
-        show_path=False,
+        show_level=show_core_debug,
+        show_path=show_core_debug,
     )
+    core_console.setLevel(core_level)
     core_console.setFormatter(RichColorFormatter("%(message)s"))
     core_logger.addHandler(core_console)
 
     # Modules logger
     mod_logger = logging.getLogger("nix_scribe.modules")
-    mod_logger.setLevel(mod_level)
+    mod_logger.setLevel(logging.DEBUG)
     mod_logger.propagate = True
+    mod_logger.handlers.clear()
 
     mod_console = RichHandler(
         console=console,
         rich_tracebacks=True,
         markup=True,
         show_time=False,
-        show_level=False,
-        show_path=False,
+        show_level=show_mod_debug,
+        show_path=show_mod_debug,
     )
+    mod_console.setLevel(mod_level)
 
     mod_console.addFilter(ModuleNameFilter())
     mod_console.setFormatter(

@@ -21,6 +21,8 @@ class CLIArguments:
     disable_modules: list[str] = field(default_factory=list)
     only_modules: list[str] = field(default_factory=list)
     plugins: list[str] = field(default_factory=list)
+    log_file: Path | None = None
+    no_log_file: bool = False
 
     def check(self):
         output = self.output_path
@@ -32,7 +34,13 @@ class CLIArguments:
         if (
             output.exists()
             and output.is_dir()
-            and any(item for item in output.iterdir() if not item.name.startswith("."))
+            and any(
+                item
+                for item in output.iterdir()
+                if not item.name.startswith(".")
+                and item != self.log_file
+                and item.name != "nix-scribe.log"
+            )
         ):
             if not confirm(
                 f"[bold yellow]Directory exists at specified output path '{output}' and contains files.[/]\nContinue?"
