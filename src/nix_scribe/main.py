@@ -112,6 +112,20 @@ def main(
             help="List all available modules in a hierarchical tree view, then exit",
         ),
     ] = False,
+    log_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--log-file",
+            help="Path to write log file (defaults to <output>/nix-scribe.log)",
+        ),
+    ] = None,
+    no_log_file: Annotated[
+        bool,
+        typer.Option(
+            "--no-log-file",
+            help="Disable writing log file",
+        ),
+    ] = False,
 ):
     args.root_path = root_path
     args.output_path = output_path
@@ -124,8 +138,15 @@ def main(
     args.disable_modules = disable_module or []
     args.only_modules = only or []
     args.plugins = ModuleFilter._parse(plugin)
+    args.no_log_file = no_log_file
+    args.log_file = (
+        None if no_log_file else (log_file or (output_path / "nix-scribe.log"))
+    )
 
-    console = setup_logging(args.verbosity, args.mod_verbosity, Path("nix-scribe.log"))
+    is_dry_run = list_modules or list_modules_tree
+    effective_log_file = None if is_dry_run else args.log_file
+
+    console = setup_logging(args.verbosity, args.mod_verbosity, effective_log_file)
     log = logging.getLogger(__name__)
     log.debug(args)
 

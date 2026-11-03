@@ -102,7 +102,7 @@ class NixScribe:
                 if result.map_data and result.map_data.claims:
                     for pkg in result.map_data.claims:
                         self.context.packages.claim(pkg, by=mod.name)
-                logger.info(f"Mapped [cyan]{mod.name}[/]")
+                logger.info(f"Mapped {mod.name}")
             else:
                 logger.warning(f"Module {mod.name} has no mapper.")
         except Exception as e:
@@ -124,7 +124,7 @@ class NixScribe:
 
                     result.scan_data = mod.scan(self.context)
                     status.stop()
-                    logger.info(f"Scanned [cyan]{mod.name}[/]")
+                    logger.info(f"Scanned {mod.name}")
                     break
                 except ElevationRequest as e:
                     status.stop()
@@ -138,7 +138,7 @@ class NixScribe:
 
                     if self._prompt_for_sudo():
                         if self.context.verify_sudo():
-                            logger.info("[bold green]Sudo privileges acquired![/]")
+                            logger.info("Sudo privileges acquired!")
                             continue
                         else:
                             logger.warning("Sudo authentication failed. Skipping.")
