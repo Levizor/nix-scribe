@@ -1,11 +1,20 @@
 import datetime
 import logging
 import os
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.option_block import ConfigFragment
@@ -44,17 +53,68 @@ class NixScribe:
         logger.debug(datetime.datetime.now())
         logger.info("Starting nix-scribe system scan...")
 
-        for result in self.results.values():
-            self._scan_module(result)
+        scan_start = time.perf_counter()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=self.console,
+            transient=True,
+        ) as progress:
+            scan_task = progress.add_task(
+                "[bold cyan]Scanning system[/]", total=len(self.results)
+            )
+            for result in self.results.values():
+                progress.update(
+                    scan_task,
+                    description=f"[bold cyan]Scanning system[/] [dim]({result.module.name})[/]",
+                )
+                self._scan_module(result, progress=progress)
+                progress.advance(scan_task)
 
         total_modules = len(self.modules)
-        logger.info(f"Finished system scan. {total_modules} modules scanned.")
+        scan_duration = time.perf_counter() - scan_start
+        logger.info(
+            "Finished system scan in %.2fs (%d modules scanned)",
+            scan_duration,
+            total_modules,
+        )
 
+        map_start = time.perf_counter()
         logger.info("Mapping scanned data to nix option blocks...")
-        for result in self.results.values():
-            self._map_module(result)
 
-        logger.info("Finished mapping stage.")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=self.console,
+            transient=True,
+        ) as progress:
+            map_task = progress.add_task(
+                "[bold cyan]Mapping configuration[/]", total=len(self.results)
+            )
+            for result in self.results.values():
+                progress.update(
+                    map_task,
+                    description=f"[bold cyan]Mapping configuration[/] [dim]({result.module.name})[/]",
+                )
+                self._map_module(result)
+                progress.advance(map_task)
+
+        map_duration = time.perf_counter() - map_start
+        configured_modules = sum(
+            1 for r in self.results.values() if r.map_data is not None
+        )
+        logger.info(
+            "Finished mapping stage in %.2fs (%d configured, %d skipped)",
+            map_duration,
+            configured_modules,
+            len(self.modules) - configured_modules,
+        )
 
         logger.info("Writing configuration...")
         self._assemble_config(mod_level=args.modularization)
@@ -102,54 +162,56 @@ class NixScribe:
                 if result.map_data and result.map_data.claims:
                     for pkg in result.map_data.claims:
                         self.context.packages.claim(pkg, by=mod.name)
-                logger.info(f"Mapped {mod.name}")
+                logger.debug(f"Mapped {mod.name}")
             else:
                 logger.warning(f"Module {mod.name} has no mapper.")
         except Exception as e:
             logger.error(f"Failed mapping {mod.name}: {e}")
 
-    def _scan_module(self, result: ModuleResult):
+    def _scan_module(self, result: ModuleResult, progress: Progress | None = None):
         """
         Runs a scanner, handling permission requests
         """
         mod = result.module
         while True:
-            with self.console.status(
-                status=f"[bold blue]Scanning {mod.name}[/]"
-            ) as status:
-                try:
-                    if not mod.scan:
-                        logger.warning(f"Module {mod.name} has no scanner.")
-                        return
-
-                    result.scan_data = mod.scan(self.context)
-                    status.stop()
-                    logger.info(f"Scanned {mod.name}")
-                    break
-                except ElevationRequest as e:
-                    status.stop()
-                    logger.warning(f"Permission denied: {e.description}")
-
-                    if self.context.use_sudo:
-                        logger.error(
-                            "Sudo was attempted, but failed (authentication or access failure). Skipping."
-                        )
-                        return
-
-                    if self._prompt_for_sudo():
-                        if self.context.verify_sudo():
-                            logger.info("Sudo privileges acquired!")
-                            continue
-                        else:
-                            logger.warning("Sudo authentication failed. Skipping.")
-                            return
-                    else:
-                        logger.warning("Skipping this scanner.")
-                        return
-                except Exception as e:
-                    status.stop()
-                    logger.error(f"Failed scanning {mod.name}: {e}")
+            try:
+                if not mod.scan:
+                    logger.warning(f"Module {mod.name} has no scanner.")
                     return
+
+                result.scan_data = mod.scan(self.context)
+                logger.debug(f"Scanned {mod.name}")
+                break
+            except ElevationRequest as e:
+                logger.warning(f"Permission denied: {e.description}")
+
+                if self.context.use_sudo:
+                    logger.error(
+                        "Sudo was attempted, but failed (authentication or access failure). Skipping."
+                    )
+                    return
+
+                if progress is not None:
+                    progress.stop()
+
+                retry_with_sudo = self._prompt_for_sudo()
+
+                if progress is not None:
+                    progress.start()
+
+                if retry_with_sudo:
+                    if self.context.verify_sudo():
+                        logger.info("Sudo privileges acquired!")
+                        continue
+                    else:
+                        logger.warning("Sudo authentication failed. Skipping.")
+                        return
+                else:
+                    logger.warning("Skipping this scanner.")
+                    return
+            except Exception as e:
+                logger.error(f"Failed scanning {mod.name}: {e}")
+                return
 
     def _prompt_for_sudo(self) -> bool:
         try:

@@ -135,3 +135,65 @@ def test_nixscribe_system_packages_claims_integration():
     asset = next(iter(sys_res.map_data.assets))
     assert "Claimed packages:" in asset.content
     assert "git # from debian:git (claimed by programs.git)" in asset.content
+
+
+def test_nixscribe_run_progress_and_debug_logging(tmp_path, caplog):
+    import logging
+
+    from nix_scribe.arguments import args
+    from nix_scribe.lib.option_block import ConfigFragment
+
+    args.output_path = tmp_path / "nix-config"
+
+    dummy_mod = Module("test.dummy")
+
+    @dummy_mod.scanner()
+    def scan(context):
+        return {"enabled": True}
+
+    @dummy_mod.mapper()
+    def map_func(ir):
+        return ConfigFragment(name="dummy", data={"programs.dummy.enable": True})
+
+    console = Console(quiet=True)
+    script = NixScribe(console=console, modules={"test.dummy": dummy_mod})
+
+    with caplog.at_level(logging.DEBUG):
+        script.run()
+
+    # Per-module messages are now logged at DEBUG level
+    assert "Scanned test.dummy" in caplog.text
+    assert "Mapped test.dummy" in caplog.text
+
+    # Milestone messages are logged at INFO level
+    assert "Starting nix-scribe system scan..." in caplog.text
+    assert "Finished system scan in" in caplog.text
+    assert "Finished mapping stage in" in caplog.text
+    assert "Writing configuration..." in caplog.text
+    assert (tmp_path / "nix-config" / "configuration.nix").exists()
+
+
+def test_nixscribe_scan_module_elevation_pause():
+    from unittest.mock import MagicMock
+
+    from nix_scribe.lib.context import ElevationRequest
+
+    dummy_mod = Module("test.restricted")
+
+    @dummy_mod.scanner()
+    def scan(context):
+        raise ElevationRequest("/etc/shadow", "Requires root")
+
+    console = Console(quiet=True)
+    script = NixScribe(console=console, modules={"test.restricted": dummy_mod})
+
+    mock_progress = MagicMock()
+    script._prompt_for_sudo = MagicMock(return_value=False)
+
+    res = script.results["test.restricted"]
+    script._scan_module(res, progress=mock_progress)
+
+    # Progress bar was stopped for prompt and resumed
+    mock_progress.stop.assert_called_once()
+    mock_progress.start.assert_called_once()
+    assert res.scan_data == {}
