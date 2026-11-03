@@ -122,3 +122,14 @@ def test_args_check_prompts_on_existing_files(tmp_path: Path):
 
         with pytest.raises(typer.Exit):
             args.check()
+
+
+def test_cli_aborted_run_does_not_create_log_file(tmp_path: Path):
+    out_dir = tmp_path / "output"
+    out_dir.mkdir(parents=True)
+    (out_dir / "configuration.nix").write_text("# preexisting config")
+
+    with patch("nix_scribe.arguments.confirm", return_value=False):
+        result = runner.invoke(app, ["-o", str(out_dir)])
+        assert result.exit_code == 1
+        assert not (out_dir / "nix-scribe.log").exists()

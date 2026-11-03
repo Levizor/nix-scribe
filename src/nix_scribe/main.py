@@ -143,12 +143,7 @@ def main(
         None if no_log_file else (log_file or (output_path / "nix-scribe.log"))
     )
 
-    is_dry_run = list_modules or list_modules_tree
-    effective_log_file = None if is_dry_run else args.log_file
-
-    console = setup_logging(args.verbosity, args.mod_verbosity, effective_log_file)
-    log = logging.getLogger(__name__)
-    log.debug(args)
+    console = setup_logging(args.verbosity, args.mod_verbosity, log_file=None)
 
     loader = ModuleLoader()
     valid_modules = loader.discover()
@@ -182,6 +177,14 @@ def main(
             raise typer.Exit(code=0)
 
         args.check()
+
+        if not args.no_log_file and args.log_file:
+            console = setup_logging(
+                args.verbosity, args.mod_verbosity, log_file=args.log_file
+            )
+
+        log = logging.getLogger(__name__)
+        log.debug(args)
 
         active_modules = ModuleRegistry().filter(
             modules=valid_modules, filter_spec=filter_spec
