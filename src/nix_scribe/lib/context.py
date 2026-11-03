@@ -68,10 +68,7 @@ class SystemContext:
         return self._os_info
 
     def _log_initial_context(self) -> None:
-        if self.root == Path("/") or self.root == Path(""):
-            logger.info("Operating in native root mode (/)")
-        else:
-            logger.info("Operating in container/chroot mode with root at %s", self.root)
+        logger.info("Target root: %s", self.root)
 
         os_info = self.os_info
         pretty_name = os_info.get("PRETTY_NAME") or os_info.get("NAME")

@@ -145,7 +145,7 @@ def test_context_os_and_root_logging(tmp_path: Path, caplog):
 
         ctx = SystemContext(tmp_path)
 
-    assert "Operating in container/chroot mode" in caplog.text
+    assert f"Target root: {tmp_path}" in caplog.text
     assert "Detected target OS: Fedora Linux 40" in caplog.text
     assert ctx.os_info.get("VERSION_ID") == "40"
 
