@@ -133,3 +133,94 @@ def test_cli_aborted_run_does_not_create_log_file(tmp_path: Path):
         result = runner.invoke(app, ["-o", str(out_dir)])
         assert result.exit_code == 1
         assert not (out_dir / "nix-scribe.log").exists()
+
+
+def test_context_os_and_root_logging(tmp_path: Path, caplog):
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    (etc / "os-release").write_text('NAME="Fedora Linux"\nVERSION_ID="40"\n')
+
+    with caplog.at_level(logging.DEBUG):
+        from nix_scribe.lib.context import SystemContext
+
+        ctx = SystemContext(tmp_path)
+
+    assert "Operating in container/chroot mode" in caplog.text
+    assert "Detected target OS: Fedora Linux 40" in caplog.text
+    assert ctx.os_info.get("VERSION_ID") == "40"
+
+
+def test_context_sudo_elevation_logging(tmp_path: Path, caplog):
+    from nix_scribe.lib.context import SystemContext
+
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    with caplog.at_level(logging.DEBUG):
+        res = ctx._with_elevation(
+            "/etc/secret",
+            unprivileged=lambda: (_ for _ in ()).throw(PermissionError()),
+            privileged=lambda: "privileged_content",
+        )
+        assert res == "privileged_content"
+
+    assert "Falling back to privileged access for /etc/secret" in caplog.text
+
+
+def test_systemctl_trace_logging(tmp_path: Path, caplog):
+    from nix_scribe.lib.context import SystemContext
+    from nix_scribe.lib.systemctl import Systemctl
+
+    svc_dir = tmp_path / "usr/lib/systemd/system"
+    svc_dir.mkdir(parents=True)
+    svc_file = svc_dir / "nginx.service"
+    svc_file.write_text("[Unit]\nDescription=Nginx")
+
+    wants_dir = tmp_path / "etc/systemd/system/multi-user.target.wants"
+    wants_dir.mkdir(parents=True)
+    (wants_dir / "nginx.service").symlink_to("/usr/lib/systemd/system/nginx.service")
+
+    ctx = SystemContext(tmp_path)
+    with caplog.at_level(logging.DEBUG):
+        ctl = Systemctl(ctx)
+        assert ctl.is_enabled("nginx") is True
+        assert ctl.exists("nonexistent") is False
+
+    assert "Scanning systemd units in /usr/lib/systemd/system" in caplog.text
+    assert "Built systemctl state:" in caplog.text
+    assert "systemctl.is_enabled(nginx) -> True" in caplog.text
+    assert "systemctl.exists(nonexistent) -> False" in caplog.text
+
+
+def test_package_claims_and_pkgmap_trace_logging(caplog):
+    from nix_scribe.lib.packages.models import (
+        DiscoveredPackage,
+        InstallReason,
+        PackageState,
+        ResolvedPackage,
+    )
+    from nix_scribe.lib.packages.pkgmap_resolver import PkgmapPackageResolver
+
+    git_pkg = ResolvedPackage(
+        "git", DiscoveredPackage("git", "arch", InstallReason.EXPLICIT)
+    )
+    state = PackageState(packages=[git_pkg])
+
+    with caplog.at_level(logging.DEBUG):
+        claimed = state.claim("git", by="programs.git")
+        assert claimed is True
+        unclaimed = state.claim("vim", by="programs.vim")
+        assert unclaimed is False
+
+    assert "Package 'git' claimed by programs.git" in caplog.text
+    assert (
+        "Package 'vim' not present on system; ignoring claim from programs.vim"
+        in caplog.text
+    )
+
+    # Test PkgmapPackageResolver batch log
+    resolver = PkgmapPackageResolver()
+    disc_pkgs = [DiscoveredPackage("curl", "arch", InstallReason.EXPLICIT)]
+    with caplog.at_level(logging.DEBUG):
+        resolved, unmapped = resolver.resolve_many(disc_pkgs)
+
+    assert "Batch resolving 1 packages across 1 repositories" in caplog.text
+    assert "Resolution completed:" in caplog.text

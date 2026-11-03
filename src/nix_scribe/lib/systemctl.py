@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Set
 
 if TYPE_CHECKING:
     from nix_scribe.lib.context import SystemContext
+
+logger = logging.getLogger(__name__)
 
 
 class Systemctl:
@@ -28,6 +31,7 @@ class Systemctl:
             if not base_path.is_dir():
                 continue
 
+            logger.debug("Scanning systemd units in %s", base)
             for item in base_path.iterdir():
                 if item.name.endswith(".service"):
                     self._process_unit(item, base)
@@ -38,6 +42,13 @@ class Systemctl:
                     for link in item.iterdir():
                         if link.name.endswith(".service"):
                             self._process_dependency(link, guest_parent)
+
+        logger.debug(
+            "Built systemctl state: %d units discovered, %d enabled, %d masked",
+            len(self._existing),
+            len(self._enabled),
+            len(self._masked),
+        )
 
     def _is_masked(self, path: Path) -> bool:
         if path.is_symlink():
@@ -66,6 +77,7 @@ class Systemctl:
         if self._is_masked(path):
             self._masked.add(name)
             self._existing.discard(name)
+            logger.debug("Systemd unit %s is masked", name)
         else:
             self._existing.add(name)
             self._masked.discard(name)
@@ -78,6 +90,11 @@ class Systemctl:
                         path, guest_parent
                     ):
                         self._enabled.add(target_name)
+                        logger.debug(
+                            "Systemd unit %s enabled via symlink in %s",
+                            target_name,
+                            guest_parent,
+                        )
                 except OSError:
                     pass
 
@@ -87,6 +104,9 @@ class Systemctl:
             self._enabled.discard(name)
         elif self._target_exists(path, guest_parent):
             self._enabled.add(name)
+            logger.debug(
+                "Systemd unit %s enabled via dependency %s", name, guest_parent
+            )
 
     def _normalize_service_name(self, service: str) -> str:
         if not service.endswith(".service"):
@@ -101,16 +121,22 @@ class Systemctl:
     def exists(self, service: str) -> bool:
         name = self._normalize_service_name(service)
         base_name = self._get_template_base(name)
-        return (
+        res = (
             name in self._existing or base_name in self._existing
         ) and name not in self._masked
+        logger.debug("systemctl.exists(%s) -> %s", service, res)
+        return res
 
     def is_enabled(self, service: str) -> bool:
         name = self._normalize_service_name(service)
-        return name in self._enabled and name not in self._masked and self.exists(name)
+        res = name in self._enabled and name not in self._masked and self.exists(name)
+        logger.debug("systemctl.is_enabled(%s) -> %s", service, res)
+        return res
 
     def is_disabled(self, service: str) -> bool:
         if not self.exists(service):
             return False
         name = self._normalize_service_name(service)
-        return name not in self._enabled
+        res = name not in self._enabled
+        logger.debug("systemctl.is_disabled(%s) -> %s", service, res)
+        return res
