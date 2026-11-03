@@ -1,12 +1,16 @@
 import datetime
 import logging
 import os
+import platform
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+from rich import box
 from rich.console import Console
+from rich.panel import Panel
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -15,7 +19,10 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.table import Table
+from rich.tree import Tree
 
+from nix_scribe.lib.ir_serializer import save_ir_to_file
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.option_block import ConfigFragment
 
@@ -50,6 +57,7 @@ class NixScribe:
         Top level script.
         Scans system, maps ir, and writes configuration.
         """
+        overall_start = time.perf_counter()
         logger.debug(datetime.datetime.now())
         logger.info("Starting nix-scribe system scan...")
 
@@ -120,7 +128,144 @@ class NixScribe:
         self._assemble_config(mod_level=args.modularization)
         self.root_file.save(args.output_path, args.modularization)
 
+        if args.dump_ir:
+            ir_file = save_ir_to_file(self.results, args.output_path)
+            logger.info("Saved scanned IR to %s", ir_file)
+
         logger.info(f"Done. Saved configuration to {args.output_path}")
+        self._print_summary(total_duration=time.perf_counter() - overall_start)
+
+    def _print_summary(self, total_duration: float) -> None:
+        """Renders end-of-run execution summary panel."""
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(style="bold cyan")
+        grid.add_column()
+
+        os_info = self.context.os_info
+        pretty_name = os_info.get("PRETTY_NAME") or os_info.get("NAME")
+        version = os_info.get("VERSION_ID") or os_info.get("VERSION")
+        arch = platform.machine()
+        if pretty_name:
+            version_str = (
+                f" {version}" if version and version not in pretty_name else ""
+            )
+            os_display = f"{pretty_name}{version_str} ({arch})"
+        else:
+            os_display = arch
+
+        pm_name = (
+            self.context.package_manager.name
+            if self.context.package_manager
+            else "[dim]None detected[/dim]"
+        )
+
+        grid.add_row("Target OS:", os_display)
+        grid.add_row("Target Root:", str(self.context.root))
+        grid.add_row("Package Manager:", pm_name)
+        grid.add_row("Elapsed Time:", f"{total_duration:.2f}s")
+
+        grid.add_row("", "")
+
+        configured = [
+            name for name, r in self.results.items() if r.map_data is not None
+        ]
+        skipped = [name for name, r in self.results.items() if r.map_data is None]
+
+        grid.add_row("Modules:", self._build_modules_tree(configured))
+
+        if skipped:
+            grid.add_row(
+                "", f"[dim]{len(skipped)} skipped (no configuration detected)[/dim]"
+            )
+
+        pkg_state = self.context._packages
+        if pkg_state is not None and (pkg_state.resolved or pkg_state.unmapped):
+            grid.add_row("", "")
+            explicit = sum(1 for p in pkg_state.resolved if p.is_explicit)
+            preinstalled = sum(1 for p in pkg_state.resolved if p.is_preinstalled)
+            pkg_summary = (
+                f"{len(pkg_state.resolved)} resolved "
+                f"([dim]{explicit} explicit, {preinstalled} preinstalled[/dim]) • "
+                f"{len(pkg_state.claimed)} claimed • "
+                f"{len(pkg_state.unmapped)} unmapped"
+            )
+            grid.add_row("Packages:", pkg_summary)
+
+        artifacts: list[str] = []
+        if args.output_path.exists():
+            for p in sorted(args.output_path.rglob("*")):
+                if p.is_file():
+                    artifacts.append(str(p.relative_to(args.output_path)))
+        if args.log_file and args.log_file.exists():
+            try:
+                args.log_file.relative_to(args.output_path)
+            except ValueError:
+                artifacts.append(str(args.log_file))
+
+        if artifacts:
+            grid.add_row("", "")
+            grid.add_row("Artifacts:", self._build_artifacts_tree(artifacts))
+
+        panel = Panel(
+            grid,
+            title="[bold green]✓ nix-scribe generation complete[/bold green]",
+            border_style="green",
+            box=box.ROUNDED,
+        )
+        self.console.print(panel)
+
+    def _build_artifacts_tree(self, artifact_paths: list[str]) -> Tree | str:
+        """Builds a hierarchical tree representation of generated artifacts."""
+        if not artifact_paths:
+            return "[dim]None[/dim]"
+
+        tree = Tree(
+            f"[bold]{len(artifact_paths)} files generated[/bold]",
+            guide_style="dim",
+        )
+        nodes: dict[str, Tree] = {}
+
+        for path_str in sorted(artifact_paths):
+            parts = Path(path_str).parts
+            curr = tree
+            for i in range(len(parts) - 1):
+                dir_path = "/".join(parts[: i + 1])
+                if dir_path not in nodes:
+                    nodes[dir_path] = curr.add(f"[bold blue]{parts[i]}[/bold blue]")
+                curr = nodes[dir_path]
+
+            curr.add(parts[-1])
+
+        return tree
+
+    def _build_modules_tree(self, configured_names: list[str]) -> Tree | str:
+        """Builds a hierarchical tree representation of configured module paths."""
+        if not configured_names:
+            return "[yellow]0 configured[/yellow]"
+
+        tree = Tree(
+            f"[bold green]{len(configured_names)} configured[/bold green]",
+            guide_style="dim",
+        )
+        nodes: dict[str, Tree] = {}
+        configured_set = set(configured_names)
+
+        for name in sorted(configured_names):
+            parts = name.split(".")
+            curr = tree
+            for i in range(len(parts) - 1):
+                path = ".".join(parts[: i + 1])
+                if path not in nodes:
+                    style = "bold blue" if path not in configured_set else "green"
+                    nodes[path] = curr.add(f"[{style}]{parts[i]}[/{style}]")
+                curr = nodes[path]
+
+            full_path = name
+            if full_path not in nodes:
+                node = curr.add(f"[green]{parts[-1]}[/green]")
+                nodes[full_path] = node
+
+        return tree
 
     def _assemble_config(self, mod_level: ModularizationLevel) -> None:
         categories: dict[str, list[str]] = defaultdict(
