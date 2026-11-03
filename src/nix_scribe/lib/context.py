@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import platform
 import shutil
 import sqlite3
 import subprocess
@@ -16,6 +17,7 @@ from nix_scribe.lib.packages import (
     get_package_resolver,
     get_registered_package_managers,
 )
+from nix_scribe.lib.parsers.kv import parse_kv
 from nix_scribe.lib.systemctl import Systemctl
 
 logger = logging.getLogger(__name__)
@@ -42,9 +44,45 @@ class SystemContext:
     def __init__(self, root: Path, use_sudo: bool = False):
         self.root = root
         self.use_sudo = use_sudo
+        self._os_info: dict[str, str] | None = None
+        self._log_initial_context()
         self.systemctl = Systemctl(self)
         self._packages: PackageState | None = None
         self._package_manager: PackageManager | None = None
+
+    def detect_os_info(self) -> dict[str, str]:
+        """Reads and parses distribution info from /etc/os-release or /usr/lib/os-release."""
+        for path in ["/etc/os-release", "/usr/lib/os-release"]:
+            if self.path_exists(path):
+                try:
+                    content = self.read_file(path)
+                    return parse_kv(content)
+                except Exception as e:
+                    logger.debug("Failed to read os-release at %s: %s", path, e)
+        return {}
+
+    @property
+    def os_info(self) -> dict[str, str]:
+        if self._os_info is None:
+            self._os_info = self.detect_os_info()
+        return self._os_info
+
+    def _log_initial_context(self) -> None:
+        logger.info("Target root: %s", self.root)
+
+        os_info = self.os_info
+        pretty_name = os_info.get("PRETTY_NAME") or os_info.get("NAME")
+        version = os_info.get("VERSION_ID") or os_info.get("VERSION")
+        arch = platform.machine()
+        if pretty_name:
+            version_str = (
+                f" {version}" if version and version not in pretty_name else ""
+            )
+            logger.info("Detected target OS: %s%s (%s)", pretty_name, version_str, arch)
+        else:
+            logger.info(
+                "Detected target system architecture: %s (os-release not found)", arch
+            )
 
     @property
     def package_manager(self) -> PackageManager | None:
@@ -61,7 +99,9 @@ class SystemContext:
         for pm_cls in get_registered_package_managers():
             pm = pm_cls()
             if pm.detect(self):
+                logger.info("Detected package manager: %s", pm.name)
                 return pm
+        logger.warning("No supported package manager detected")
         return None
 
     @property
@@ -72,6 +112,17 @@ class SystemContext:
                 self._packages = PackageState.empty()
             else:
                 discovered = pm.discover_packages(self)
+                explicit = sum(1 for p in discovered if p.is_explicit)
+                preinstalled = sum(1 for p in discovered if p.is_preinstalled)
+                deps = sum(1 for p in discovered if p.is_dependency)
+                logger.info(
+                    "Discovered %d packages via %s (%d explicit, %d preinstalled, %d dependencies)",
+                    len(discovered),
+                    pm.name,
+                    explicit,
+                    preinstalled,
+                    deps,
+                )
                 resolver = get_package_resolver()
                 resolved, unmapped = resolver.resolve_many(discovered)
                 self._packages = PackageState(
@@ -100,6 +151,7 @@ class SystemContext:
             return False
         except PermissionError:
             if self.use_sudo:
+                logger.debug("Falling back to privileged test -e for %s", rpath)
                 try:
                     self._run_command(["sudo", "test", "-e", rpath])
                     return True
@@ -163,15 +215,20 @@ class SystemContext:
             return unprivileged()
         except PermissionError:
             if self.use_sudo:
+                logger.debug("Falling back to privileged access for %s", path)
                 return privileged()
+            logger.debug("Permission denied accessing %s without elevation", path)
             raise ElevationRequest(path, "Permission denied.") from PermissionError
 
     def verify_sudo(self) -> bool:
+        logger.debug("Verifying sudo access via 'sudo -v'")
         try:
             subprocess.run(["sudo", "-v"], check=True)
             self.use_sudo = True
+            logger.debug("Sudo verification succeeded")
         except subprocess.CalledProcessError:
             self.use_sudo = False
+            logger.debug("Sudo verification failed")
 
         return self.use_sudo
 

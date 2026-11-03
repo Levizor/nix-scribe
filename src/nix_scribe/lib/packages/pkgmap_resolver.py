@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import pkgmap
 
 from nix_scribe.lib.packages.models import DiscoveredPackage, ResolvedPackage
 from nix_scribe.lib.packages.resolver import PackageResolver
+
+logger = logging.getLogger(__name__)
 
 pkgmap.set_default_variant("core")
 
@@ -27,6 +30,11 @@ class PkgmapPackageResolver(PackageResolver):
 
     def resolve(self, package: DiscoveredPackage) -> ResolvedPackage | None:
         """Resolves a single DiscoveredPackage into a ResolvedPackage using pkgmap."""
+        logger.debug(
+            "Resolving package '%s' from repository '%s'",
+            package.name,
+            package.repository,
+        )
         match = pkgmap.resolve(
             package=package.name,
             from_repo=package.repository,
@@ -35,7 +43,18 @@ class PkgmapPackageResolver(PackageResolver):
             fallback=self.fallback,
         )
         if match is None:
+            logger.debug(
+                "Package '%s:%s' could not be resolved in nixpkgs",
+                package.repository,
+                package.name,
+            )
             return None
+        logger.debug(
+            "Resolved '%s:%s' -> 'nixpkgs:%s'",
+            package.repository,
+            package.name,
+            match.name,
+        )
         return ResolvedPackage(name=match.name, original=package)
 
     def resolve_many(
@@ -49,6 +68,13 @@ class PkgmapPackageResolver(PackageResolver):
         for pkg in packages:
             by_repo[pkg.repository].append(pkg)
 
+        logger.debug(
+            "Batch resolving %d packages across %d repositories (%s) via pkgmap",
+            len(packages),
+            len(by_repo),
+            ", ".join(sorted(by_repo.keys())),
+        )
+
         match_map: dict[tuple[str, str], pkgmap.PackageResolution | None] = {}
         for repo, repo_pkgs in by_repo.items():
             names = [p.name for p in repo_pkgs]
@@ -61,6 +87,11 @@ class PkgmapPackageResolver(PackageResolver):
             )
             for pkg_name, res in results.items():
                 match_map[(repo, pkg_name)] = res
+            logger.debug(
+                "Batch resolved repository '%s': %d queries executed",
+                repo,
+                len(names),
+            )
 
         resolved: list[ResolvedPackage] = []
         unmapped: list[DiscoveredPackage] = []
@@ -71,5 +102,18 @@ class PkgmapPackageResolver(PackageResolver):
                 resolved.append(ResolvedPackage(name=match.name, original=pkg))
             else:
                 unmapped.append(pkg)
+
+        logger.debug(
+            "Resolution completed: %d mapped to nixpkgs, %d unmapped",
+            len(resolved),
+            len(unmapped),
+        )
+        if unmapped:
+            unmapped_sample = ", ".join(
+                f"{p.repository}:{p.name}" for p in unmapped[:10]
+            )
+            if len(unmapped) > 10:
+                unmapped_sample += f", ... (+{len(unmapped) - 10} more)"
+            logger.debug("Unmapped packages sample: %s", unmapped_sample)
 
         return resolved, unmapped

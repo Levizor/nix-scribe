@@ -1,6 +1,9 @@
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
+
+logger = logging.getLogger(__name__)
 
 
 class InstallReason(str, Enum):
@@ -110,7 +113,13 @@ class PackageState:
         """
         if self.has(attribute_name):
             self._claimed[attribute_name] = by
+            logger.debug("Package '%s' claimed by %s", attribute_name, by or "unknown")
             return True
+        logger.debug(
+            "Package '%s' not present on system; ignoring claim from %s",
+            attribute_name,
+            by or "unknown",
+        )
         return False
 
     def claimed_by(self, attribute_name: str) -> str | None:
