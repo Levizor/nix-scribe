@@ -152,8 +152,12 @@ def test_args_check_unwritable_output_directory(tmp_path: Path, monkeypatch):
     with pytest.raises(typer.BadParameter) as exc_info:
         args.check()
 
-    assert f"Output directory '{out_dir}' is not writable" in str(exc_info.value)
-    assert f"sudo chown -R $USER:$USER {out_dir}" in str(exc_info.value)
+    assert "Output directory" in str(exc_info.value)
+    assert str(out_dir) in str(exc_info.value)
+    assert "is not writable" in str(exc_info.value)
+    assert "sudo" in str(exc_info.value)
+    assert "chown" in str(exc_info.value)
+    assert "$USER:$USER" in str(exc_info.value)
 
 
 def test_args_check_unwritable_parent_directory(tmp_path: Path, monkeypatch):
@@ -177,8 +181,12 @@ def test_args_check_unwritable_parent_directory(tmp_path: Path, monkeypatch):
     with pytest.raises(typer.BadParameter) as exc_info:
         args.check()
 
-    assert f"Output directory '{out_dir}' is not writable" in str(exc_info.value)
-    assert f"sudo chown -R $USER:$USER {out_dir}" in str(exc_info.value)
+    assert "Output directory" in str(exc_info.value)
+    assert str(out_dir) in str(exc_info.value)
+    assert "is not writable" in str(exc_info.value)
+    assert "sudo" in str(exc_info.value)
+    assert "chown" in str(exc_info.value)
+    assert "$USER:$USER" in str(exc_info.value)
 
 
 def test_cli_unwritable_output_directory(tmp_path: Path, monkeypatch):
@@ -197,7 +205,9 @@ def test_cli_unwritable_output_directory(tmp_path: Path, monkeypatch):
     result = runner.invoke(app, ["-o", str(out_dir)])
     assert result.exit_code != 0
     assert "is not writable" in result.output
-    assert "sudo chown -R $USER:$USER" in result.output
+    assert "sudo" in result.output
+    assert "chown" in result.output
+    assert "$USER:$USER" in result.output
 
 
 def test_args_check_prompts_on_existing_files(tmp_path: Path):

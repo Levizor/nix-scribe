@@ -38,8 +38,16 @@ class CLIArguments:
             check_path = check_path.parent
 
         if not os.access(check_path, os.W_OK):
+            styled_output = typer.style(
+                f"'{output}'", fg=typer.colors.YELLOW, bold=True
+            )
+            raw_cmd = f"'sudo chown -R $USER:$USER {output}'"
+            styled_cmd = " ".join(
+                typer.style(w, fg=typer.colors.CYAN, bold=True)
+                for w in raw_cmd.split(" ")
+            )
             raise typer.BadParameter(
-                f"Output directory '{output}' is not writable. Did you previously run with sudo? Fix permissions with 'sudo chown -R $USER:$USER {output}'.",
+                f"Output directory {styled_output} is not writable.\nDid you previously run with sudo? Fix permissions with {styled_cmd}.",
                 param_hint="output_path",
             )
 
