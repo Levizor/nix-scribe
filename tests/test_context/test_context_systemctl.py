@@ -49,3 +49,70 @@ def test_systemctl_nonexistent(system_context):
     assert system_context.systemctl.exists("nonexistent-service") is False
     assert system_context.systemctl.is_enabled("nonexistent-service") is False
     assert system_context.systemctl.is_disabled("nonexistent-service") is False
+
+
+def test_systemctl_elevation_fallback(monkeypatch, tmp_path):
+    import subprocess
+
+    from nix_scribe.lib.systemctl import Systemctl
+
+    ctx = SystemContext(tmp_path, use_sudo=True)
+
+    def mock_run(cmd, text=False):
+        cmd_str = " ".join(cmd)
+        if "test -e" in cmd_str:
+            return subprocess.CompletedProcess(args=cmd, returncode=0)
+        if "ls -1A" in cmd_str and "etc/systemd/system" in cmd_str:
+            return subprocess.CompletedProcess(
+                args=cmd,
+                returncode=0,
+                stdout="nginx.service\nmulti-user.target.wants\n",
+            )
+        if "ls -1A" in cmd_str and "multi-user.target.wants" in cmd_str:
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=0, stdout="nginx.service\n"
+            )
+        if "test -h" in cmd_str:
+            return subprocess.CompletedProcess(args=cmd, returncode=0)
+        if "readlink" in cmd_str:
+            return subprocess.CompletedProcess(
+                args=cmd,
+                returncode=0,
+                stdout="/usr/lib/systemd/system/nginx.service\n",
+            )
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="")
+
+    monkeypatch.setattr(ctx, "_run_command", mock_run)
+    monkeypatch.setattr(
+        "os.listdir",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(
+        Path,
+        "is_symlink",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(
+        "os.readlink",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(ctx, "path_exists", lambda path: True)
+
+    ctl = Systemctl(ctx)
+    assert ctl.exists("nginx") is True
+    assert ctl.is_enabled("nginx") is True
+
+
+def test_systemctl_elevation_request_without_sudo(monkeypatch, tmp_path):
+    from nix_scribe.lib.context import ElevationRequest
+    from nix_scribe.lib.systemctl import Systemctl
+
+    ctx = SystemContext(tmp_path, use_sudo=False)
+    monkeypatch.setattr(
+        "os.listdir",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(ctx, "path_exists", lambda path: True)
+
+    with pytest.raises(ElevationRequest):
+        Systemctl(ctx)

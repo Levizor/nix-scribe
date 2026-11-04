@@ -46,7 +46,7 @@ class SystemContext:
         self.use_sudo = use_sudo
         self._os_info: dict[str, str] | None = None
         self._log_initial_context()
-        self.systemctl = Systemctl(self)
+        self._systemctl: Systemctl | None = None
         self._packages: PackageState | None = None
         self._package_manager: PackageManager | None = None
 
@@ -83,6 +83,16 @@ class SystemContext:
             logger.info(
                 "Detected target system architecture: %s (os-release not found)", arch
             )
+
+    @property
+    def systemctl(self) -> Systemctl:
+        if self._systemctl is None:
+            self._systemctl = Systemctl(self)
+        return self._systemctl
+
+    @systemctl.setter
+    def systemctl(self, val: Systemctl | None) -> None:
+        self._systemctl = val
 
     @property
     def package_manager(self) -> PackageManager | None:
@@ -142,21 +152,33 @@ class SystemContext:
         """
         return Path(os.path.normpath(f"{self.root}/{path}"))
 
+    def _privileged_test(self, rpath: Path, flag: str) -> bool:
+        try:
+            self._run_command(["sudo", "test", flag, str(rpath)])
+            return True
+        except RuntimeError:
+            return False
+
     def path_exists(self, path: str | Path) -> bool:
         rpath = self.root_path(path) if isinstance(path, str) else path
         try:
-            rpath.stat()
-            return True
+            return self._with_elevation(
+                str(path),
+                unprivileged=lambda: rpath.stat() is not None,
+                privileged=lambda: self._privileged_test(rpath, "-e"),
+            )
         except (FileNotFoundError, NotADirectoryError):
             return False
-        except PermissionError:
-            if self.use_sudo:
-                logger.debug("Falling back to privileged test -e for %s", rpath)
-                try:
-                    self._run_command(["sudo", "test", "-e", rpath])
-                    return True
-                except RuntimeError:
-                    return False
+
+    def is_symlink(self, path: str | Path) -> bool:
+        rpath = self.root_path(path) if isinstance(path, str) else path
+        try:
+            return self._with_elevation(
+                str(path),
+                unprivileged=lambda: rpath.is_symlink(),
+                privileged=lambda: self._privileged_test(rpath, "-h"),
+            )
+        except (FileNotFoundError, NotADirectoryError):
             return False
 
     def find_executable_path(self, name: str) -> Optional[str]:
@@ -171,28 +193,9 @@ class SystemContext:
                 return str(path)
         logger.debug(f"Could not find an executable with the name: {name}")
 
-    def _root_command_args(self, command: list[str]) -> list[str]:
-        if self.root == Path("/"):
-            return command
-
-        result = [command[0]]
-
-        for arg in command[1:]:
-            if (
-                arg.startswith("/")
-                and len(arg) > 1
-                and not arg.startswith((":/", "//"))
-            ):
-                result.append(str(self.root_path(arg)))
-            else:
-                result.append(arg)
-
-        return result
-
     def _run_command(
         self, command: list[str], text: bool = False
     ) -> subprocess.CompletedProcess:
-        command = self._root_command_args(command)
         logger.debug(f"Running command: {command}")
         try:
             return subprocess.run(
@@ -225,6 +228,7 @@ class SystemContext:
         try:
             subprocess.run(["sudo", "-v"], check=True)
             self.use_sudo = True
+            self._systemctl = None
             logger.debug("Sudo verification succeeded")
         except subprocess.CalledProcessError:
             self.use_sudo = False
@@ -238,7 +242,7 @@ class SystemContext:
             path,
             unprivileged=lambda: rpath.read_text(encoding="utf-8"),
             privileged=lambda: self._run_command(
-                ["sudo", "cat", path], text=True
+                ["sudo", "cat", str(rpath)], text=True
             ).stdout,
         )
 
@@ -247,7 +251,7 @@ class SystemContext:
         return self._with_elevation(
             path,
             unprivileged=lambda: rpath.read_bytes(),
-            privileged=lambda: self._run_command(["sudo", "cat", path]).stdout,
+            privileged=lambda: self._run_command(["sudo", "cat", str(rpath)]).stdout,
         )
 
     def list_directory(self, path: str, full_paths: bool = False) -> list[str]:
@@ -258,11 +262,11 @@ class SystemContext:
                 unprivileged=lambda: sorted(os.listdir(rpath)),
                 privileged=lambda: sorted(
                     self._run_command(
-                        ["sudo", "ls", "-1A", path], text=True
+                        ["sudo", "ls", "-1A", str(rpath)], text=True
                     ).stdout.splitlines()
                 ),
             )
-        except FileNotFoundError:
+        except (FileNotFoundError, NotADirectoryError):
             return []
 
         if full_paths:
@@ -277,14 +281,22 @@ class SystemContext:
 
         return result
 
+    def _raw_readlink(self, path: str) -> str:
+        rpath = self.root_path(path)
+        return self._with_elevation(
+            path,
+            unprivileged=lambda: os.readlink(rpath),
+            privileged=lambda: self._run_command(
+                ["sudo", "readlink", str(rpath)], text=True
+            ).stdout.rstrip("\r\n"),
+        )
+
     def readlink(self, path: str, recursive: bool = False) -> str:
         """
         Reads a symbolic link. If recursive is True, it will resolve all symlinks (like readlink -f).
         """
-        rpath = self.root_path(path)
-
         if not recursive:
-            return os.readlink(rpath)
+            return self._raw_readlink(path)
 
         current_path = path
         seen = set()
@@ -294,11 +306,10 @@ class SystemContext:
                 raise Exception(f"Symlink loop detected at {current_path}")
             seen.add(current_path)
 
-            r_current = self.root_path(current_path)
-            if not os.path.islink(r_current):
+            if not self.is_symlink(current_path):
                 break
 
-            target = os.readlink(r_current)
+            target = self._raw_readlink(current_path)
 
             if os.path.isabs(target):
                 current_path = target

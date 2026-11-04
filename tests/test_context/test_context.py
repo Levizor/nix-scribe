@@ -23,6 +23,49 @@ def test_path_exists(context):
     assert context.path_exists("/nonexistent") is False
 
 
+def test_path_exists_sudo(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    monkeypatch.setattr(
+        Path,
+        "stat",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(
+        ctx,
+        "_run_command",
+        lambda cmd, text=False: subprocess.CompletedProcess(args=cmd, returncode=0),
+    )
+    assert ctx.path_exists("protected_file") is True
+
+    def fail_run(cmd, text=False):
+        raise RuntimeError("test -e failed")
+
+    monkeypatch.setattr(ctx, "_run_command", fail_run)
+    assert ctx.path_exists("protected_file") is False
+
+
+def test_path_exists_elevation_request(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=False)
+    monkeypatch.setattr(
+        Path,
+        "stat",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    with pytest.raises(ElevationRequest):
+        ctx.path_exists("protected_file")
+
+
+def test_is_symlink_elevation_request(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=False)
+    monkeypatch.setattr(
+        Path,
+        "is_symlink",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    with pytest.raises(ElevationRequest):
+        ctx.is_symlink("protected_link")
+
+
 def test_find_executable_path(context):
     bash_path = context.find_executable_path("bash")
     assert bash_path is not None
@@ -31,22 +74,72 @@ def test_find_executable_path(context):
     assert context.find_executable_path("nonexistent-binary") is None
 
 
-def test_root_command_args(context):
-    cmd = ["ls", "/etc/sudoers", "-la"]
-    prefixed = context._root_command_args(cmd)
+def test_is_symlink(tmp_path):
+    link = tmp_path / "link.txt"
+    target = tmp_path / "target.txt"
+    target.write_text("hello")
+    link.symlink_to(target)
 
-    assert prefixed[0] == "ls"
-    assert prefixed[1] == str(GENERIC_SYSTEM_ROOT / "etc/sudoers")
-    assert prefixed[2] == "-la"
+    ctx = SystemContext(tmp_path)
+    assert ctx.is_symlink("link.txt") is True
+    assert ctx.is_symlink("target.txt") is False
+    assert ctx.is_symlink("nonexistent") is False
 
 
-def test_root_command_args_no_prefix_non_paths(context):
-    cmd = ["grep", "root", "/etc/passwd"]
-    prefixed = context._root_command_args(cmd)
+def test_is_symlink_sudo(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    monkeypatch.setattr(
+        Path,
+        "is_symlink",
+        lambda self: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(
+        ctx,
+        "_run_command",
+        lambda cmd, text=False: subprocess.CompletedProcess(args=cmd, returncode=0),
+    )
+    assert ctx.is_symlink("protected_link") is True
 
-    assert prefixed[0] == "grep"
-    assert prefixed[1] == "root"
-    assert prefixed[2] == str(GENERIC_SYSTEM_ROOT / "etc/passwd")
+    def fail_run(cmd, text=False):
+        raise RuntimeError("test -h failed")
+
+    monkeypatch.setattr(ctx, "_run_command", fail_run)
+    assert ctx.is_symlink("protected_link") is False
+
+
+def test_readlink(tmp_path):
+    link = tmp_path / "link.txt"
+    target = tmp_path / "target.txt"
+    target.write_text("hello")
+    link.symlink_to("target.txt")
+
+    ctx = SystemContext(tmp_path)
+    assert ctx.readlink("link.txt") == "target.txt"
+
+
+def test_readlink_sudo(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    monkeypatch.setattr(
+        "os.readlink",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    monkeypatch.setattr(
+        ctx,
+        "_run_command",
+        lambda cmd, text=False: subprocess.CompletedProcess(
+            args=cmd, returncode=0, stdout="/usr/lib/systemd/system/foo.service\n"
+        ),
+    )
+    assert ctx.readlink("protected_link") == "/usr/lib/systemd/system/foo.service"
+
+
+def test_readlink_recursive(tmp_path):
+    (tmp_path / "a").symlink_to("b")
+    (tmp_path / "b").symlink_to("c")
+    (tmp_path / "c").write_text("final")
+
+    ctx = SystemContext(tmp_path)
+    assert ctx.readlink("a", recursive=True) == "c"
 
 
 def test_list_directory_full_paths(tmp_path):
@@ -121,7 +214,7 @@ def test_list_directory_sudo(monkeypatch, tmp_path):
         lambda path: (_ for _ in ()).throw(PermissionError("denied")),
     )
     assert ctx.list_directory("protected_dir") == [".hidden", "file1.txt"]
-    assert recorded_cmd == ["sudo", "ls", "-1A", "protected_dir"]
+    assert recorded_cmd == ["sudo", "ls", "-1A", str(ctx.root_path("protected_dir"))]
 
 
 def test_elevation_request_raised(monkeypatch, tmp_path):
