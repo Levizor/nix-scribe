@@ -68,27 +68,19 @@ class IRJSONEncoder(json.JSONEncoder):
 
 
 def dump_ir_to_dict(results: dict[str, Any]) -> dict[str, Any]:
-    """Serializes module results IR to a dictionary structure."""
+    """Serializes module results IR to a JSON-compatible dictionary structure."""
     raw_ir = {
         name: result.scan_data
         for name, result in results.items()
         if hasattr(result, "scan_data") and result.scan_data
     }
-    json_str = json.dumps(raw_ir, cls=IRJSONEncoder, indent=2)
-    return json.loads(json_str)
+    return json.loads(json.dumps(raw_ir, cls=IRJSONEncoder))
 
 
 def save_ir_to_file(results: dict[str, Any], output_path: Path) -> Path:
     """Saves the system IR to scan-ir.json in output_path."""
     output_path.mkdir(parents=True, exist_ok=True)
     target_file = output_path / "scan-ir.json"
-    raw_ir = {
-        name: result.scan_data
-        for name, result in results.items()
-        if hasattr(result, "scan_data") and result.scan_data
-    }
-    target_file.write_text(
-        json.dumps(raw_ir, cls=IRJSONEncoder, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    data = dump_ir_to_dict(results)
+    target_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return target_file
