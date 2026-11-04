@@ -266,7 +266,7 @@ class SystemContext:
                     ).stdout.splitlines()
                 ),
             )
-        except (FileNotFoundError, NotADirectoryError):
+        except (FileNotFoundError, NotADirectoryError, RuntimeError):
             return []
 
         if full_paths:
@@ -281,19 +281,23 @@ class SystemContext:
 
         return result
 
-    def _raw_readlink(self, path: str) -> str:
+    def _raw_readlink(self, path: str) -> str | None:
         rpath = self.root_path(path)
-        return self._with_elevation(
-            path,
-            unprivileged=lambda: os.readlink(rpath),
-            privileged=lambda: self._run_command(
-                ["sudo", "readlink", str(rpath)], text=True
-            ).stdout.rstrip("\r\n"),
-        )
+        try:
+            return self._with_elevation(
+                path,
+                unprivileged=lambda: os.readlink(rpath),
+                privileged=lambda: self._run_command(
+                    ["sudo", "readlink", str(rpath)], text=True
+                ).stdout.rstrip("\r\n"),
+            )
+        except (OSError, RuntimeError):
+            return None
 
-    def readlink(self, path: str, recursive: bool = False) -> str:
+    def readlink(self, path: str, recursive: bool = False) -> str | None:
         """
         Reads a symbolic link. If recursive is True, it will resolve all symlinks (like readlink -f).
+        Returns the link target, or None if the link cannot be resolved.
         """
         if not recursive:
             return self._raw_readlink(path)
@@ -303,13 +307,16 @@ class SystemContext:
 
         while True:
             if current_path in seen:
-                raise Exception(f"Symlink loop detected at {current_path}")
+                logger.warning("Symlink loop detected at %s", current_path)
+                return None
             seen.add(current_path)
 
             if not self.is_symlink(current_path):
                 break
 
             target = self._raw_readlink(current_path)
+            if target is None:
+                return None
 
             if os.path.isabs(target):
                 current_path = target

@@ -116,3 +116,21 @@ def test_systemctl_elevation_request_without_sudo(monkeypatch, tmp_path):
 
     with pytest.raises(ElevationRequest):
         Systemctl(ctx)
+
+
+def test_systemctl_elevation_request_on_readlink(monkeypatch, tmp_path):
+    from nix_scribe.lib.context import ElevationRequest
+    from nix_scribe.lib.systemctl import Systemctl
+
+    ctx = SystemContext(tmp_path, use_sudo=False)
+    monkeypatch.setattr(ctx, "path_exists", lambda path: True)
+    monkeypatch.setattr(ctx, "list_directory", lambda path: ["foo.service"])
+    monkeypatch.setattr(ctx, "is_symlink", lambda path: True)
+
+    def raise_elevation(path, recursive=False):
+        raise ElevationRequest(path, "Permission denied")
+
+    monkeypatch.setattr(ctx, "readlink", raise_elevation)
+
+    with pytest.raises(ElevationRequest):
+        Systemctl(ctx)

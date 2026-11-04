@@ -117,6 +117,11 @@ def test_readlink(tmp_path):
     assert ctx.readlink("link.txt") == "target.txt"
 
 
+def test_readlink_nonexistent(tmp_path):
+    ctx = SystemContext(tmp_path)
+    assert ctx.readlink("nonexistent.txt") is None
+
+
 def test_readlink_sudo(monkeypatch, tmp_path):
     ctx = SystemContext(tmp_path, use_sudo=True)
     monkeypatch.setattr(
@@ -133,6 +138,30 @@ def test_readlink_sudo(monkeypatch, tmp_path):
     assert ctx.readlink("protected_link") == "/usr/lib/systemd/system/foo.service"
 
 
+def test_readlink_sudo_failure(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=True)
+    monkeypatch.setattr(
+        "os.readlink",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+
+    def fail_run(cmd, text=False):
+        raise RuntimeError("command failed")
+
+    monkeypatch.setattr(ctx, "_run_command", fail_run)
+    assert ctx.readlink("protected_link") is None
+
+
+def test_readlink_elevation_request(monkeypatch, tmp_path):
+    ctx = SystemContext(tmp_path, use_sudo=False)
+    monkeypatch.setattr(
+        "os.readlink",
+        lambda path: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+    with pytest.raises(ElevationRequest):
+        ctx.readlink("protected_link")
+
+
 def test_readlink_recursive(tmp_path):
     (tmp_path / "a").symlink_to("b")
     (tmp_path / "b").symlink_to("c")
@@ -140,6 +169,14 @@ def test_readlink_recursive(tmp_path):
 
     ctx = SystemContext(tmp_path)
     assert ctx.readlink("a", recursive=True) == "c"
+
+
+def test_readlink_loop(tmp_path):
+    (tmp_path / "a").symlink_to("b")
+    (tmp_path / "b").symlink_to("a")
+
+    ctx = SystemContext(tmp_path)
+    assert ctx.readlink("a", recursive=True) is None
 
 
 def test_list_directory_full_paths(tmp_path):

@@ -48,25 +48,23 @@ class Systemctl:
 
     def _is_masked(self, path: str) -> bool:
         if self.context.is_symlink(path):
-            try:
-                target = self.context.readlink(path)
+            target = self.context.readlink(path)
+            if target:
                 return target == "/dev/null" or target.endswith("/dev/null")
-            except Exception:
-                pass
         return False
 
     def _target_exists(self, path: str, guest_parent: str) -> bool:
         if not self.context.is_symlink(path):
             return True
-        try:
-            target = self.context.readlink(path)
-            if os.path.isabs(target):
-                return self.context.path_exists(target)
-
-            guest_path = os.path.normpath(f"{guest_parent}/{target}")
-            return self.context.path_exists(guest_path)
-        except Exception:
+        target = self.context.readlink(path)
+        if not target:
             return False
+
+        if os.path.isabs(target):
+            return self.context.path_exists(target)
+
+        guest_path = os.path.normpath(f"{guest_parent}/{target}")
+        return self.context.path_exists(guest_path)
 
     def _process_unit(self, path: str, guest_parent: str) -> None:
         name = os.path.basename(path)
@@ -79,8 +77,8 @@ class Systemctl:
             self._masked.discard(name)
 
             if self.context.is_symlink(path):
-                try:
-                    target = self.context.readlink(path)
+                target = self.context.readlink(path)
+                if target:
                     target_name = os.path.basename(target)
                     if target_name.endswith(".service") and self._target_exists(
                         path, guest_parent
@@ -91,8 +89,6 @@ class Systemctl:
                             target_name,
                             guest_parent,
                         )
-                except Exception:
-                    pass
 
     def _process_dependency(self, path: str, guest_parent: str) -> None:
         name = os.path.basename(path)
