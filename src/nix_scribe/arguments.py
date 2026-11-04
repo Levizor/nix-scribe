@@ -23,6 +23,7 @@ class CLIArguments:
     plugins: list[str] = field(default_factory=list)
     log_file: Path | None = None
     no_log_file: bool = False
+    dump_ir: bool = False
 
     def check(self):
         output = self.output_path
@@ -40,6 +41,7 @@ class CLIArguments:
                 if not item.name.startswith(".")
                 and item != self.log_file
                 and item.name != "nix-scribe.log"
+                and item.name != "scan-ir.json"
             )
         ):
             if not confirm(

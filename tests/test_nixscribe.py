@@ -197,3 +197,144 @@ def test_nixscribe_scan_module_elevation_pause():
     mock_progress.stop.assert_called_once()
     mock_progress.start.assert_called_once()
     assert res.scan_data == {}
+
+
+def test_nixscribe_run_dump_ir(tmp_path):
+    import json
+
+    from nix_scribe.arguments import args
+    from nix_scribe.lib.option_block import ConfigFragment
+
+    args.output_path = tmp_path / "nix-config"
+    args.dump_ir = True
+
+    dummy_mod = Module("test.dummy")
+
+    @dummy_mod.scanner()
+    def scan(context):
+        return {"option": "value", "password": "supersecret"}
+
+    @dummy_mod.mapper()
+    def map_func(ir):
+        return ConfigFragment(name="dummy", data={"programs.dummy.enable": True})
+
+    console = Console(quiet=True)
+    script = NixScribe(console=console, modules={"test.dummy": dummy_mod})
+    script.run()
+
+    ir_file = args.output_path / "scan-ir.json"
+    assert ir_file.exists()
+
+    data = json.loads(ir_file.read_text(encoding="utf-8"))
+    assert "test.dummy" in data
+    assert data["test.dummy"]["option"] == "value"
+    assert data["test.dummy"]["password"] == "supersecret"
+
+    # Clean up args
+    args.dump_ir = False
+
+
+def test_nixscribe_print_summary(tmp_path):
+    from io import StringIO
+
+    from nix_scribe.arguments import args
+    from nix_scribe.lib.option_block import ConfigFragment
+    from nix_scribe.lib.packages import (
+        DiscoveredPackage,
+        InstallReason,
+        PackageState,
+        ResolvedPackage,
+    )
+
+    args.output_path = tmp_path / "nix-config"
+    args.log_file = tmp_path / "nix-config" / "nix-scribe.log"
+    args.log_file.parent.mkdir(parents=True, exist_ok=True)
+    args.log_file.write_text("log content", encoding="utf-8")
+
+    mod1 = Module("test.configured")
+
+    @mod1.scanner()
+    def scan1(context):
+        return {"enable": True}
+
+    @mod1.mapper()
+    def map1(ir):
+        return ConfigFragment(name="configured", data={"configured.enable": True})
+
+    mod2 = Module("test.skipped")
+
+    @mod2.scanner()
+    def scan2(context):
+        return {}
+
+    @mod2.mapper()
+    def map2(ir):
+        return None
+
+    string_io = StringIO()
+    console = Console(file=string_io, force_terminal=False, color_system=None)
+
+    script = NixScribe(
+        console=console,
+        modules={"test.configured": mod1, "test.skipped": mod2},
+    )
+
+    pkg = ResolvedPackage(
+        "curl", DiscoveredPackage("curl", "arch", InstallReason.EXPLICIT)
+    )
+    script.context.packages = PackageState(packages=[pkg])
+    script.context.packages.claim("curl", by="test.configured")
+
+    script.results["test.configured"].map_data = map1({})
+    script.results["test.skipped"].map_data = map2({})
+
+    script._print_summary(total_duration=1.23)
+
+    output = string_io.getvalue()
+    assert "nix-scribe generation complete" in output
+    assert "Target OS:" in output
+    assert "1 configured" in output
+    assert "test" in output
+    assert "configured" in output
+    assert "1 skipped" in output
+    assert "Packages:" in output
+    assert "1 resolved" in output
+    assert "1 claimed" in output
+    assert "Artifacts:" in output
+    assert "nix-scribe.log" in output
+
+
+def test_nixscribe_build_modules_tree():
+    console = Console(quiet=True)
+    script = NixScribe(console=console, modules={})
+
+    assert script._build_modules_tree([]) == "[yellow]0 configured[/yellow]"
+
+    tree = script._build_modules_tree(
+        [
+            "boot.kernel",
+            "boot.loader.systemd-boot",
+            "networking.networkmanager",
+            "users.users",
+        ]
+    )
+    assert "4 configured" in tree.label
+    assert len(tree.children) == 3  # boot, networking, users
+
+
+def test_nixscribe_build_artifacts_tree():
+    console = Console(quiet=True)
+    script = NixScribe(console=console, modules={})
+
+    assert script._build_artifacts_tree([]) == "[dim]None[/dim]"
+
+    tree = script._build_artifacts_tree(
+        [
+            "configuration.nix",
+            "networking/default.nix",
+            "networking/networkmanager.nix",
+            "users/default.nix",
+        ]
+    )
+    assert "4 files generated" in tree.label
+    assert len(tree.children) == 3  # configuration.nix, networking, users

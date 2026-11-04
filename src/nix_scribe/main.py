@@ -126,6 +126,13 @@ def main(
             help="Disable writing log file",
         ),
     ] = False,
+    dump_ir: Annotated[
+        bool,
+        typer.Option(
+            "--dump-ir",
+            help="Dump scanned system intermediate representation to scan-ir.json in output directory",
+        ),
+    ] = False,
 ):
     args.root_path = root_path
     args.output_path = output_path
@@ -138,6 +145,7 @@ def main(
     args.disable_modules = disable_module or []
     args.only_modules = only or []
     args.plugins = ModuleFilter._parse(plugin)
+    args.dump_ir = dump_ir
     args.no_log_file = no_log_file
     args.log_file = (
         None if no_log_file else (log_file or (output_path / "nix-scribe.log"))
