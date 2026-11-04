@@ -12,29 +12,6 @@ from nix_scribe.lib.packages.models import (
     ResolvedPackage,
 )
 
-SENSITIVE_KEYS = {
-    "hashedpassword",
-    "password",
-    "secret",
-    "private_key",
-    "privatekey",
-}
-
-
-def sanitize_ir(data: Any) -> Any:
-    """Recursively redacts sensitive values such as password hashes."""
-    if isinstance(data, dict):
-        sanitized = {}
-        for k, v in data.items():
-            if str(k).lower() in SENSITIVE_KEYS and v is not None:
-                sanitized[k] = "[REDACTED]"
-            else:
-                sanitized[k] = sanitize_ir(v)
-        return sanitized
-    elif isinstance(data, (list, tuple)):
-        return [sanitize_ir(item) for item in data]
-    return data
-
 
 class IRJSONEncoder(json.JSONEncoder):
     """JSON encoder capable of serializing custom nix-scribe IR structures and Python primitives."""
@@ -91,20 +68,27 @@ class IRJSONEncoder(json.JSONEncoder):
 
 
 def dump_ir_to_dict(results: dict[str, Any]) -> dict[str, Any]:
-    """Serializes module results IR to a sanitized dictionary structure."""
+    """Serializes module results IR to a dictionary structure."""
     raw_ir = {
         name: result.scan_data
         for name, result in results.items()
         if hasattr(result, "scan_data") and result.scan_data
     }
     json_str = json.dumps(raw_ir, cls=IRJSONEncoder, indent=2)
-    return sanitize_ir(json.loads(json_str))
+    return json.loads(json_str)
 
 
 def save_ir_to_file(results: dict[str, Any], output_path: Path) -> Path:
-    """Saves the sanitized system IR to scan-ir.json in output_path."""
+    """Saves the system IR to scan-ir.json in output_path."""
     output_path.mkdir(parents=True, exist_ok=True)
     target_file = output_path / "scan-ir.json"
-    sanitized = dump_ir_to_dict(results)
-    target_file.write_text(json.dumps(sanitized, indent=2) + "\n", encoding="utf-8")
+    raw_ir = {
+        name: result.scan_data
+        for name, result in results.items()
+        if hasattr(result, "scan_data") and result.scan_data
+    }
+    target_file.write_text(
+        json.dumps(raw_ir, cls=IRJSONEncoder, indent=2) + "\n",
+        encoding="utf-8",
+    )
     return target_file

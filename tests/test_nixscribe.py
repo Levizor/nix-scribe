@@ -228,7 +228,7 @@ def test_nixscribe_run_dump_ir(tmp_path):
     data = json.loads(ir_file.read_text(encoding="utf-8"))
     assert "test.dummy" in data
     assert data["test.dummy"]["option"] == "value"
-    assert data["test.dummy"]["password"] == "[REDACTED]"
+    assert data["test.dummy"]["password"] == "supersecret"
 
     # Clean up args
     args.dump_ir = False

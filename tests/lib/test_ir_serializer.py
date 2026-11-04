@@ -5,7 +5,6 @@ from pathlib import Path
 from nix_scribe.lib.ir_serializer import (
     IRJSONEncoder,
     dump_ir_to_dict,
-    sanitize_ir,
     save_ir_to_file,
 )
 from nix_scribe.lib.packages.models import (
@@ -26,32 +25,6 @@ class DummyEnum(Enum):
 class DummyData:
     user: str
     active: bool
-
-
-def test_sanitize_ir():
-    data = {
-        "user": "root",
-        "hashedPassword": "$6$salt$encryptedpasswordhash",
-        "nested": {
-            "password": "secretpassword",
-            "private_key": "-----BEGIN PRIVATE KEY-----...",
-            "normal_field": 123,
-        },
-        "items": [
-            {"secret": "token123"},
-            {"safe": "value"},
-        ],
-    }
-
-    sanitized = sanitize_ir(data)
-
-    assert sanitized["user"] == "root"
-    assert sanitized["hashedPassword"] == "[REDACTED]"
-    assert sanitized["nested"]["password"] == "[REDACTED]"
-    assert sanitized["nested"]["private_key"] == "[REDACTED]"
-    assert sanitized["nested"]["normal_field"] == 123
-    assert sanitized["items"][0]["secret"] == "[REDACTED]"
-    assert sanitized["items"][1]["safe"] == "value"
 
 
 def test_ir_json_encoder():
@@ -123,7 +96,7 @@ def test_dump_ir_to_dict_and_save_to_file(tmp_path):
     assert "users.users" in dumped
     assert "empty.module" not in dumped
     assert dumped["boot.loader.systemd-boot"] == {"enable": True, "timeout": 5}
-    assert dumped["users.users"]["users"]["root"]["hashedPassword"] == "[REDACTED]"
+    assert dumped["users.users"]["users"]["root"]["hashedPassword"] == "$6$dummyhash"
     assert dumped["users.users"]["users"]["root"]["shell"] == "/bin/bash"
 
     output_dir = tmp_path / "out"
