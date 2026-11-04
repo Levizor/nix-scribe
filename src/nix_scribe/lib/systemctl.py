@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from nix_scribe.lib.context import SystemContext
@@ -14,9 +13,9 @@ logger = logging.getLogger(__name__)
 class Systemctl:
     def __init__(self, system_context: SystemContext):
         self.context = system_context
-        self._existing: Set[str] = set()
-        self._enabled: Set[str] = set()
-        self._masked: Set[str] = set()
+        self._existing: set[str] = set()
+        self._enabled: set[str] = set()
+        self._masked: set[str] = set()
         self._build_state()
 
     def _build_state(self) -> None:
@@ -27,21 +26,18 @@ class Systemctl:
         ]
 
         for base in paths:
-            base_path = self.context.root_path(base)
-            if not base_path.is_dir():
+            if not self.context.path_exists(base):
                 continue
 
             logger.debug("Scanning systemd units in %s", base)
-            for item in base_path.iterdir():
-                if item.name.endswith(".service"):
-                    self._process_unit(item, base)
-                elif item.is_dir() and (
-                    item.name.endswith(".wants") or item.name.endswith(".requires")
-                ):
-                    guest_parent = f"{base}/{item.name}"
-                    for link in item.iterdir():
-                        if link.name.endswith(".service"):
-                            self._process_dependency(link, guest_parent)
+            for item in self.context.list_directory(base):
+                guest_path = f"{base}/{item}"
+                if item.endswith(".service"):
+                    self._process_unit(guest_path, base)
+                elif item.endswith(".wants") or item.endswith(".requires"):
+                    for link in self.context.list_directory(guest_path):
+                        if link.endswith(".service"):
+                            self._process_dependency(f"{guest_path}/{link}", guest_path)
 
         logger.debug(
             "Built systemctl state: %d units discovered, %d enabled, %d masked",
@@ -50,30 +46,28 @@ class Systemctl:
             len(self._masked),
         )
 
-    def _is_masked(self, path: Path) -> bool:
-        if path.is_symlink():
-            try:
-                target = os.readlink(path)
+    def _is_masked(self, path: str) -> bool:
+        if self.context.is_symlink(path):
+            target = self.context.readlink(path)
+            if target:
                 return target == "/dev/null" or target.endswith("/dev/null")
-            except OSError:
-                pass
         return False
 
-    def _target_exists(self, path: Path, guest_parent: str) -> bool:
-        if not path.is_symlink():
+    def _target_exists(self, path: str, guest_parent: str) -> bool:
+        if not self.context.is_symlink(path):
             return True
-        try:
-            target = os.readlink(path)
-            if os.path.isabs(target):
-                return self.context.path_exists(target)
-
-            guest_path = os.path.normpath(f"{guest_parent}/{target}")
-            return self.context.path_exists(guest_path)
-        except OSError:
+        target = self.context.readlink(path)
+        if not target:
             return False
 
-    def _process_unit(self, path: Path, guest_parent: str) -> None:
-        name = path.name
+        if os.path.isabs(target):
+            return self.context.path_exists(target)
+
+        guest_path = os.path.normpath(f"{guest_parent}/{target}")
+        return self.context.path_exists(guest_path)
+
+    def _process_unit(self, path: str, guest_parent: str) -> None:
+        name = os.path.basename(path)
         if self._is_masked(path):
             self._masked.add(name)
             self._existing.discard(name)
@@ -82,10 +76,10 @@ class Systemctl:
             self._existing.add(name)
             self._masked.discard(name)
 
-            if path.is_symlink():
-                try:
-                    target = os.readlink(path)
-                    target_name = Path(target).name
+            if self.context.is_symlink(path):
+                target = self.context.readlink(path)
+                if target:
+                    target_name = os.path.basename(target)
                     if target_name.endswith(".service") and self._target_exists(
                         path, guest_parent
                     ):
@@ -95,11 +89,9 @@ class Systemctl:
                             target_name,
                             guest_parent,
                         )
-                except OSError:
-                    pass
 
-    def _process_dependency(self, path: Path, guest_parent: str) -> None:
-        name = path.name
+    def _process_dependency(self, path: str, guest_parent: str) -> None:
+        name = os.path.basename(path)
         if self._is_masked(path):
             self._enabled.discard(name)
         elif self._target_exists(path, guest_parent):
