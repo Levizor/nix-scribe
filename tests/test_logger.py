@@ -100,14 +100,114 @@ def test_cli_custom_log_file_flag(tmp_path: Path):
         assert not (out_dir / "nix-scribe.log").exists()
 
 
-def test_args_check_ignores_existing_log_file(tmp_path: Path):
+def test_setup_logging_overwrites_existing_log_file(tmp_path: Path):
+    log_file = tmp_path / "nix-scribe.log"
+    log_file.write_text("old log line that should be overwritten\n", encoding="utf-8")
+
+    setup_logging(verbosity=1, mod_verbosity=1, log_file=log_file)
+    logger = logging.getLogger("nix_scribe")
+    logger.info("new log line")
+
+    content = log_file.read_text(encoding="utf-8")
+    assert "old log line" not in content
+    assert "new log line" in content
+
+
+def test_args_check_prompts_on_existing_log_file(tmp_path: Path):
+    import pytest
+    import typer
+
     out_dir = tmp_path / "output"
     out_dir.mkdir(parents=True)
     (out_dir / "nix-scribe.log").write_text("dummy")
 
-    args = CLIArguments(output_path=out_dir, log_file=out_dir / "nix-scribe.log")
-    # Should not raise typer.Exit or prompt confirm since only the log file exists
-    args.check()
+    args = CLIArguments(
+        output_path=out_dir, log_file=out_dir / "nix-scribe.log", confirm=False
+    )
+    with patch("nix_scribe.arguments.confirm", return_value=False):
+        with pytest.raises(typer.Exit):
+            args.check()
+
+    with patch("nix_scribe.arguments.confirm", return_value=True):
+        args.check()
+
+
+def test_args_check_unwritable_output_directory(tmp_path: Path, monkeypatch):
+    import os
+
+    import pytest
+    import typer
+
+    out_dir = tmp_path / "readonly_output"
+    out_dir.mkdir(parents=True)
+
+    def mock_access(path, mode):
+        if str(path) == str(out_dir) and mode == os.W_OK:
+            return False
+        return True
+
+    monkeypatch.setattr(os, "access", mock_access)
+
+    args = CLIArguments(output_path=out_dir)
+    with pytest.raises(typer.BadParameter) as exc_info:
+        args.check()
+
+    assert "Output directory" in str(exc_info.value)
+    assert str(out_dir) in str(exc_info.value)
+    assert "is not writable" in str(exc_info.value)
+    assert "sudo" in str(exc_info.value)
+    assert "chown" in str(exc_info.value)
+    assert "$USER:$USER" in str(exc_info.value)
+
+
+def test_args_check_unwritable_parent_directory(tmp_path: Path, monkeypatch):
+    import os
+
+    import pytest
+    import typer
+
+    parent_dir = tmp_path / "readonly_parent"
+    parent_dir.mkdir(parents=True)
+    out_dir = parent_dir / "nested" / "nix-config"
+
+    def mock_access(path, mode):
+        if str(path) == str(parent_dir) and mode == os.W_OK:
+            return False
+        return True
+
+    monkeypatch.setattr(os, "access", mock_access)
+
+    args = CLIArguments(output_path=out_dir)
+    with pytest.raises(typer.BadParameter) as exc_info:
+        args.check()
+
+    assert "Output directory" in str(exc_info.value)
+    assert str(out_dir) in str(exc_info.value)
+    assert "is not writable" in str(exc_info.value)
+    assert "sudo" in str(exc_info.value)
+    assert "chown" in str(exc_info.value)
+    assert "$USER:$USER" in str(exc_info.value)
+
+
+def test_cli_unwritable_output_directory(tmp_path: Path, monkeypatch):
+    import os
+
+    out_dir = tmp_path / "readonly_output"
+    out_dir.mkdir(parents=True)
+
+    def mock_access(path, mode):
+        if str(path) == str(out_dir) and mode == os.W_OK:
+            return False
+        return True
+
+    monkeypatch.setattr(os, "access", mock_access)
+
+    result = runner.invoke(app, ["-o", str(out_dir)])
+    assert result.exit_code != 0
+    assert "is not writable" in result.output
+    assert "sudo" in result.output
+    assert "chown" in result.output
+    assert "$USER:$USER" in result.output
 
 
 def test_args_check_prompts_on_existing_files(tmp_path: Path):

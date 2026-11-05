@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -32,17 +33,28 @@ class CLIArguments:
                 f"File exists at specified path: '{output}'", param_hint="output_path"
             )
 
+        check_path = output
+        while not check_path.exists() and check_path.parent != check_path:
+            check_path = check_path.parent
+
+        if not os.access(check_path, os.W_OK):
+            styled_output = typer.style(
+                f"'{output}'", fg=typer.colors.YELLOW, bold=True
+            )
+            raw_cmd = f"'sudo chown -R $USER:$USER {output}'"
+            styled_cmd = " ".join(
+                typer.style(w, fg=typer.colors.CYAN, bold=True)
+                for w in raw_cmd.split(" ")
+            )
+            raise typer.BadParameter(
+                f"Output directory {styled_output} is not writable.\nDid you previously run with sudo? Fix permissions with {styled_cmd}.",
+                param_hint="output_path",
+            )
+
         if (
             output.exists()
             and output.is_dir()
-            and any(
-                item
-                for item in output.iterdir()
-                if not item.name.startswith(".")
-                and item != self.log_file
-                and item.name != "nix-scribe.log"
-                and item.name != "scan-ir.json"
-            )
+            and any(item for item in output.iterdir() if not item.name.startswith("."))
         ):
             if not confirm(
                 f"[bold yellow]Directory exists at specified output path '{output}' and contains files.[/]\nContinue?"
