@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.0](https://github.com/Levizor/nix-scribe/compare/v0.1.0...v0.2.0) (2026-11-05)
+
+
+### Features
+
+* **logging:** add trace logging to context, systemctl, and package resolution ([#143](https://github.com/Levizor/nix-scribe/issues/143)) ([f02565d](https://github.com/Levizor/nix-scribe/commit/f02565d68f53b72c5a57c1beff38e1dfea146089))
+* **logging:** route file logging to output directory and clean plain-text log format ([#142](https://github.com/Levizor/nix-scribe/issues/142)) ([61ff996](https://github.com/Levizor/nix-scribe/commit/61ff996f091fcb987daa0a353860b073dd7fd4e2))
+* **modules:** align desktop manager package claims with upstream closures ([#131](https://github.com/Levizor/nix-scribe/issues/131)) ([#137](https://github.com/Levizor/nix-scribe/issues/137)) ([5c7678b](https://github.com/Levizor/nix-scribe/commit/5c7678b464bee904adc2b57f477454dfd95411ae))
+* **modules:** append package claims to specialized modules ([#125](https://github.com/Levizor/nix-scribe/issues/125)) ([a80d143](https://github.com/Levizor/nix-scribe/commit/a80d14306e9ec544ce96cc2f3d62b579e35fd8e8))
+* **nix:** generalize container test root setup for any distribution image ([#136](https://github.com/Levizor/nix-scribe/issues/136)) ([5b73d6d](https://github.com/Levizor/nix-scribe/commit/5b73d6d981c6e1e35ba6c7ffecfd508b7e31e3f5))
+* **packages:** delegate repository fallback to pkgmap and restore versioned dnf detection ([#132](https://github.com/Levizor/nix-scribe/issues/132)) ([#134](https://github.com/Levizor/nix-scribe/issues/134)) ([53d043e](https://github.com/Levizor/nix-scribe/commit/53d043e399bfabd02a56abb78a0b827f75be961c))
+* **packages:** implement Arch Linux PacmanManager and parser ([#93](https://github.com/Levizor/nix-scribe/issues/93)) ([#127](https://github.com/Levizor/nix-scribe/issues/127)) ([3da8816](https://github.com/Levizor/nix-scribe/commit/3da88163634637b46720c522095a9440f4efb4a7))
+* **packages:** implement Fedora DnfManager ([#128](https://github.com/Levizor/nix-scribe/issues/128)) ([#130](https://github.com/Levizor/nix-scribe/issues/130)) ([4b56720](https://github.com/Levizor/nix-scribe/commit/4b567201735ae7557b030cf5d3a5b11a4bdea423))
+* parse pacman log to distinguish preinstalled and explicit packages ([#133](https://github.com/Levizor/nix-scribe/issues/133)) ([#135](https://github.com/Levizor/nix-scribe/issues/135)) ([623a5a2](https://github.com/Levizor/nix-scribe/commit/623a5a26aaded930c0f6c180ff6315b3fd709bc5))
+* **programs:** add openssh client module ([#20](https://github.com/Levizor/nix-scribe/issues/20)) ([#89](https://github.com/Levizor/nix-scribe/issues/89)) ([d47a78a](https://github.com/Levizor/nix-scribe/commit/d47a78ae3e9ca6bc58a92943cee3972b2ef29370))
+* **ui:** add Rich end-of-run summary panel and IR export artifact ([#147](https://github.com/Levizor/nix-scribe/issues/147)) ([504e818](https://github.com/Levizor/nix-scribe/commit/504e81824ea7e4917fd58f80c0dec712d279c565))
+* **ui:** redesign console UX with in-place Rich progress and dynamic status ([#145](https://github.com/Levizor/nix-scribe/issues/145)) ([7d65b27](https://github.com/Levizor/nix-scribe/commit/7d65b27de4f8677f39b9dec3f0dffcf24b4a37f3)), closes [#140](https://github.com/Levizor/nix-scribe/issues/140)
+
+
+### Bug Fixes
+
+* **arguments, logger:** handle unwritable output directory and overwrite log file ([#149](https://github.com/Levizor/nix-scribe/issues/149)) ([e3212a0](https://github.com/Levizor/nix-scribe/commit/e3212a0051a1ed577f54e9fdf7636827dfbb80bb))
+
 ## [0.1.0](https://github.com/Levizor/nix-scribe/compare/v0.1.0...v0.1.0) (2026-10-19)
 
 
