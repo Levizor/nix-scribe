@@ -9,6 +9,26 @@ from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.option_block import NixFragment, NixValue, combined_comments
 
 
+@dataclass(frozen=True, slots=True)
+class OptionMetadata:
+    path: str | None = None
+    comment: str | None = None
+    claims: set[str] = field(default_factory=set)
+    arguments: set[str] = field(default_factory=set)
+    root: bool = False
+    inline: bool = False
+    explicit_default: bool = False
+    omit_default: bool = True
+
+
+_DEFAULT_OPTION_METADATA = OptionMetadata()
+
+
+def get_option_metadata(f: Field[Any]) -> OptionMetadata:
+    """Retrieves OptionMetadata from a dataclass field, falling back to defaults."""
+    return f.metadata.get("nix_option", _DEFAULT_OPTION_METADATA)
+
+
 def option(
     path: str | None = None,
     *,
@@ -36,22 +56,17 @@ def option(
         omit_default: Whether to omit the field when its value matches default.
     """
     metadata = dict(kwargs.pop("metadata", {}))
-    if path is not None:
-        metadata["nix_path"] = path
-    if comment is not None:
-        metadata["nix_comment"] = comment
-    if claims is not None:
-        metadata["nix_claims"] = set(claims)
-    if arguments is not None:
-        metadata["nix_arguments"] = set(arguments)
-    if root:
-        metadata["nix_root"] = True
-    if inline:
-        metadata["nix_inline"] = True
-
     has_explicit_default = default is not MISSING or default_factory is not MISSING
-    metadata["nix_explicit_default"] = has_explicit_default
-    metadata["nix_omit_default"] = omit_default
+    metadata["nix_option"] = OptionMetadata(
+        path=path,
+        comment=comment,
+        claims=set(claims) if claims else set(),
+        arguments=set(arguments) if arguments else set(),
+        root=root,
+        inline=inline,
+        explicit_default=has_explicit_default,
+        omit_default=omit_default,
+    )
 
     if default_factory is not MISSING:
         return field(default_factory=default_factory, metadata=metadata, **kwargs)
@@ -133,7 +148,8 @@ class ModuleSchema:
         if val is None:
             return True
 
-        if not f.metadata.get("nix_omit_default", True):
+        meta = get_option_metadata(f)
+        if not meta.omit_default:
             return False
 
         if not omit_defaults:
@@ -142,7 +158,7 @@ class ModuleSchema:
         if isinstance(val, (list, dict, set)) and len(val) == 0:
             return True
 
-        if f.metadata.get("nix_explicit_default", False):
+        if meta.explicit_default:
             default_val = (
                 f.default
                 if f.default is not MISSING
@@ -206,9 +222,9 @@ class ModuleSchema:
             if self._should_omit(f, val, omit_defaults=effective_omit):
                 continue
 
-            field_claims: set[str] | None = f.metadata.get("nix_claims")
-            if field_claims:
-                active_claims.update(field_claims)
+            meta = get_option_metadata(f)
+            if meta.claims:
+                active_claims.update(meta.claims)
 
             for sub in self._collect_subschemas(val):
                 active_claims.update(sub.resolve_claims(omit_defaults=effective_omit))
@@ -233,9 +249,9 @@ class ModuleSchema:
             if self._should_omit(f, val, omit_defaults=effective_omit):
                 continue
 
-            field_args: set[str] | None = f.metadata.get("nix_arguments")
-            if field_args:
-                active_args.update(field_args)
+            meta = get_option_metadata(f)
+            if meta.arguments:
+                active_args.update(meta.arguments)
 
             for sub in self._collect_subschemas(val):
                 active_args.update(sub.resolve_arguments(omit_defaults=effective_omit))
@@ -359,14 +375,14 @@ class ModuleSchema:
                 ):
                     continue
 
-            static_comment: str | None = f.metadata.get("nix_comment")
-            merged_comment = combined_comments(static_comment, dyn_comment)
+            meta = get_option_metadata(f)
+            merged_comment = combined_comments(meta.comment, dyn_comment)
             if preserve_comments and merged_comment:
                 serialized_val = NixValue(value=serialized_val, comment=merged_comment)
 
-            nix_path: str = f.metadata.get("nix_path", f.name)
-            is_root: bool = f.metadata.get("nix_root", False)
-            is_inline: bool = f.metadata.get("nix_inline", False) or nix_path == ""
+            nix_path: str = meta.path if meta.path is not None else f.name
+            is_root: bool = meta.root
+            is_inline: bool = meta.inline or nix_path == ""
 
             target = root_opts if is_root else scoped
             if is_inline:

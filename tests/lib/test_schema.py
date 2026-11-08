@@ -291,3 +291,39 @@ def test_nix_fragment_container_dunders():
 
     empty = NixFragment(name="empty")
     assert bool(empty) is False
+
+
+def test_option_metadata_dataclass():
+    from dataclasses import fields
+
+    from nix_scribe.lib.schema import OptionMetadata, get_option_metadata
+
+    class ExampleSchema(ModuleSchema):
+        plain_field: bool = True
+        custom_opt: str = option(
+            "custom.path",
+            comment="Custom option comment",
+            claims={"example-pkg"},
+            arguments={"pkgs"},
+            root=True,
+            inline=False,
+            omit_default=False,
+        )
+
+    f_map = {f.name: f for f in fields(ExampleSchema)}
+
+    plain_meta = get_option_metadata(f_map["plain_field"])
+    assert isinstance(plain_meta, OptionMetadata)
+    assert plain_meta.path is None
+    assert plain_meta.comment is None
+    assert plain_meta.claims == set()
+    assert plain_meta.omit_default is True
+
+    custom_meta = get_option_metadata(f_map["custom_opt"])
+    assert isinstance(custom_meta, OptionMetadata)
+    assert custom_meta.path == "custom.path"
+    assert custom_meta.comment == "Custom option comment"
+    assert custom_meta.claims == {"example-pkg"}
+    assert custom_meta.arguments == {"pkgs"}
+    assert custom_meta.root is True
+    assert custom_meta.omit_default is False
