@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .asset import Asset
@@ -77,6 +77,26 @@ class NixValue:
 
     def __bool__(self) -> bool:
         return bool(self.value)
+
+
+@dataclass
+class NixFragment:
+    name: str
+    description: str = ""
+    options: dict[str, NixValue] = field(default_factory=dict)
+    arguments: set[str] = field(default_factory=set)
+
+    def __getitem__(self, key: str) -> Any:
+        return self.options.__getitem__(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.options
+
+    def __bool__(self) -> bool:
+        return bool(self.options)
+
+    def __iter__(self):
+        return iter(self.options)
 
 
 class ConfigFragment:
