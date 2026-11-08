@@ -11,13 +11,21 @@ from nix_scribe.lib.option_block import NixFragment, NixValue, combined_comments
 
 @dataclass(frozen=True, slots=True)
 class OptionMetadata:
+    # NixOS option path override. Defaults to field name.
     path: str | None = None
+    # Static comment rendered above the option in the generated Nix file.
     comment: str | None = None
+    # Package attribute names claimed when this option is active.
     claims: set[str] = field(default_factory=set)
+    # Nix function arguments (e.g. 'pkgs') required when this option is active.
     arguments: set[str] = field(default_factory=set)
+    # Emits option at top level instead of under the schema prefix.
     root: bool = False
+    # Inlines dictionary fields directly under the parent prefix.
     inline: bool = False
+    # Whether an explicit default or default_factory was configured.
     explicit_default: bool = False
+    # Whether to omit the field when its value matches default.
     omit_default: bool = True
 
 
@@ -42,19 +50,7 @@ def option(
     omit_default: bool = True,
     **kwargs: Any,
 ) -> Any:
-    """Declares a ModuleSchema field with NixOS option metadata.
-
-    Args:
-        path: NixOS option path override. Defaults to field name.
-        default: Static default value. When omitted, field defaults to None.
-        default_factory: Zero-argument callable producing field default value.
-        comment: Static comment rendered above the option in the generated Nix file.
-        claims: Package attribute names claimed when this option is active.
-        arguments: Nix function arguments (e.g. 'pkgs') required when this option is active.
-        root: Emits option at top level instead of under the schema prefix.
-        inline: Inlines dictionary fields directly under the parent prefix.
-        omit_default: Whether to omit the field when its value matches default.
-    """
+    """Declares a ModuleSchema field with NixOS option metadata."""
     metadata = dict(kwargs.pop("metadata", {}))
     has_explicit_default = default is not MISSING or default_factory is not MISSING
     metadata["nix_option"] = OptionMetadata(
