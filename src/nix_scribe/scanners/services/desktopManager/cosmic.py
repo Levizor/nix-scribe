@@ -1,16 +1,11 @@
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.registry import Scanner
-from nix_scribe.modules.nixos.services.desktopManager.cosmic import (
-    COSMIC_PACKAGES,
-    Cosmic,
-)
+from nix_scribe.modules.nixos.services.desktopManager.cosmic import Cosmic
 
 cosmic = Scanner(
     "services.desktopManager.cosmic",
     description="Cosmic desktop environment",
 )
-
-__all__ = ["COSMIC_PACKAGES", "cosmic", "scan"]
 
 
 @cosmic.scanner()

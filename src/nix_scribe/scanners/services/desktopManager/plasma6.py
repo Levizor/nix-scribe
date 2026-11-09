@@ -1,16 +1,11 @@
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.registry import Scanner
-from nix_scribe.modules.nixos.services.desktopManager.plasma6 import (
-    PLASMA6_PACKAGES,
-    Plasma6,
-)
+from nix_scribe.modules.nixos.services.desktopManager.plasma6 import Plasma6
 
 plasma6 = Scanner(
     "services.desktopManager.plasma6",
     description="KDE Plasma 6 Desktop Environment",
 )
-
-__all__ = ["PLASMA6_PACKAGES", "plasma6", "scan"]
 
 
 @plasma6.scanner()

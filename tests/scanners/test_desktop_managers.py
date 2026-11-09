@@ -1,17 +1,11 @@
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.option_block import NixFragment
-from nix_scribe.scanners.services.desktopManager.cosmic import (
-    COSMIC_PACKAGES,
-    cosmic,
-)
-from nix_scribe.scanners.services.desktopManager.gnome import (
-    GNOME_PACKAGES,
-    gnome,
-)
-from nix_scribe.scanners.services.desktopManager.plasma6 import (
-    PLASMA6_PACKAGES,
-    plasma6,
-)
+from nix_scribe.modules.nixos.services.desktopManager.cosmic import COSMIC_PACKAGES
+from nix_scribe.modules.nixos.services.desktopManager.gnome import GNOME_PACKAGES
+from nix_scribe.modules.nixos.services.desktopManager.plasma6 import PLASMA6_PACKAGES
+from nix_scribe.scanners.services.desktopManager.cosmic import cosmic
+from nix_scribe.scanners.services.desktopManager.gnome import gnome
+from nix_scribe.scanners.services.desktopManager.plasma6 import plasma6
 
 
 def test_gnome_scanner(tmp_path):
