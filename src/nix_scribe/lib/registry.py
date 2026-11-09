@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import fnmatch
 import re
 from dataclasses import dataclass
@@ -28,7 +30,7 @@ class ModuleFilter:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
-    ) -> "ModuleFilter":
+    ) -> ModuleFilter:
         """Parses raw CLI pattern inputs ONCE into clean immutable tuples."""
         return cls(
             enable=tuple(cls._parse(enable)),
@@ -123,9 +125,9 @@ class ScannerRegistry:
     Singleton registry managing registered scanners, default blacklist/whitelist states, and CLI filtering.
     """
 
-    _instance: ClassVar["ScannerRegistry | None"] = None
+    _instance: ClassVar[ScannerRegistry | None] = None
 
-    def __new__(cls) -> "ScannerRegistry":
+    def __new__(cls) -> ScannerRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._modules: dict[str, Scanner] = {}
