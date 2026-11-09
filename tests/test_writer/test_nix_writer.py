@@ -6,6 +6,7 @@ from nix_scribe.lib.nix_writer import (
     combination,
     comment,
     nix_with,
+    null,
     raw,
     with_pkgs,
 )
@@ -80,6 +81,7 @@ def test_write_attr_simple_values(writer: NixWriter):
     writer.write_attr("key", "value")
     writer.write_attr("bool_key", True)
     writer["int_key"] = 123
+    writer["null_key"] = null
     nix_text = writer.gettext()
     assert (
         nix_text
@@ -87,6 +89,7 @@ def test_write_attr_simple_values(writer: NixWriter):
 key = "value";
 bool_key = true;
 int_key = 123;
+null_key = null;
 """
     )
 

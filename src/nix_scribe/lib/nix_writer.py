@@ -15,6 +15,9 @@ class raw(str):
         return str(self)
 
 
+null = raw("null")
+
+
 class comment(raw):
     def __new__(cls, value: str):
         lines = []

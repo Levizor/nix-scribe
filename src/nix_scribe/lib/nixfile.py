@@ -10,6 +10,7 @@ from nix_scribe.lib.option_block import (
     CommentNode,
     ConfigFragment,
     EmptyLineNode,
+    NixFragment,
     NixOptionDocument,
     OptionCollisionError,
     OptionNode,
@@ -30,15 +31,16 @@ class NixFile:
 
         self.arguments = set()
         self.assets: set[Asset] = set()
-        self.fragments: list[ConfigFragment] = []
+        self.fragments: list[NixFragment | ConfigFragment] = []
         self.imports: list[raw | NixFile] = [] if imports is None else imports
 
         self.document = NixOptionDocument()
 
-    def add_fragment(self, fragment: ConfigFragment) -> None:
+    def add_fragment(self, fragment: NixFragment | ConfigFragment) -> None:
         self.fragments.append(fragment)
         self.arguments.update(fragment.arguments)
-        self.assets.update(fragment.assets)
+        if isinstance(fragment, ConfigFragment):
+            self.assets.update(fragment.assets)
 
         self.document.add_header(f"--- {fragment.name}: {fragment.description} ---")
 
