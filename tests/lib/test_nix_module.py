@@ -14,19 +14,19 @@ from nix_scribe.lib.option_block import NixFragment, NixValue
 
 
 class GitLfs(NixModule, claims={"git-lfs"}):
-    enable: bool = True
+    enable: bool = option(default=False)
     enablePureSSHTransfer: bool = option(default=False)
 
 
 class Git(NixModule, claims={"git"}, prefix="programs.git"):
-    enable: bool = True
+    enable: bool = option(default=False)
     prompt_enable: bool = option("prompt.enable", default=False)
     config: dict[str, Any] = option(default={})
     lfs: GitLfs | None = None
 
 
 class Sudo(NixModule, claims={"sudo"}, prefix="security.sudo"):
-    enable: bool = True
+    enable: bool = option(default=False)
     execWheelOnly: bool = option(default=False)
     wheelNeedsPassword: bool = option(
         default=True,
@@ -38,7 +38,7 @@ class Sudo(NixModule, claims={"sudo"}, prefix="security.sudo"):
 
 class UserEntry(NixModule):
     uid: int
-    isNormalUser: bool = True
+    isNormalUser: bool = option(default=False)
     description: str = option(default="")
     home: str | None = None
     group: str = option(default="users")
@@ -63,7 +63,7 @@ class Users(NixModule, prefix="users.users"):
 
 
 def test_nix_module_defaults_and_omission():
-    sudo = Sudo()
+    sudo = Sudo(enable=True)
     assert sudo.to_dict() == {"enable": True}
     assert sudo.to_dict(keep_defaults=True) == {
         "enable": True,
@@ -74,6 +74,7 @@ def test_nix_module_defaults_and_omission():
     }
 
     sudo_custom = Sudo(
+        enable=True,
         execWheelOnly=True,
         wheelNeedsPassword=False,
         extraConfig="Defaults timestamp_timeout=15",
@@ -87,7 +88,7 @@ def test_nix_module_defaults_and_omission():
 
 
 def test_nix_module_keep_defaults_and_arguments():
-    sudo = Sudo()
+    sudo = Sudo(enable=True)
     fragment_default = sudo.to_nix_fragment(name="sudo")
     assert "wheelNeedsPassword" not in fragment_default["security.sudo"].value
 
@@ -103,11 +104,12 @@ def test_nix_module_keep_defaults_and_arguments():
 
 
 def test_nix_module_nested_and_claims():
-    git_basic = Git()
+    git_basic = Git(enable=True)
     assert git_basic.resolve_claims() == {"git"}
     assert git_basic.to_dict() == {"enable": True}
 
     git_full = Git(
+        enable=True,
         prompt_enable=True,
         config={"user": {"name": "Alice"}},
         lfs=GitLfs(enable=True, enablePureSSHTransfer=True),
@@ -141,11 +143,11 @@ def test_nix_module_field_level_claims():
 
 def test_nix_module_assets_and_arguments():
     class Grub(NixModule, claims={"grub2"}, prefix="boot.loader.grub"):
-        enable: bool = True
+        enable: bool = option(default=False)
         splashImage: Asset | None = None
 
     splash = Asset("grub-splash.png", b"PNGDATA")
-    grub = Grub(splashImage=splash)
+    grub = Grub(enable=True, splashImage=splash)
     grub.add_asset(splash)
     grub.add_argument("pkgs")
 
@@ -166,6 +168,7 @@ def test_nix_module_inline_map_and_root_options():
         users={
             "alice": UserEntry(
                 uid=1000,
+                isNormalUser=True,
                 description="Alice",
                 home="/home/alice",
                 group="alice",
@@ -192,6 +195,7 @@ def test_nix_module_inline_map_and_root_options():
 
 def test_nix_module_comments_and_nixfile_rendering():
     sudo = Sudo(
+        enable=True,
         wheelNeedsPassword=NixValue(False, "Detected in /etc/sudoers.d/wheel"),
     )
     fragment = sudo.to_nix_fragment(
@@ -227,12 +231,12 @@ def test_mutable_default_isolation():
 
 def test_nix_module_subclass_inheritance():
     class BaseService(NixModule, claims={"base-daemon"}, arguments={"pkgs"}):
-        enable: bool = True
+        enable: bool = option(default=False)
 
     class ExtendedService(BaseService, claims={"extra-tool"}, arguments={"lib"}):
         port: int = option(default=8080)
 
-    svc = ExtendedService(port=9090)
+    svc = ExtendedService(enable=True, port=9090)
     assert svc.resolve_claims() == {"base-daemon", "extra-tool"}
     frag = svc.to_nix_fragment(name="svc")
     assert frag.arguments == {"pkgs", "lib"}
@@ -335,9 +339,9 @@ def test_nix_module_docstring_fallback_for_fragment():
         Longer description that should be ignored for header.
         """
 
-        enable: bool = True
+        enable: bool = option(default=False)
 
-    svc = DocstringService()
+    svc = DocstringService(enable=True)
     frag = emit_nix_fragment(svc)
     assert frag.name == "doc"
     assert frag.description == "Service description from docstring."

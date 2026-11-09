@@ -29,29 +29,15 @@ def should_omit(f: Field[Any], val: Any, keep_defaults: bool = False) -> bool:
     if isinstance(val, (list, dict, set)) and len(val) == 0:
         return True
 
-    if meta.explicit_default:
-        default_val = (
-            f.default
-            if f.default is not MISSING
-            else (f.default_factory() if f.default_factory is not MISSING else MISSING)
-        )
+    default_val = (
+        f.default
+        if f.default is not MISSING
+        else (f.default_factory() if f.default_factory is not MISSING else MISSING)
+    )
+    if default_val is not MISSING:
         if (
-            default_val is not MISSING
-            and (isinstance(val, bool) == isinstance(default_val, bool))
-            and val == default_val
-        ):
-            return True
-        return False
-
-    if f.default is not MISSING:
-        # For plain dataclass booleans (e.g. enable: bool = True), True is a Python constructor
-        # default to enable the module, but upstream NixOS defaults to false. Thus, False is omitted
-        # while True is emitted as an active option.
-        if isinstance(f.default, bool):
-            if val is False:
-                return True
-            return False
-        if (isinstance(val, bool) == isinstance(f.default, bool)) and val == f.default:
+            isinstance(val, bool) == isinstance(default_val, bool)
+        ) and val == default_val:
             return True
 
     return False
