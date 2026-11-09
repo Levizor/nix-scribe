@@ -59,7 +59,7 @@ class UsersSchema(ModuleSchema, prefix="users.users"):
 def test_module_schema_defaults_and_omission():
     sudo = SudoSchema()
     assert sudo.to_dict() == {"enable": True}
-    assert sudo.to_dict(omit_defaults=False) == {
+    assert sudo.to_dict(keep_defaults=True) == {
         "enable": True,
         "execWheelOnly": False,
         "wheelNeedsPassword": True,
@@ -80,15 +80,20 @@ def test_module_schema_defaults_and_omission():
     }
 
 
-def test_module_schema_keep_defaults_cli_arg(monkeypatch):
-    from nix_scribe.arguments import args
-
+def test_module_schema_keep_defaults_and_arguments():
     sudo = SudoSchema()
-    monkeypatch.setattr(args, "keep_defaults", True)
+    fragment_default = sudo.to_nix_fragment(name="sudo")
+    assert "wheelNeedsPassword" not in fragment_default["security.sudo"].value
 
-    fragment = sudo.to_nix_fragment(name="sudo")
-    assert fragment["security.sudo"].value["wheelNeedsPassword"].value is True
-    assert fragment["security.sudo"].value["execWheelOnly"] is False
+    fragment_kept = sudo.to_nix_fragment(name="sudo", keep_defaults=True)
+    assert fragment_kept["security.sudo"].value["wheelNeedsPassword"].value is True
+    assert fragment_kept["security.sudo"].value["execWheelOnly"] is False
+
+    users = UsersSchema()
+    frag_default = users.to_nix_fragment()
+    assert frag_default.arguments == set()
+    frag_kept = users.to_nix_fragment(keep_defaults=True)
+    assert frag_kept.arguments == {"pkgs"}
 
 
 def test_module_schema_nested_and_claims():
@@ -139,7 +144,6 @@ def test_module_schema_assets_and_arguments():
     grub.add_argument("pkgs")
 
     assert grub.resolve_assets() == {splash}
-    assert grub.resolve_arguments() == {"pkgs"}
 
     fragment = grub.to_nix_fragment(
         name="grub",
@@ -168,11 +172,11 @@ def test_module_schema_inline_map_and_root_options():
         bash_enable=True,
     )
 
-    assert schema.resolve_arguments() == {"pkgs"}
     fragment = schema.to_nix_fragment(
         name="users",
         description="User accounts",
     )
+    assert fragment.arguments == {"pkgs"}
 
     assert "users.users" in fragment.options
     assert "programs.bash.enable" in fragment.options
@@ -226,7 +230,7 @@ def test_schema_subclass_inheritance():
 
     svc = DerivedService()
     assert svc.resolve_claims() == {"base-daemon", "derived-plugin"}
-    assert svc.resolve_arguments() == {"pkgs", "lib"}
+    assert svc.to_nix_fragment().arguments == {"pkgs", "lib"}
 
 
 def test_schema_nested_subschema_root_options():
@@ -327,3 +331,40 @@ def test_option_metadata_dataclass():
     assert custom_meta.arguments == {"pkgs"}
     assert custom_meta.root is True
     assert custom_meta.omit_default is False
+
+
+def test_emitter_direct_usage_and_docstring_fallback():
+    from nix_scribe.lib.emitter import emit_dict, emit_nix_fragment
+
+    class DocstringServiceSchema(ModuleSchema, prefix="services.doc"):
+        """Service description from docstring."""
+
+        enable: bool = True
+
+    svc = DocstringServiceSchema()
+
+    # Direct emit_dict
+    assert emit_dict(svc) == {"enable": True}
+
+    # Direct emit_nix_fragment with docstring fallback
+    frag = emit_nix_fragment(svc)
+    assert frag.name == "doc"
+    assert frag.description == "Service description from docstring."
+    assert "services.doc" in frag
+
+    # Explicit override takes precedence
+    custom_frag = emit_nix_fragment(
+        svc, name="custom-doc", description="Explicit override"
+    )
+    assert custom_frag.name == "custom-doc"
+    assert custom_frag.description == "Explicit override"
+
+
+def test_schema_fields_property():
+    class TestFieldsSchema(ModuleSchema):
+        foo: str = "bar"
+        count: int = 42
+
+    schema = TestFieldsSchema()
+    f_names = [f.name for f in schema._fields]
+    assert f_names == ["foo", "count"]
