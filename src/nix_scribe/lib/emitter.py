@@ -79,32 +79,36 @@ def _serialize_value(
         return scoped if scoped else None
 
     if isinstance(val, dict):
-        out: dict[str, Any] = {}
-        for k, v in val.items():
-            serialized_v = _serialize_value(
-                v,
-                preserve_comments,
-                keep_defaults,
-                root_opts=root_opts,
-                collected_args=collected_args,
+        return {
+            k: s
+            for k, v in val.items()
+            if (
+                s := _serialize_value(
+                    v,
+                    preserve_comments,
+                    keep_defaults,
+                    root_opts=root_opts,
+                    collected_args=collected_args,
+                )
             )
-            if serialized_v is not None:
-                out[k] = serialized_v
-        return out
+            is not None
+        }
 
     if isinstance(val, (list, tuple, set)):
-        out_list: list[Any] = []
-        for item in val:
-            serialized_item = _serialize_value(
-                item,
-                preserve_comments,
-                keep_defaults,
-                root_opts=root_opts,
-                collected_args=collected_args,
+        return [
+            s
+            for item in val
+            if (
+                s := _serialize_value(
+                    item,
+                    preserve_comments,
+                    keep_defaults,
+                    root_opts=root_opts,
+                    collected_args=collected_args,
+                )
             )
-            if serialized_item is not None:
-                out_list.append(serialized_item)
-        return out_list
+            is not None
+        ]
 
     return val
 
@@ -117,42 +121,32 @@ def _serialize_fields(
     """Serializes fields of a module into scoped options, root options, and active arguments."""
     scoped: dict[str, Any] = {}
     root_opts: dict[str, Any] = {}
-    active_args: set[str] = set(module._declared_arguments)
-    extra_args: set[str] | None = getattr(module, "_extra_arguments", None)
-    if extra_args:
-        active_args.update(extra_args)
+    active_args: set[str] = set(module._declared_arguments) | set(
+        getattr(module, "_extra_arguments", ())
+    )
 
     for f in module._fields:
         raw_val = getattr(module, f.name)
-        dyn_comment = raw_val.comment if isinstance(raw_val, NixValue) else None
-        val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
+        dyn_comment, val = (
+            (raw_val.comment, raw_val.value)
+            if isinstance(raw_val, NixValue)
+            else (None, raw_val)
+        )
 
         if should_omit(f, val, keep_defaults=keep_defaults):
             continue
 
-        if isinstance(val, NixModule):
-            child_scoped, child_root, child_args = _serialize_fields(
-                val,
-                preserve_comments=preserve_comments,
-                keep_defaults=keep_defaults,
-            )
-            root_opts.update(child_root)
-            active_args.update(child_args)
-            if not child_scoped:
-                continue
-            serialized_val: Any = child_scoped
-        else:
-            serialized_val = _serialize_value(
-                val,
-                preserve_comments,
-                keep_defaults=keep_defaults,
-                root_opts=root_opts,
-                collected_args=active_args,
-            )
-            if serialized_val is None or (
-                isinstance(serialized_val, (dict, list)) and not serialized_val
-            ):
-                continue
+        serialized_val = _serialize_value(
+            val,
+            preserve_comments=preserve_comments,
+            keep_defaults=keep_defaults,
+            root_opts=root_opts,
+            collected_args=active_args,
+        )
+        if serialized_val is None or (
+            isinstance(serialized_val, (dict, list)) and not serialized_val
+        ):
+            continue
 
         meta = get_option_metadata(f)
         if meta.arguments:
@@ -163,10 +157,9 @@ def _serialize_fields(
             serialized_val = NixValue(value=serialized_val, comment=merged_comment)
 
         nix_path: str = meta.path if meta.path is not None else f.name
-        is_root: bool = meta.root
         is_inline: bool = meta.inline or nix_path == ""
 
-        target = root_opts if is_root else scoped
+        target = root_opts if meta.root else scoped
         if is_inline:
             raw_dict = (
                 serialized_val.value
