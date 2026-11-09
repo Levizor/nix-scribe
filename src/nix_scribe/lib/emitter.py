@@ -35,6 +35,7 @@ def should_omit(f: Field[Any], val: Any, keep_defaults: bool = False) -> bool:
         else (f.default_factory() if f.default_factory is not MISSING else MISSING)
     )
     if default_val is not MISSING:
+        # Guard against Python treating bool as an int subclass where 0 == False and 1 == True
         if (
             isinstance(val, bool) == isinstance(default_val, bool)
         ) and val == default_val:
