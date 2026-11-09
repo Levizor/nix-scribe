@@ -85,6 +85,7 @@ class NixFragment:
     description: str = ""
     options: dict[str, NixValue] = field(default_factory=dict)
     arguments: set[str] = field(default_factory=set)
+    assets: set[Asset] = field(default_factory=set)
 
     def __getitem__(self, key: str) -> Any:
         return self.options.__getitem__(key)
@@ -93,7 +94,7 @@ class NixFragment:
         return key in self.options
 
     def __bool__(self) -> bool:
-        return bool(self.options)
+        return bool(self.options or self.assets)
 
     def __iter__(self):
         return iter(self.options)

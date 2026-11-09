@@ -2,16 +2,20 @@ import fnmatch
 import re
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Callable, ClassVar, Sequence
+from typing import Any, Callable, ClassVar, Generic, Sequence, TypeVar
 
 from rich.console import Console
 from rich.table import Table
 from rich.tree import Tree
 
 from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.nix_module import NixModule
 from nix_scribe.lib.option_block import ConfigFragment
 
-ScannerFunc = Callable[[SystemContext], dict[str, Any]]
+ContextT = TypeVar("ContextT", bound=Any, default=SystemContext)
+FuncT = TypeVar("FuncT", bound=Callable[..., Any])
+ScanResult = NixModule | dict[str, Any] | None
+ScannerFunc = Callable[[ContextT], ScanResult]
 MapperFunc = Callable[[dict[str, Any]], ConfigFragment | None]
 
 
@@ -90,35 +94,40 @@ class ModulePhase(IntEnum):
     LATE = 100
 
 
-class Module:
+class Scanner(Generic[ContextT]):
     def __init__(
         self,
         name: str,
         phase: ModulePhase = ModulePhase.NORMAL,
+        description: str = "",
     ) -> None:
         self.name = name
         self.phase = phase
-        self.scan: ScannerFunc | None = None
+        self.description = description
+        self.scan: Callable[..., Any] | None = None
         self.map: MapperFunc | None = None
         ModuleRegistry().register(self)
 
-    def scanner(self) -> Callable[[ScannerFunc], ScannerFunc]:
+    def scanner(self) -> Callable[[FuncT], FuncT]:
         """Decorator to register the scanner function."""
 
-        def decorator(func: ScannerFunc) -> ScannerFunc:
+        def decorator(func: FuncT) -> FuncT:
             self.scan = func
             return func
 
         return decorator
 
-    def mapper(self) -> Callable[[MapperFunc], MapperFunc]:
+    def mapper(self) -> Callable[[FuncT], FuncT]:
         """Decorator to register the mapper function."""
 
-        def decorator(func: MapperFunc) -> MapperFunc:
+        def decorator(func: FuncT) -> FuncT:
             self.map = func
             return func
 
         return decorator
+
+
+Module = Scanner
 
 
 class InvalidModuleError(ValueError):
@@ -349,3 +358,6 @@ def print_modules_tree(
         print("nix-scribe Modules Tree:")
         for name in sorted(target_modules.keys()):
             print(f"  - {name} ({_strip_markup(statuses[name])})")
+
+
+ScannerRegistry = ModuleRegistry

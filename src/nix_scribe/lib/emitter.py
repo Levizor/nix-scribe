@@ -227,4 +227,5 @@ def emit_nix_fragment(
         description=fragment_description,
         options=options,
         arguments=active_args,
+        assets=module.resolve_assets(),
     )

@@ -110,3 +110,15 @@ def test_print_modules_tree(capsys):
     print_modules_tree()
     captured = capsys.readouterr()
     assert "nix-scribe Modules" in captured.out or "Modules Tree" in captured.out
+
+
+def test_scanner_and_aliases():
+    from nix_scribe.lib.registry import Scanner, ScannerRegistry
+
+    assert Scanner is Module
+    assert ScannerRegistry is ModuleRegistry
+
+    scanner = Scanner("programs.git", description="Git version control")
+    assert scanner.name == "programs.git"
+    assert scanner.description == "Git version control"
+    assert ScannerRegistry().get_all()["programs.git"] == scanner

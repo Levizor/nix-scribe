@@ -338,3 +338,74 @@ def test_nixscribe_build_artifacts_tree():
     )
     assert "4 files generated" in tree.label
     assert len(tree.children) == 3  # configuration.nix, networking, users
+
+
+def test_nixscribe_single_stage_nix_module(tmp_path):
+    import json
+
+    from nix_scribe.arguments import args
+    from nix_scribe.lib.asset import Asset
+    from nix_scribe.lib.nix_module import NixModule, option
+    from nix_scribe.lib.option_block import NixFragment
+    from nix_scribe.lib.packages import (
+        DiscoveredPackage,
+        InstallReason,
+        PackageState,
+        ResolvedPackage,
+    )
+    from nix_scribe.lib.registry import Scanner
+    from nix_scribe.modules.environment.system_packages import system_packages
+
+    args.output_path = tmp_path / "nix-out"
+    args.dump_ir = True
+
+    class GitModule(NixModule, prefix="programs.git", claims={"git"}):
+        enable: bool = option(default=False)
+        lfs_enable: bool = option(default=False, path="lfs.enable", claims={"git-lfs"})
+
+    git_scanner = Scanner("programs.git", description="Git configuration")
+
+    @git_scanner.scanner()
+    def scan_git(context) -> GitModule | None:
+        mod = GitModule(enable=True, lfs_enable=True)
+        mod.add_asset(Asset("git-info.txt", "git asset"))
+        return mod
+
+    git_pkg = ResolvedPackage(
+        "git", DiscoveredPackage("git", "debian", InstallReason.EXPLICIT)
+    )
+    lfs_pkg = ResolvedPackage(
+        "git-lfs", DiscoveredPackage("git-lfs", "debian", InstallReason.EXPLICIT)
+    )
+    curl_pkg = ResolvedPackage(
+        "curl", DiscoveredPackage("curl", "debian", InstallReason.EXPLICIT)
+    )
+
+    console = Console(quiet=True)
+    script = NixScribe(
+        console=console,
+        modules={
+            "programs.git": git_scanner,
+            "environment.system_packages": system_packages,
+        },
+    )
+    script.context.packages = PackageState(packages=[git_pkg, lfs_pkg, curl_pkg])
+
+    try:
+        script.run()
+
+        git_res = script.results["programs.git"]
+        assert isinstance(git_res.scan_data, GitModule)
+        assert isinstance(git_res.map_data, NixFragment)
+        assert git_res.map_data.description == "Git configuration"
+        assert len(git_res.map_data.assets) == 1
+
+        # Claims registered immediately during scan
+        assert script.context.packages.is_claimed("git")
+        assert script.context.packages.is_claimed("git-lfs")
+        assert not script.context.packages.is_claimed("curl")
+
+        ir_data = json.loads((args.output_path / "scan-ir.json").read_text())
+        assert ir_data["programs.git"] == {"enable": True, "lfs.enable": True}
+    finally:
+        args.dump_ir = False

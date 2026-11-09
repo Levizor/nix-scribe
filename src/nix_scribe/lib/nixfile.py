@@ -39,8 +39,7 @@ class NixFile:
     def add_fragment(self, fragment: NixFragment | ConfigFragment) -> None:
         self.fragments.append(fragment)
         self.arguments.update(fragment.arguments)
-        if isinstance(fragment, ConfigFragment):
-            self.assets.update(fragment.assets)
+        self.assets.update(fragment.assets)
 
         self.document.add_header(f"--- {fragment.name}: {fragment.description} ---")
 
