@@ -280,15 +280,19 @@ def test_nix_module_int_and_bool_type_safety():
     class Numeric(NixModule, prefix="metrics"):
         zero_val: int = option(default=0)
         false_val: bool = option(default=False)
+        true_default: bool = option(default=True)
 
-    num_mod = Numeric(zero_val=0, false_val=False)
+    num_mod = Numeric(zero_val=0, false_val=False, true_default=True)
     assert num_mod.to_dict() == {}
+
+    # False set on true_default must be emitted
+    disabled = Numeric(true_default=False)
+    assert disabled.to_dict() == {"true_default": False}
 
     # 0 should NOT omit False, and False should NOT omit 0
     inverted = Numeric(zero_val=False, false_val=0)  # type: ignore[arg-type]
     res = inverted.to_dict()
-    assert "zero_val" in res
-    assert "false_val" in res
+    assert res == {"zero_val": False, "false_val": 0}
 
 
 def test_nix_fragment_container_dunders():
