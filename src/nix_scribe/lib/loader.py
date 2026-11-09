@@ -48,9 +48,6 @@ class ModuleLoader:
             if not module.scan:
                 logger.warning(f"Module '{full_name}' skipped: No scanner.")
                 continue
-            if not module.map:
-                logger.warning(f"Module '{full_name}' skipped: No mapper.")
-                continue
 
             valid_modules[full_name] = module
             logger.debug(f"Successfully loaded module '{full_name}'")
@@ -76,16 +73,30 @@ class ModuleLoader:
                     logger.error(f"Failed to load module file {self.package_path}: {e}")
             return
 
-        package_paths = [str(self.package_path)]
-        prefix = f"{self.modules_package}." if self.modules_package else ""
+        targets: list[tuple[list[str], str]] = [
+            (
+                [str(self.package_path)],
+                f"{self.modules_package}." if self.modules_package else "",
+            )
+        ]
+        if self.modules_package == "nix_scribe.modules":
+            scanners_spec = importlib.util.find_spec("nix_scribe.scanners")
+            if scanners_spec and scanners_spec.submodule_search_locations:
+                targets.append(
+                    (
+                        [str(Path(scanners_spec.submodule_search_locations[0]))],
+                        "nix_scribe.scanners.",
+                    )
+                )
 
-        for info in pkgutil.walk_packages(package_paths, prefix):
-            if info.ispkg:
-                continue
-            try:
-                if info.name in sys.modules:
-                    importlib.reload(sys.modules[info.name])
-                else:
-                    importlib.import_module(info.name)
-            except Exception as e:
-                logger.error(f"Failed to load module {info.name}: {e}")
+        for package_paths, prefix in targets:
+            for info in pkgutil.walk_packages(package_paths, prefix):
+                if info.ispkg or info.name.startswith("nix_scribe.modules.nixos"):
+                    continue
+                try:
+                    if info.name in sys.modules:
+                        importlib.reload(sys.modules[info.name])
+                    else:
+                        importlib.import_module(info.name)
+                except Exception as e:
+                    logger.error(f"Failed to load module {info.name}: {e}")

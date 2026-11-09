@@ -1,19 +1,18 @@
 import logging
-from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import ConfigFragment
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
+from nix_scribe.modules.nixos.security.rtkit import Rtkit
 
 logger = logging.getLogger(__name__)
 
-rtkit = Module("security.rtkit")
+rtkit = Scanner(
+    "security.rtkit",
+    description="RealtimeKit system service",
+)
 
 
 def _parse_exec_start_args(content: str) -> list[str]:
-    """
-    Simple parser to extract arguments from ExecStart line.
-    """
     for line in content.splitlines():
         line = line.strip()
         if line.startswith("ExecStart="):
@@ -25,13 +24,11 @@ def _parse_exec_start_args(content: str) -> list[str]:
 
 
 @rtkit.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
-    exists = context.systemctl.exists("rtkit-daemon")
+def scan(context: SystemContext) -> Rtkit | None:
+    if not context.systemctl.exists("rtkit-daemon"):
+        return None
 
-    if not exists:
-        return {}
-
-    ir = {"enable": True, "args": []}
+    mod = Rtkit(enable=True)
 
     service_paths = [
         "/lib/systemd/system/rtkit-daemon.service",
@@ -45,26 +42,9 @@ def scan(context: SystemContext) -> dict[str, Any]:
                 content = context.read_file(path)
                 args = _parse_exec_start_args(content)
                 if args:
-                    ir["args"] = args
+                    mod.args = args
                 break
             except Exception as e:
                 logger.warning(f"Failed to read or parse {path}: {e}")
 
-    return ir
-
-
-@rtkit.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir.get("enable"):
-        return None
-
-    data = {"enable": True}
-    if ir.get("args"):
-        data["args"] = ir["args"]
-
-    return ConfigFragment(
-        name="rtkit",
-        description="RealtimeKit system service",
-        data={"security.rtkit": data},
-        claims={"rtkit"},
-    )
+    return mod
