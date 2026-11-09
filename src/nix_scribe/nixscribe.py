@@ -312,8 +312,7 @@ class NixScribe:
         try:
             result.map_data = mod.map(result.scan_data)
             if result.map_data and result.map_data.claims:
-                for pkg in result.map_data.claims:
-                    self.context.packages.claim(pkg, by=mod.name)
+                self.context.packages.claim(*result.map_data.claims, by=mod.name)
             logger.debug(f"Mapped {mod.name}")
         except Exception as e:
             logger.error(f"Failed mapping {mod.name}: {e}")
@@ -332,8 +331,9 @@ class NixScribe:
                 result.scan_data = mod.scan(self.context)
                 logger.debug(f"Scanned {mod.name}")
                 if isinstance(result.scan_data, NixModule):
-                    for pkg in result.scan_data.resolve_claims():
-                        self.context.packages.claim(pkg, by=mod.name)
+                    self.context.packages.claim(
+                        *result.scan_data.resolve_claims(), by=mod.name
+                    )
                     fragment = emit_nix_fragment(
                         result.scan_data,
                         name=mod.name.split(".")[-1],
