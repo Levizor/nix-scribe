@@ -11,7 +11,7 @@ from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.registry import (
     InvalidModuleError,
     ModuleFilter,
-    ModuleRegistry,
+    ScannerRegistry,
     print_modules_table,
     print_modules_tree,
 )
@@ -201,7 +201,7 @@ def main(
         log = logging.getLogger(__name__)
         log.debug(args)
 
-        active_modules = ModuleRegistry().filter(
+        active_modules = ScannerRegistry().filter(
             modules=valid_modules, filter_spec=filter_spec
         )
 

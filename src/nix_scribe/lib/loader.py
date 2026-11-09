@@ -5,7 +5,7 @@ import pkgutil
 import sys
 from pathlib import Path
 
-from nix_scribe.lib.registry import Module, ModuleRegistry
+from nix_scribe.lib.registry import Scanner, ScannerRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +38,13 @@ class ModuleLoader:
         else:
             self.package_path = None
 
-    def discover(self) -> dict[str, Module]:
+    def discover(self) -> dict[str, Scanner]:
         """Loads all modules and returns a flat dictionary keyed by namespace."""
         self._import_all_modules()
 
-        valid_modules: dict[str, Module] = {}
+        valid_modules: dict[str, Scanner] = {}
 
-        for full_name, module in ModuleRegistry().get_all().items():
+        for full_name, module in ScannerRegistry().get_all().items():
             if not module.scan:
                 logger.warning(f"Module '{full_name}' skipped: No scanner.")
                 continue

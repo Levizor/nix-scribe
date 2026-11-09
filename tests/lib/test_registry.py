@@ -1,29 +1,29 @@
 import pytest
 
-from nix_scribe.lib.registry import Module, ModuleRegistry
+from nix_scribe.lib.registry import Scanner, ScannerRegistry
 
 
 @pytest.fixture(autouse=True)
 def reset_registry():
-    ModuleRegistry().reset()
+    ScannerRegistry().reset()
     yield
-    ModuleRegistry().reset()
+    ScannerRegistry().reset()
 
 
 def test_singleton_instance():
-    r1 = ModuleRegistry()
-    r2 = ModuleRegistry()
+    r1 = ScannerRegistry()
+    r2 = ScannerRegistry()
     assert r1 is r2
 
 
 def test_module_registration():
-    registry = ModuleRegistry()
-    mod = Module("test.dummy.mod")
+    registry = ScannerRegistry()
+    mod = Scanner("test.dummy.mod")
     assert registry.get_all()["test.dummy.mod"] == mod
 
 
 def test_parse_patterns():
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     assert registry._parse_patterns(["boot.*", "security.pam,networking"]) == [
         "boot.*",
         "security.pam",
@@ -48,18 +48,18 @@ def test_module_filter_object():
 
 
 def test_is_match():
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     assert registry.is_match("boot.loader.grub", ["boot.*"]) is True
     assert registry.is_match("boot.loader.grub", ["boot.loader.grub"]) is True
     assert registry.is_match("security.pam", ["boot.*"]) is False
 
 
 def test_filter_modules_default_and_disable():
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     mock_modules = {
-        "boot.loader.grub": Module("boot.loader.grub"),
-        "security.pam": Module("security.pam"),
-        "experimental.feature": Module("experimental.feature"),
+        "boot.loader.grub": Scanner("boot.loader.grub"),
+        "security.pam": Scanner("security.pam"),
+        "experimental.feature": Scanner("experimental.feature"),
     }
 
     registry.default_blacklist = {"experimental.*"}
@@ -87,8 +87,8 @@ def test_filter_modules_default_and_disable():
 def test_validate_patterns_invalid_module():
     from nix_scribe.lib.registry import InvalidModuleError
 
-    registry = ModuleRegistry()
-    mock_modules = {"boot.loader.grub": Module("boot.loader.grub")}
+    registry = ScannerRegistry()
+    mock_modules = {"boot.loader.grub": Scanner("boot.loader.grub")}
 
     with pytest.raises(InvalidModuleError) as exc_info:
         registry.filter(modules=mock_modules, disable=["non_existent_module"])
@@ -112,12 +112,7 @@ def test_print_modules_tree(capsys):
     assert "nix-scribe Modules" in captured.out or "Modules Tree" in captured.out
 
 
-def test_scanner_and_aliases():
-    from nix_scribe.lib.registry import Scanner, ScannerRegistry
-
-    assert Scanner is Module
-    assert ScannerRegistry is ModuleRegistry
-
+def test_scanner_registration():
     scanner = Scanner("programs.git", description="Git version control")
     assert scanner.name == "programs.git"
     assert scanner.description == "Git version control"

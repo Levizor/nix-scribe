@@ -1,11 +1,11 @@
 import pytest
 
 from nix_scribe.lib.loader import ModuleLoader
-from nix_scribe.lib.registry import ModuleRegistry
+from nix_scribe.lib.registry import ScannerRegistry
 
 
 def test_plugin_loader_single_file(tmp_path):
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     saved = dict(registry._modules)
     registry.clear()
 
@@ -28,7 +28,7 @@ def test_plugin_loader_single_file(tmp_path):
 
 
 def test_plugin_loader_directory_without_init(tmp_path):
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     saved = dict(registry._modules)
     registry.clear()
 

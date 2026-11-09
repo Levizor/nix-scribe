@@ -1,8 +1,8 @@
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
 
 
 class ModuleScheduler:
     @staticmethod
-    def schedule(modules: dict[str, Module]) -> dict[str, Module]:
-        """Orders modules strictly by execution phase, with deterministic tie-breaking by module name."""
+    def schedule(modules: dict[str, Scanner]) -> dict[str, Scanner]:
+        """Orders scanners strictly by execution phase, with deterministic tie-breaking by scanner name."""
         return dict(sorted(modules.items(), key=lambda item: (item[1].phase, item[0])))

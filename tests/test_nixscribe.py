@@ -1,12 +1,12 @@
 from rich.console import Console
 
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
 from nix_scribe.nixscribe import NixScribe
 
 
 def test_nixscribe_injection():
     console = Console(quiet=True)
-    dummy_module = Module("test.dummy")
+    dummy_module = Scanner("test.dummy")
     modules = {"test.dummy": dummy_module}
 
     script = NixScribe(console=console, modules=modules)
@@ -36,7 +36,7 @@ def test_nixscribe_scan_module_claims_packages():
     class GitContract(NixModule, prefix="programs.git", claims={"git"}):
         enable: bool = option(default=False)
 
-    mod = Module("programs.git")
+    mod = Scanner("programs.git")
 
     @mod.scanner()
     def scan(context) -> GitContract:
@@ -74,7 +74,7 @@ def test_nixscribe_system_packages_claims_integration():
         "curl", DiscoveredPackage("curl", "debian", InstallReason.EXPLICIT)
     )
 
-    git_mod = Module("programs.git")
+    git_mod = Scanner("programs.git")
 
     @git_mod.scanner()
     def scan_git(context) -> Git:
@@ -129,7 +129,7 @@ def test_nixscribe_run_progress_and_debug_logging(tmp_path, caplog):
     class DummyContract(NixModule, prefix="programs.dummy"):
         enable: bool = option(default=False)
 
-    dummy_mod = Module("test.dummy")
+    dummy_mod = Scanner("test.dummy")
 
     @dummy_mod.scanner()
     def scan(context) -> DummyContract:
@@ -156,7 +156,7 @@ def test_nixscribe_scan_module_elevation_pause():
 
     from nix_scribe.lib.context import ElevationRequest
 
-    dummy_mod = Module("test.restricted")
+    dummy_mod = Scanner("test.restricted")
 
     @dummy_mod.scanner()
     def scan(context):
@@ -190,7 +190,7 @@ def test_nixscribe_run_dump_ir(tmp_path):
         option_val: str = option("option", default="")
         password: str = option(default="")
 
-    dummy_mod = Module("test.dummy")
+    dummy_mod = Scanner("test.dummy")
 
     @dummy_mod.scanner()
     def scan(context) -> DummyContract:
@@ -229,8 +229,8 @@ def test_nixscribe_print_summary(tmp_path):
     args.log_file.parent.mkdir(parents=True, exist_ok=True)
     args.log_file.write_text("log content", encoding="utf-8")
 
-    mod1 = Module("test.configured")
-    mod2 = Module("test.skipped")
+    mod1 = Scanner("test.configured")
+    mod2 = Scanner("test.skipped")
 
     string_io = StringIO()
     console = Console(file=string_io, force_terminal=False, color_system=None)
