@@ -4,6 +4,7 @@ from typing import Any
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_writer import combination, comment, nix_with, raw
+from nix_scribe.lib.option_block import NixValue
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
     PackageState,
@@ -123,6 +124,9 @@ def scan(context: SystemContext) -> SystemPackages | None:
     mod.add_asset(Asset("packages.log", report))
 
     if items:
-        mod.systemPackages = nix_with("pkgs", items)
+        mod.systemPackages = NixValue(
+            nix_with("pkgs", items),
+            comment="See packages.log for the full package mapping report and unmapped packages.",
+        )
 
     return mod

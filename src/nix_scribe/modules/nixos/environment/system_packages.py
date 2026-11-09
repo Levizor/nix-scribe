@@ -11,5 +11,4 @@ class SystemPackages(NixModule, prefix="environment"):
     systemPackages: Any = option(
         default=None,
         arguments={"pkgs"},
-        comment="See packages.log for the full package mapping report and unmapped packages.",
     )
