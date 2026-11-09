@@ -4,9 +4,8 @@ import os
 import platform
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from rich import box
 from rich.console import Console
@@ -22,17 +21,16 @@ from rich.progress import (
 from rich.table import Table
 from rich.tree import Tree
 
+from nix_scribe.cli.arguments import args, confirm
+from nix_scribe.lib.context import ElevationRequest, SystemContext
 from nix_scribe.lib.emitter import emit_nix_fragment
 from nix_scribe.lib.ir_serializer import save_ir_to_file
 from nix_scribe.lib.modularization import ModularizationLevel
+from nix_scribe.lib.nix_fragment import NixFragment
 from nix_scribe.lib.nix_module import NixModule
-from nix_scribe.lib.option_block import ConfigFragment, NixFragment
-
-from .arguments import args, confirm
-from .lib.context import ElevationRequest, SystemContext
-from .lib.nixfile import NixFile
-from .lib.registry import Module
-from .lib.scheduler import ModuleScheduler
+from nix_scribe.lib.nixfile import NixFile
+from nix_scribe.lib.registry import Module
+from nix_scribe.lib.scheduler import ModuleScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +38,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModuleResult:
     module: Module
-    scan_data: Any = field(default_factory=dict)
-    map_data: ConfigFragment | NixFragment | None = None
+    scan_data: NixModule | None = None
+    map_data: NixFragment | None = None
 
 
 class NixScribe:
@@ -86,44 +84,15 @@ class NixScribe:
 
         total_modules = len(self.modules)
         scan_duration = time.perf_counter() - scan_start
-        logger.info(
-            "Finished system scan in %.2fs (%d modules scanned)",
-            scan_duration,
-            total_modules,
-        )
-
-        map_start = time.perf_counter()
-        logger.info("Mapping scanned data to nix option blocks...")
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            TimeElapsedColumn(),
-            console=self.console,
-            transient=True,
-        ) as progress:
-            map_task = progress.add_task(
-                "[bold cyan]Mapping configuration[/]", total=len(self.results)
-            )
-            for result in self.results.values():
-                progress.update(
-                    map_task,
-                    description=f"[bold cyan]Mapping configuration[/] [dim]({result.module.name})[/]",
-                )
-                self._map_module(result)
-                progress.advance(map_task)
-
-        map_duration = time.perf_counter() - map_start
         configured_modules = sum(
             1 for r in self.results.values() if r.map_data is not None
         )
         logger.info(
-            "Finished mapping stage in %.2fs (%d configured, %d skipped)",
-            map_duration,
+            "Finished system scan in %.2fs (%d scanned, %d configured, %d skipped)",
+            scan_duration,
+            total_modules,
             configured_modules,
-            len(self.modules) - configured_modules,
+            total_modules - configured_modules,
         )
 
         logger.info("Writing configuration...")
@@ -297,25 +266,6 @@ class NixScribe:
                 any(option_file.imports) or any(option_file.document._index)
             ):
                 self.root_file.add_import(option_file)
-
-    def _map_module(self, result: ModuleResult):
-        """
-        Runs a mapper and stores an option block
-        """
-        if result.map_data is not None:
-            return
-
-        mod = result.module
-        if not mod.map:
-            return
-
-        try:
-            result.map_data = mod.map(result.scan_data)
-            if result.map_data and result.map_data.claims:
-                self.context.packages.claim(*result.map_data.claims, by=mod.name)
-            logger.debug(f"Mapped {mod.name}")
-        except Exception as e:
-            logger.error(f"Failed mapping {mod.name}: {e}")
 
     def _scan_module(self, result: ModuleResult, progress: Progress | None = None):
         """

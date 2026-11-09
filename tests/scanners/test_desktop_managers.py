@@ -1,5 +1,5 @@
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import NixFragment
+from nix_scribe.lib.nix_fragment import NixFragment
 from nix_scribe.modules.nixos.services.desktopManager.cosmic import COSMIC_PACKAGES
 from nix_scribe.modules.nixos.services.desktopManager.gnome import GNOME_PACKAGES
 from nix_scribe.modules.nixos.services.desktopManager.plasma6 import PLASMA6_PACKAGES

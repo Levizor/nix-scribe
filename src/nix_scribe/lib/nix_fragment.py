@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from .asset import Asset
-from .nix_writer import raw
+from nix_scribe.lib.asset import Asset
 
 
 def combined_comments(*args: str | None) -> str | None:
@@ -98,80 +97,6 @@ class NixFragment:
 
     def __iter__(self):
         return iter(self.options)
-
-
-class ConfigFragment:
-    def __init__(
-        self,
-        name: str,
-        description: str = "",
-        data: dict[str, Any] | None = None,
-        arguments: set[str] | None = None,
-        assets: set[Asset] | None = None,
-        claims: set[str] | None = None,
-    ):
-        self.name = name
-        self.description = description
-        self.options: dict[str, NixValue] = {}
-        self.arguments = arguments if arguments else set()
-        self.assets = assets if assets else set()
-        self.claims: set[str] = set(claims) if claims else set()
-
-        if data:
-            for k, v in data.items():
-                self.add_option(k, v)
-
-    def claim(self, *packages: str) -> None:
-        """Declares one or more package attribute names claimed by this fragment."""
-        self.claims.update(packages)
-
-    def add_asset(self, asset: Asset) -> None:
-        """Registers an asset to be saved alongside this configuration fragment."""
-        self.assets.add(asset)
-
-    def add_option(self, key: str, value: Any, comment: str | None = None) -> None:
-        self._inspect_value(value)
-        if isinstance(value, NixValue):
-            self.options[key] = value
-        else:
-            self.options[key] = NixValue(value=value, comment=comment)
-
-    def _inspect_value(self, value: Any) -> None:
-        """
-        Recursively finds and registers assets and arguments in the value being set
-        """
-        if isinstance(value, Asset):
-            self.assets.add(value)
-        elif isinstance(value, raw):
-            text = str(value)
-            if "pkgs" in text:
-                self.arguments.add("pkgs")
-            if "lib" in text:
-                self.arguments.add("lib")
-            if "config" in text:
-                self.arguments.add("config")
-        elif isinstance(value, dict):
-            for v in value.values():
-                self._inspect_value(v)
-        elif isinstance(value, list):
-            for v in value:
-                self._inspect_value(v)
-
-    def __setitem__(self, key: str | tuple[str, str], value: Any) -> None:
-        """
-        Standard assignment: fragment["key"] = value
-        With comment: fragment["key", "comment"] = value
-        """
-        if isinstance(key, tuple):
-            if len(key) != 2:
-                raise ValueError(f"Invalid key tuple {key}. Expected: (key, comment)")
-            actual_key, comment = key
-            self.add_option(key=actual_key, value=value, comment=comment)
-        else:
-            self.add_option(key, value)
-
-    def __getitem__(self, key: str) -> Any:
-        return self.options.__getitem__(key)
 
 
 class DocumentNode:

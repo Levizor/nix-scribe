@@ -3,8 +3,8 @@ from typing import Any
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.nix_fragment import NixValue
 from nix_scribe.lib.nix_writer import combination, comment, nix_with, raw
-from nix_scribe.lib.option_block import NixValue
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
     PackageState,

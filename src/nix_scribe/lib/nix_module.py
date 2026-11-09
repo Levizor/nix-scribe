@@ -5,10 +5,10 @@ from dataclasses import MISSING, Field, dataclass, field, fields
 from typing import TYPE_CHECKING, Any, ClassVar, cast, dataclass_transform
 
 from nix_scribe.lib.asset import Asset
-from nix_scribe.lib.option_block import NixValue
+from nix_scribe.lib.nix_fragment import NixValue
 
 if TYPE_CHECKING:
-    from nix_scribe.lib.option_block import NixFragment
+    from nix_scribe.lib.nix_fragment import NixFragment
 
 
 @dataclass(frozen=True, slots=True)

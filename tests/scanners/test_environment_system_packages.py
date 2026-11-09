@@ -1,9 +1,9 @@
 import pytest
 
 from nix_scribe.lib.context import SystemContext
+from nix_scribe.lib.nix_fragment import NixFragment
 from nix_scribe.lib.nix_writer import NixWriter
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import NixFragment
 from nix_scribe.lib.packages import (
     DiscoveredPackage,
     InstallReason,

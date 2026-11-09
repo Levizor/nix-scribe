@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import MISSING, Field
 from typing import Any
 
+from nix_scribe.lib.nix_fragment import NixFragment, NixValue, combined_comments
 from nix_scribe.lib.nix_module import (
     NixModule,
     get_option_metadata,
 )
-from nix_scribe.lib.option_block import NixFragment, NixValue, combined_comments
 
 
 def should_omit(f: Field[Any], val: Any, keep_defaults: bool = False) -> bool:

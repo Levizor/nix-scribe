@@ -18,7 +18,7 @@ Repository = "https://github.com/Levizor/nix-scribe"
 Issues = "https://github.com/Levizor/nix-scribe/issues"
 
 [project.scripts]
-"nix-scribe" = "nix_scribe.main:app"
+"nix-scribe" = "nix_scribe.cli.main:app"
 
 [dependency-groups]
 dev = ["pytest>=8.4.2,<9.0.0", "ruff>=0.14.3,<0.15.0", "pre-commit"]

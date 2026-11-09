@@ -3,8 +3,8 @@ from pathlib import Path
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.modularization import ModularizationLevel
+from nix_scribe.lib.nix_fragment import NixFragment, NixValue
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import ConfigFragment
 
 
 def setup_test_hierarchy():
@@ -12,14 +12,16 @@ def setup_test_hierarchy():
     net = NixFile("networking")
 
     firewall = NixFile("firewall")
-    fw_block = ConfigFragment("firewall")
     fw_asset = Asset("firewall.conf", "# firewall configuration\n")
-    fw_block["config"] = fw_asset
+    fw_block = NixFragment(
+        "firewall",
+        options={"config": NixValue(fw_asset)},
+        assets={fw_asset},
+    )
     firewall.add_fragment(fw_block)
 
     nm = NixFile("networkmanager")
-    nm_block = ConfigFragment("networkmanager")
-    nm_block["enable"] = True
+    nm_block = NixFragment("networkmanager", options={"enable": NixValue(True)})
     nm.add_fragment(nm_block)
 
     return root, net, firewall, nm
@@ -81,9 +83,8 @@ def test_save_component_level():
 def test_save_content_asset_modularized():
     root = NixFile("configuration")
     module = NixFile("packages")
-    frag = ConfigFragment("system-packages")
     asset = Asset("packages.log", "audit report")
-    frag.add_asset(asset)
+    frag = NixFragment("system-packages", assets={asset})
     module.add_fragment(frag)
     root.add_import(module)
 

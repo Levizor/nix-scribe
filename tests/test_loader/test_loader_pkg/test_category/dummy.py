@@ -1,13 +1,8 @@
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
 
-dummy = Module("dummy")
+dummy = Scanner("dummy")
 
 
 @dummy.scanner()
 def scan(context):
-    return {}
-
-
-@dummy.mapper()
-def map(ir):
     return None

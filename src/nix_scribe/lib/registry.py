@@ -10,13 +10,11 @@ from rich.tree import Tree
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_module import NixModule
-from nix_scribe.lib.option_block import ConfigFragment
 
 ContextT = TypeVar("ContextT", bound=Any, default=SystemContext)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-ScanResult = NixModule | dict[str, Any] | None
+ScanResult = NixModule | None
 ScannerFunc = Callable[[ContextT], ScanResult]
-MapperFunc = Callable[[dict[str, Any]], ConfigFragment | None]
 
 
 @dataclass(frozen=True)
@@ -105,7 +103,6 @@ class Scanner(Generic[ContextT]):
         self.phase = phase
         self.description = description
         self.scan: Callable[..., Any] | None = None
-        self.map: MapperFunc | None = None
         ModuleRegistry().register(self)
 
     def scanner(self) -> Callable[[FuncT], FuncT]:
@@ -113,15 +110,6 @@ class Scanner(Generic[ContextT]):
 
         def decorator(func: FuncT) -> FuncT:
             self.scan = func
-            return func
-
-        return decorator
-
-    def mapper(self) -> Callable[[FuncT], FuncT]:
-        """Decorator to register the mapper function."""
-
-        def decorator(func: FuncT) -> FuncT:
-            self.map = func
             return func
 
         return decorator

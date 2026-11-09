@@ -65,25 +65,33 @@ def test_ir_json_encoder():
 
 
 def test_dump_ir_to_dict_and_save_to_file(tmp_path):
-    from nix_scribe.lib.registry import Module
+    from nix_scribe.lib.nix_module import NixModule, option
+    from nix_scribe.lib.registry import Scanner
 
-    mod1 = Module("boot.loader.systemd-boot")
-    mod2 = Module("users.users")
-    mod3 = Module("empty.module")
+    class SystemdBoot(NixModule, prefix="boot.loader.systemd-boot"):
+        enable: bool = option(default=False)
+        timeout: int | None = option()
 
-    res1 = ModuleResult(module=mod1, scan_data={"enable": True, "timeout": 5})
+    class Users(NixModule, prefix="users"):
+        users: dict = option(default={})
+
+    mod1 = Scanner("boot.loader.systemd-boot")
+    mod2 = Scanner("users.users")
+    mod3 = Scanner("empty.module")
+
+    res1 = ModuleResult(module=mod1, scan_data=SystemdBoot(enable=True, timeout=5))
     res2 = ModuleResult(
         module=mod2,
-        scan_data={
-            "users": {
+        scan_data=Users(
+            users={
                 "root": {
                     "hashedPassword": "$6$dummyhash",
                     "shell": "/bin/bash",
                 }
             }
-        },
+        ),
     )
-    res3 = ModuleResult(module=mod3, scan_data={})
+    res3 = ModuleResult(module=mod3, scan_data=None)
 
     results = {
         "boot.loader.systemd-boot": res1,
