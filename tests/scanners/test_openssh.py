@@ -1,5 +1,5 @@
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.modules.services.openssh import map as map_openssh, scan as scan_openssh
+from nix_scribe.scanners.services.openssh import scan as scan_openssh
 
 
 def _enable_sshd_service(tmp_path):
@@ -14,11 +14,8 @@ def _enable_sshd_service(tmp_path):
 
 def test_openssh_service_disabled(tmp_path):
     ctx = SystemContext(root=tmp_path)
-    ir = scan_openssh(ctx)
-    assert ir == {}
-
-    fragment = map_openssh(ir)
-    assert fragment is None
+    mod = scan_openssh(ctx)
+    assert mod is None
 
 
 def test_openssh_service_enabled_with_config(tmp_path):
@@ -34,20 +31,21 @@ def test_openssh_service_enabled_with_config(tmp_path):
     )
 
     ctx = SystemContext(root=tmp_path)
-    ir = scan_openssh(ctx)
+    mod = scan_openssh(ctx)
 
-    assert ir["enable"] is True
-    assert ir["ports"] == [2222]
-    assert ir["settings"]["PermitRootLogin"] == "prohibit-password"
-    assert ir["settings"]["PasswordAuthentication"] is False
-    assert ir["hostKeys"] == [
+    assert mod is not None
+    assert mod.enable is True
+    assert mod.ports == [2222]
+    assert mod.settings["PermitRootLogin"] == "prohibit-password"
+    assert mod.settings["PasswordAuthentication"] is False
+    assert mod.hostKeys == [
         {"path": "/etc/ssh/ssh_host_ed25519_key", "type": "ed25519"}
     ]
 
-    fragment = map_openssh(ir)
+    fragment = mod.to_nix_fragment()
     assert fragment is not None
     assert fragment.name == "openssh"
-    assert fragment.claims == {"openssh"}
+    assert mod.resolve_claims() == {"openssh"}
     assert fragment["services.openssh"].value == {
         "enable": True,
         "ports": [2222],
@@ -69,9 +67,10 @@ def test_openssh_service_config_directory(tmp_path):
     (config_d / "custom.conf").write_text("X11Forwarding yes\nBanner /etc/issue\n")
 
     ctx = SystemContext(root=tmp_path)
-    ir = scan_openssh(ctx)
+    mod = scan_openssh(ctx)
 
-    assert ir["enable"] is True
-    assert ir["ports"] == [22]
-    assert ir["settings"]["X11Forwarding"] is True
-    assert ir["settings"]["Banner"] == "/etc/issue"
+    assert mod is not None
+    assert mod.enable is True
+    assert mod.ports == [22]
+    assert mod.settings["X11Forwarding"] is True
+    assert mod.settings["Banner"] == "/etc/issue"

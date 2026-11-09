@@ -64,14 +64,14 @@ def test_nixscribe_map_module_claims_packages():
 
 
 def test_nixscribe_system_packages_claims_integration():
-    from nix_scribe.lib.option_block import ConfigFragment
     from nix_scribe.lib.packages import (
         DiscoveredPackage,
         InstallReason,
         PackageState,
         ResolvedPackage,
     )
-    from nix_scribe.modules.environment.system_packages import system_packages
+    from nix_scribe.modules.nixos.programs.git import Git
+    from nix_scribe.scanners.environment.system_packages import system_packages
 
     console = Console(quiet=True)
     git_pkg = ResolvedPackage(
@@ -84,16 +84,8 @@ def test_nixscribe_system_packages_claims_integration():
     git_mod = Module("programs.git")
 
     @git_mod.scanner()
-    def scan_git(context):
-        return {"enable": True}
-
-    @git_mod.mapper()
-    def map_git(ir):
-        return ConfigFragment(
-            name="git",
-            data={"programs.git.enable": True},
-            claims={"git"},
-        )
+    def scan_git(context) -> Git:
+        return Git(enable=True)
 
     script = NixScribe(
         console=console,
@@ -108,15 +100,11 @@ def test_nixscribe_system_packages_claims_integration():
     for res in script.results.values():
         script._scan_module(res)
 
-    # Map phase
-    for res in script.results.values():
-        script._map_module(res)
-
     sys_res = script.results["environment.system_packages"]
     assert sys_res.map_data is not None
     rendered_options = sys_res.map_data.options
-    assert "environment.systemPackages" in rendered_options
-    # Only curl should be in environment.systemPackages because git was claimed during map
+    assert "environment" in rendered_options
+    # Only curl should be in environment.systemPackages because git was claimed during scan
     assert script.context.packages.is_claimed("git")
     assert not script.context.packages.is_claimed("curl")
 
@@ -354,7 +342,7 @@ def test_nixscribe_single_stage_nix_module(tmp_path):
         ResolvedPackage,
     )
     from nix_scribe.lib.registry import Scanner
-    from nix_scribe.modules.environment.system_packages import system_packages
+    from nix_scribe.scanners.environment.system_packages import system_packages
 
     args.output_path = tmp_path / "nix-out"
     args.dump_ir = True
