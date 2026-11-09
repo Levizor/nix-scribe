@@ -4,17 +4,21 @@ from typing import Any
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_writer import combination, comment, nix_with, raw
-from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
     PackageState,
     ResolvedPackage,
 )
-from nix_scribe.lib.registry import Module, ModulePhase
+from nix_scribe.lib.registry import ModulePhase, Scanner
+from nix_scribe.modules.nixos.environment.system_packages import SystemPackages
 
 logger = logging.getLogger(__name__)
 
-system_packages = Module("environment.system_packages", phase=ModulePhase.LATE)
+system_packages = Scanner(
+    "environment.system_packages",
+    phase=ModulePhase.LATE,
+    description="System-wide packages",
+)
 
 
 def _format_package_item(
@@ -41,7 +45,7 @@ def _build_packages_report(
             by = state.claimed_by(p.name)
             if by:
                 return f"{base} (claimed by {by})"
-        return base
+        return str(base)
 
     sections = [
         ("User-installed packages:", [_format_package_item(p) for p in explicit]),
@@ -61,18 +65,8 @@ def _build_packages_report(
 
 
 @system_packages.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
-    return {
-        "packages": context.packages,
-    }
-
-
-@system_packages.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir or not ir.get("packages"):
-        return None
-
-    state: PackageState = ir["packages"]
+def scan(context: SystemContext) -> SystemPackages | None:
+    state: PackageState = context.packages
     if not state.resolved and not state.unmapped:
         return None
 
@@ -106,7 +100,6 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         unmapped=unmapped,
         state=state,
     )
-    asset = Asset("packages.log", report)
 
     items: list[Any] = []
 
@@ -126,17 +119,10 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         for pkg in preinstalled:
             items.append(comment(str(_format_package_item(pkg))))
 
-    fragment = ConfigFragment(
-        name="system-packages",
-        description="System-wide packages",
-        assets={asset},
-    )
+    mod = SystemPackages()
+    mod.add_asset(Asset("packages.log", report))
 
     if items:
-        fragment.add_option(
-            "environment.systemPackages",
-            nix_with("pkgs", items),
-            comment="See packages.log for the full package mapping report and unmapped packages.",
-        )
+        mod.systemPackages = nix_with("pkgs", items)
 
-    return fragment
+    return mod

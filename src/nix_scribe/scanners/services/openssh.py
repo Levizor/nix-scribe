@@ -2,14 +2,17 @@ import logging
 from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.openssh import parse_openssh_config
 from nix_scribe.lib.parsers.parser import ConfigReader
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
+from nix_scribe.modules.nixos.services.openssh import OpenSSH
 
 logger = logging.getLogger(__name__)
 
-openssh = Module("services.openssh")
+openssh = Scanner(
+    "services.openssh",
+    description="OpenSSH Secure Shell Service",
+)
 
 SSHD_CONFIG_PATHS = [
     "/etc/ssh/sshd_config",
@@ -45,11 +48,11 @@ def _infer_key_type(path: str) -> str:
 
 
 @openssh.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
+def scan(context: SystemContext) -> OpenSSH | None:
     if not context.systemctl.is_enabled("sshd"):
-        return {}
+        return None
 
-    ir: dict[str, Any] = {"enable": True}
+    mod = OpenSSH(enable=True, ports=[])
 
     raw_config: dict[str, Any] = {}
     try:
@@ -58,15 +61,13 @@ def scan(context: SystemContext) -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to read sshd configuration: {e}")
 
-    # Extract ports
     if "Port" in raw_config:
         ports_raw = raw_config["Port"]
         if isinstance(ports_raw, list):
-            ir["ports"] = [int(p) for p in ports_raw if str(p).isdigit()]
+            mod.ports = [int(p) for p in ports_raw if str(p).isdigit()]
         elif str(ports_raw).isdigit():
-            ir["ports"] = [int(ports_raw)]
+            mod.ports = [int(ports_raw)]
 
-    # Extract HostKeys
     if "HostKey" in raw_config:
         keys_raw = raw_config["HostKey"]
         if not isinstance(keys_raw, list):
@@ -77,39 +78,14 @@ def scan(context: SystemContext) -> dict[str, Any]:
                 p = key_path.strip()
                 host_keys.append({"path": p, "type": _infer_key_type(p)})
         if host_keys:
-            ir["hostKeys"] = host_keys
+            mod.hostKeys = host_keys
 
-    # Extract settings
     settings: dict[str, Any] = {}
     for key, val in raw_config.items():
         if key in SETTINGS_KEYS:
             settings[key] = val
 
     if settings:
-        ir["settings"] = settings
+        mod.settings = settings
 
-    return ir
-
-
-@openssh.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir.get("enable"):
-        return None
-
-    config: dict[str, Any] = {"enable": True}
-
-    if "ports" in ir and ir["ports"]:
-        config["ports"] = ir["ports"]
-
-    if "hostKeys" in ir and ir["hostKeys"]:
-        config["hostKeys"] = ir["hostKeys"]
-
-    if "settings" in ir and ir["settings"]:
-        config["settings"] = ir["settings"]
-
-    return ConfigFragment(
-        name="openssh",
-        description="OpenSSH Secure Shell Service",
-        data={"services.openssh": config},
-        claims={"openssh"},
-    )
+    return mod

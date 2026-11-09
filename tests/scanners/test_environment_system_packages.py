@@ -3,7 +3,7 @@ import pytest
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_writer import NixWriter
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import ConfigFragment
+from nix_scribe.lib.option_block import NixFragment
 from nix_scribe.lib.packages import (
     DiscoveredPackage,
     InstallReason,
@@ -15,7 +15,7 @@ from nix_scribe.lib.packages import (
     set_package_resolver,
 )
 from nix_scribe.lib.registry import ModulePhase
-from nix_scribe.modules.environment.system_packages import system_packages
+from nix_scribe.scanners.environment.system_packages import system_packages
 from tests.mocks.mock_resolver import MockPackageResolver
 
 
@@ -35,10 +35,7 @@ def test_system_packages_module_metadata():
 
 def test_system_packages_scanner_empty(tmp_path):
     context = SystemContext(root=tmp_path)
-    ir = system_packages.scan(context)
-    assert isinstance(ir["packages"], PackageState)
-    assert ir["packages"].unclaimed == []
-    assert ir["packages"].unmapped == []
+    assert system_packages.scan(context) is None
 
 
 def test_system_packages_scanner_unclaimed_and_unmapped(tmp_path):
@@ -74,25 +71,22 @@ def test_system_packages_scanner_unclaimed_and_unmapped(tmp_path):
     # Simulate specialized module claiming docker in Phase 50
     assert context.packages.claim("docker") is True
 
-    ir = system_packages.scan(context)
-    assert isinstance(ir["packages"], PackageState)
-    package_names = [pkg.name for pkg in ir["packages"].unclaimed]
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
+    nix_file = NixFile("configuration")
+    nix_file.add_fragment(fragment)
+    output = nix_file.gettext()
 
-    assert "docker" not in package_names
-    assert "bat" in package_names
-    assert "ripgrep" in package_names
-    assert ir["packages"].unmapped == [
-        DiscoveredPackage("custom-tool", repository="aur")
-    ]
+    assert "docker" not in output
+    assert "bat" in output
+    assert "ripgrep" in output
 
-
-def test_system_packages_mapper_empty():
-    assert system_packages.map(None) is None
-    assert system_packages.map({}) is None
-    assert system_packages.map({"packages": PackageState.empty()}) is None
+    asset = next(iter(fragment.assets))
+    assert "custom-tool # from aur:custom-tool" in asset.content
 
 
-def test_system_packages_mapper_formatting():
+def test_system_packages_formatting(tmp_path):
     bat = ResolvedPackage(
         name="bat",
         original=DiscoveredPackage("batcat", repository="debian"),
@@ -107,14 +101,15 @@ def test_system_packages_mapper_formatting():
     )
     custom_cli = DiscoveredPackage("custom-cli", repository="debian")
 
-    ir = {
-        "packages": PackageState(packages=[bat, spotify, rg], unmapped=[custom_cli]),
-    }
+    context = SystemContext(root=tmp_path)
+    context.packages = PackageState(packages=[bat, spotify, rg], unmapped=[custom_cli])
 
-    fragment = system_packages.map(ir)
-    assert isinstance(fragment, ConfigFragment)
-    assert fragment.name == "system-packages"
-    assert "environment.systemPackages" in fragment.options
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
+    assert isinstance(fragment, NixFragment)
+    assert fragment.name == "system_packages"
+    assert "environment" in fragment.options
 
     assert len(fragment.assets) == 1
     asset = next(iter(fragment.assets))
@@ -139,15 +134,16 @@ def test_system_packages_mapper_formatting():
     assert "# unmapped: custom-cli" not in output
 
 
-def test_system_packages_mapper_unmapped_only():
+def test_system_packages_unmapped_only(tmp_path):
     orphan_tool = DiscoveredPackage("orphan-tool", repository="aur")
-    ir = {
-        "packages": PackageState(packages=[], unmapped=[orphan_tool]),
-    }
+    context = SystemContext(root=tmp_path)
+    context.packages = PackageState(packages=[], unmapped=[orphan_tool])
 
-    fragment = system_packages.map(ir)
-    assert isinstance(fragment, ConfigFragment)
-    assert "environment.systemPackages" not in fragment.options
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
+    assert isinstance(fragment, NixFragment)
+    assert "environment" not in fragment.options
 
     assert len(fragment.assets) == 1
     asset = next(iter(fragment.assets))
@@ -155,7 +151,7 @@ def test_system_packages_mapper_unmapped_only():
     assert "orphan-tool # from aur:orphan-tool" in asset.content
 
 
-def test_system_packages_mapper_divided_by_comments():
+def test_system_packages_divided_by_comments(tmp_path):
     curl = ResolvedPackage(
         name="curl",
         original=DiscoveredPackage(
@@ -169,12 +165,12 @@ def test_system_packages_mapper_divided_by_comments():
         ),
     )
 
-    ir = {
-        "packages": PackageState(packages=[curl, rg]),
-    }
+    context = SystemContext(root=tmp_path)
+    context.packages = PackageState(packages=[curl, rg])
 
-    fragment = system_packages.map(ir)
-    assert fragment is not None
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
 
     nix_file = NixFile("configuration")
     nix_file.add_fragment(fragment)
@@ -188,31 +184,31 @@ def test_system_packages_mapper_divided_by_comments():
     assert "# curl # from debian:curl" in output
 
 
-def test_system_packages_mapper_ignores_dependencies():
+def test_system_packages_ignores_dependencies(tmp_path):
     libssl = ResolvedPackage(
         name="openssl",
         original=DiscoveredPackage(
             "libssl3", repository="debian", reason=InstallReason.DEPENDENCY
         ),
     )
-    ir = {
-        "packages": PackageState(packages=[libssl]),
-    }
-    assert system_packages.map(ir) is None
+    context = SystemContext(root=tmp_path)
+    context.packages = PackageState(packages=[libssl])
+    assert system_packages.scan(context) is None
 
 
-def test_system_packages_mapper_unmapped_details_formatting():
+def test_system_packages_unmapped_details_formatting(tmp_path):
     pkg1 = DiscoveredPackage(
         "custom1", repository="ppa:test", reason=InstallReason.EXPLICIT
     )
     pkg2 = DiscoveredPackage(
         "custom2", repository="debian", reason=InstallReason.PREINSTALLED
     )
-    ir = {
-        "packages": PackageState(packages=[], unmapped=[pkg1, pkg2]),
-    }
-    fragment = system_packages.map(ir)
-    assert fragment is not None
+    context = SystemContext(root=tmp_path)
+    context.packages = PackageState(packages=[], unmapped=[pkg1, pkg2])
+
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
 
     assert len(fragment.assets) == 1
     asset = next(iter(fragment.assets))
@@ -220,7 +216,7 @@ def test_system_packages_mapper_unmapped_details_formatting():
     assert "custom2 # from debian:custom2" in asset.content
 
 
-def test_system_packages_full_report_generation():
+def test_system_packages_full_report_generation(tmp_path):
     curl = ResolvedPackage(
         name="curl",
         original=DiscoveredPackage(
@@ -254,9 +250,12 @@ def test_system_packages_full_report_generation():
     )
     state.claim("git", by="programs.git")
 
-    ir = {"packages": state}
-    fragment = system_packages.map(ir)
-    assert fragment is not None
+    context = SystemContext(root=tmp_path)
+    context.packages = state
+
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
 
     asset = next(iter(fragment.assets))
     report = asset.content
@@ -273,7 +272,7 @@ def test_system_packages_full_report_generation():
     assert "mytool # from ubuntu:mytool" in report
 
 
-def test_system_packages_mapper_no_comment(monkeypatch):
+def test_system_packages_no_comment(tmp_path, monkeypatch):
     monkeypatch.setattr("nix_scribe.lib.nix_writer.args.no_comment", True)
     rg = ResolvedPackage(
         name="ripgrep",
@@ -287,9 +286,12 @@ def test_system_packages_mapper_no_comment(monkeypatch):
             "curl", repository="debian", reason=InstallReason.PREINSTALLED
         ),
     )
-    ir = {"packages": PackageState(packages=[rg, curl])}
-    fragment = system_packages.map(ir)
-    assert fragment is not None
+    context = SystemContext(root=tmp_path)
+    context.packages = PackageState(packages=[rg, curl])
+
+    mod = system_packages.scan(context)
+    assert mod is not None
+    fragment = mod.to_nix_fragment(name="system_packages")
 
     nix_file = NixFile("configuration")
     nix_file.add_fragment(fragment)

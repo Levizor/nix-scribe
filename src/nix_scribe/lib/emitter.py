@@ -95,7 +95,7 @@ def _serialize_value(
         }
 
     if isinstance(val, (list, tuple, set)):
-        return [
+        items = [
             s
             for item in val
             if (
@@ -109,6 +109,9 @@ def _serialize_value(
             )
             is not None
         ]
+        if type(val) is not list and isinstance(val, list):
+            return type(val)(items)
+        return items
 
     return val
 

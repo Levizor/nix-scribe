@@ -1,11 +1,6 @@
-from typing import Any
+from __future__ import annotations
 
-from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import ConfigFragment
-from nix_scribe.lib.registry import Module
-
-gnome = Module("services.desktopManager.gnome")
-
+from nix_scribe.lib.nix_module import NixModule, option
 
 GNOME_PACKAGES: set[str] = {
     # Core shell & session
@@ -63,19 +58,11 @@ GNOME_PACKAGES: set[str] = {
 }
 
 
-@gnome.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
-    return {"enable": bool(context.find_executable_path("gnome-shell"))}
+class Gnome(
+    NixModule,
+    prefix="services.desktopManager.gnome",
+    claims=GNOME_PACKAGES,
+):
+    """Gnome desktop environment"""
 
-
-@gnome.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir.get("enable"):
-        return None
-
-    return ConfigFragment(
-        name="gnome",
-        description="Gnome desktop environment",
-        data={"services.desktopManager.gnome": {"enable": True}},
-        claims=GNOME_PACKAGES,
-    )
+    enable: bool = option(default=False)
