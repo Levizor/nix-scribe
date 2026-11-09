@@ -1,9 +1,9 @@
 name: Pytest & Build
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "refactor/**"]
   push:
-    branches: [main]
+    branches: [main, "refactor/**"]
 jobs:
   changes:
     name: Detect Changes
