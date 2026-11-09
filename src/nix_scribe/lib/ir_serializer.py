@@ -6,6 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from nix_scribe.lib.nix_module import NixModule
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
     PackageState,
@@ -51,6 +52,8 @@ class IRJSONEncoder(json.JSONEncoder):
                 "repository": obj.repository,
                 "reason": obj.reason.value,
             }
+        if isinstance(obj, NixModule):
+            return obj.to_dict(keep_defaults=True)
         if is_dataclass(obj) and not isinstance(obj, type):
             return asdict(obj)
         if isinstance(obj, Enum):
