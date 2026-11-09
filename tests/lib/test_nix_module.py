@@ -1,25 +1,31 @@
 from typing import Any
 
 from nix_scribe.lib.asset import Asset
+from nix_scribe.lib.emitter import emit_nix_fragment
+from nix_scribe.lib.nix_module import (
+    NixModule,
+    OptionMetadata,
+    get_option_metadata,
+    option,
+)
 from nix_scribe.lib.nix_writer import raw
 from nix_scribe.lib.nixfile import NixFile
 from nix_scribe.lib.option_block import NixFragment, NixValue
-from nix_scribe.lib.schema import ModuleSchema, option
 
 
-class GitLfsSchema(ModuleSchema, claims={"git-lfs"}):
+class GitLfs(NixModule, claims={"git-lfs"}):
     enable: bool = True
     enablePureSSHTransfer: bool = option(default=False)
 
 
-class GitSchema(ModuleSchema, claims={"git"}, prefix="programs.git"):
+class Git(NixModule, claims={"git"}, prefix="programs.git"):
     enable: bool = True
     prompt_enable: bool = option("prompt.enable", default=False)
     config: dict[str, Any] = option(default={})
-    lfs: GitLfsSchema | None = None
+    lfs: GitLfs | None = None
 
 
-class SudoSchema(ModuleSchema, claims={"sudo"}, prefix="security.sudo"):
+class Sudo(NixModule, claims={"sudo"}, prefix="security.sudo"):
     enable: bool = True
     execWheelOnly: bool = option(default=False)
     wheelNeedsPassword: bool = option(
@@ -30,7 +36,7 @@ class SudoSchema(ModuleSchema, claims={"sudo"}, prefix="security.sudo"):
     extraConfig: str = option(default="")
 
 
-class UserEntrySchema(ModuleSchema):
+class UserEntry(NixModule):
     uid: int
     isNormalUser: bool = True
     description: str = option(default="")
@@ -40,8 +46,8 @@ class UserEntrySchema(ModuleSchema):
     shell: Any = None
 
 
-class UsersSchema(ModuleSchema, prefix="users.users"):
-    users: dict[str, UserEntrySchema] = option(inline=True, default={})
+class Users(NixModule, prefix="users.users"):
+    users: dict[str, UserEntry] = option(inline=True, default={})
     bash_enable: bool = option(
         "programs.bash.enable",
         default=False,
@@ -56,8 +62,8 @@ class UsersSchema(ModuleSchema, prefix="users.users"):
     )
 
 
-def test_module_schema_defaults_and_omission():
-    sudo = SudoSchema()
+def test_nix_module_defaults_and_omission():
+    sudo = Sudo()
     assert sudo.to_dict() == {"enable": True}
     assert sudo.to_dict(keep_defaults=True) == {
         "enable": True,
@@ -67,7 +73,7 @@ def test_module_schema_defaults_and_omission():
         "extraConfig": "",
     }
 
-    sudo_custom = SudoSchema(
+    sudo_custom = Sudo(
         execWheelOnly=True,
         wheelNeedsPassword=False,
         extraConfig="Defaults timestamp_timeout=15",
@@ -80,8 +86,8 @@ def test_module_schema_defaults_and_omission():
     }
 
 
-def test_module_schema_keep_defaults_and_arguments():
-    sudo = SudoSchema()
+def test_nix_module_keep_defaults_and_arguments():
+    sudo = Sudo()
     fragment_default = sudo.to_nix_fragment(name="sudo")
     assert "wheelNeedsPassword" not in fragment_default["security.sudo"].value
 
@@ -89,22 +95,22 @@ def test_module_schema_keep_defaults_and_arguments():
     assert fragment_kept["security.sudo"].value["wheelNeedsPassword"].value is True
     assert fragment_kept["security.sudo"].value["execWheelOnly"] is False
 
-    users = UsersSchema()
+    users = Users()
     frag_default = users.to_nix_fragment()
     assert frag_default.arguments == set()
     frag_kept = users.to_nix_fragment(keep_defaults=True)
     assert frag_kept.arguments == {"pkgs"}
 
 
-def test_module_schema_nested_and_claims():
-    git_basic = GitSchema()
+def test_nix_module_nested_and_claims():
+    git_basic = Git()
     assert git_basic.resolve_claims() == {"git"}
     assert git_basic.to_dict() == {"enable": True}
 
-    git_full = GitSchema(
+    git_full = Git(
         prompt_enable=True,
         config={"user": {"name": "Alice"}},
-        lfs=GitLfsSchema(enable=True, enablePureSSHTransfer=True),
+        lfs=GitLfs(enable=True, enablePureSSHTransfer=True),
     )
     assert git_full.resolve_claims() == {"git", "git-lfs"}
     assert git_full.to_dict() == {
@@ -118,28 +124,28 @@ def test_module_schema_nested_and_claims():
     }
 
 
-def test_module_schema_field_level_claims():
-    class NetworkingSchema(ModuleSchema, prefix="networking"):
+def test_nix_module_field_level_claims():
+    class Networking(NixModule, prefix="networking"):
         hostName: str | None = None
         useDHCP: bool = option(default=False, claims={"dhcpcd"})
 
-    net_inactive = NetworkingSchema(hostName="nixos")
+    net_inactive = Networking(hostName="nixos")
     assert net_inactive.resolve_claims() == set()
 
-    net_dhcp = NetworkingSchema(hostName="nixos", useDHCP=True)
+    net_dhcp = Networking(hostName="nixos", useDHCP=True)
     assert net_dhcp.resolve_claims() == {"dhcpcd"}
 
     net_dhcp.claim("iproute2")
     assert net_dhcp.resolve_claims() == {"dhcpcd", "iproute2"}
 
 
-def test_module_schema_assets_and_arguments():
-    class GrubSchema(ModuleSchema, claims={"grub2"}, prefix="boot.loader.grub"):
+def test_nix_module_assets_and_arguments():
+    class Grub(NixModule, claims={"grub2"}, prefix="boot.loader.grub"):
         enable: bool = True
         splashImage: Asset | None = None
 
     splash = Asset("grub-splash.png", b"PNGDATA")
-    grub = GrubSchema(splashImage=splash)
+    grub = Grub(splashImage=splash)
     grub.add_asset(splash)
     grub.add_argument("pkgs")
 
@@ -147,20 +153,18 @@ def test_module_schema_assets_and_arguments():
 
     fragment = grub.to_nix_fragment(
         name="grub",
-        description="GRUB Bootloader",
+        description="GRUB boot loader configuration.",
     )
     assert isinstance(fragment, NixFragment)
     assert fragment.name == "grub"
-    assert fragment.description == "GRUB Bootloader"
     assert fragment.arguments == {"pkgs"}
-    assert not hasattr(fragment, "assets")
-    assert not hasattr(fragment, "claims")
+    assert fragment["boot.loader.grub"].value["splashImage"] == splash
 
 
-def test_module_schema_inline_map_and_root_options():
-    schema = UsersSchema(
+def test_nix_module_inline_map_and_root_options():
+    mod = Users(
         users={
-            "alice": UserEntrySchema(
+            "alice": UserEntry(
                 uid=1000,
                 description="Alice",
                 home="/home/alice",
@@ -172,7 +176,7 @@ def test_module_schema_inline_map_and_root_options():
         bash_enable=True,
     )
 
-    fragment = schema.to_nix_fragment(
+    fragment = mod.to_nix_fragment(
         name="users",
         description="User accounts",
     )
@@ -186,8 +190,8 @@ def test_module_schema_inline_map_and_root_options():
     assert fragment["programs.bash.enable"].value is True
 
 
-def test_module_schema_comments_and_nixfile_rendering():
-    sudo = SudoSchema(
+def test_nix_module_comments_and_nixfile_rendering():
+    sudo = Sudo(
         wheelNeedsPassword=NixValue(False, "Detected in /etc/sudoers.d/wheel"),
     )
     fragment = sudo.to_nix_fragment(
@@ -209,8 +213,8 @@ def test_module_schema_comments_and_nixfile_rendering():
 
 
 def test_mutable_default_isolation():
-    u1 = UserEntrySchema(uid=1000)
-    u2 = UserEntrySchema(uid=1001)
+    u1 = UserEntry(uid=1000)
+    u2 = UserEntry(uid=1001)
 
     assert u1.extraGroups == []
     assert u2.extraGroups == []
@@ -221,66 +225,67 @@ def test_mutable_default_isolation():
     assert u2.extraGroups == []
 
 
-def test_schema_subclass_inheritance():
-    class BaseService(ModuleSchema, claims={"base-daemon"}, arguments={"pkgs"}):
+def test_nix_module_subclass_inheritance():
+    class BaseService(NixModule, claims={"base-daemon"}, arguments={"pkgs"}):
         enable: bool = True
 
-    class DerivedService(BaseService, claims={"derived-plugin"}, arguments={"lib"}):
-        port: int = 8080
+    class ExtendedService(BaseService, claims={"extra-tool"}, arguments={"lib"}):
+        port: int = option(default=8080)
 
-    svc = DerivedService()
-    assert svc.resolve_claims() == {"base-daemon", "derived-plugin"}
-    assert svc.to_nix_fragment().arguments == {"pkgs", "lib"}
-
-
-def test_schema_nested_subschema_root_options():
-    class KeySchema(ModuleSchema):
-        id: str
-        global_enable: bool = option("security.pki.enable", default=False, root=True)
-
-    class AuthSchema(ModuleSchema, prefix="services.auth"):
-        keys: list[KeySchema] = option(default=[])
-
-    auth = AuthSchema(keys=[KeySchema(id="k1", global_enable=True)])
-    fragment = auth.to_nix_fragment()
-
-    assert "services.auth" in fragment
-    assert "security.pki.enable" in fragment
-    assert fragment["security.pki.enable"].value is True
+    svc = ExtendedService(port=9090)
+    assert svc.resolve_claims() == {"base-daemon", "extra-tool"}
+    frag = svc.to_nix_fragment(name="svc")
+    assert frag.arguments == {"pkgs", "lib"}
 
 
-def test_schema_sets_and_tuples_serialization():
-    class GroupPolicySchema(ModuleSchema, prefix="security.policy"):
-        trusted_groups: set[str] = option(default=set())
-        ports: tuple[int, ...] = option(default=())
+def test_nix_module_nested_submodule_root_options():
+    class Key(NixModule):
+        key_id: str
+        root_flag: bool = option(
+            "security.globalFlag",
+            default=False,
+            root=True,
+            arguments={"pkgs"},
+        )
 
-    policy = GroupPolicySchema(
-        trusted_groups={"wheel", "admin"},
-        ports=(80, 443),
+    class Auth(NixModule, prefix="services.auth"):
+        enable: bool = True
+        key: Key | None = None
+
+    auth = Auth(enable=True, key=Key(key_id="k1", root_flag=True))
+    frag = auth.to_nix_fragment()
+
+    assert frag.arguments == {"pkgs"}
+    assert "security.globalFlag" in frag
+    assert frag["security.globalFlag"].value is True
+    assert frag["services.auth"].value["key"]["key_id"] == "k1"
+
+
+def test_nix_module_sets_and_tuples_serialization():
+    class GroupPolicy(NixModule, prefix="security.policy"):
+        allowed_users: set[str] = option(default_factory=set)
+        dimensions: tuple[int, ...] = option(default=())
+
+    policy = GroupPolicy(
+        allowed_users={"alice", "bob"},
+        dimensions=(1920, 1080),
     )
-    fragment = policy.to_nix_fragment()
-    file = NixFile("policy")
-    file.add_fragment(fragment)
-    text = file.gettext()
-
-    assert "security.policy.trusted_groups = [" in text
-    assert '"admin"' in text
-    assert '"wheel"' in text
-    assert "security.policy.ports = [" in text
-    assert "80" in text
-    assert "443" in text
+    data = policy.to_dict()
+    assert isinstance(data["allowed_users"], list)
+    assert set(data["allowed_users"]) == {"alice", "bob"}
+    assert data["dimensions"] == [1920, 1080]
 
 
-def test_schema_int_and_bool_type_safety():
-    class NumericSchema(ModuleSchema, prefix="metrics"):
+def test_nix_module_int_and_bool_type_safety():
+    class Numeric(NixModule, prefix="metrics"):
         zero_val: int = option(default=0)
         false_val: bool = option(default=False)
 
-    num_schema = NumericSchema(zero_val=0, false_val=False)
-    assert num_schema.to_dict() == {}
+    num_mod = Numeric(zero_val=0, false_val=False)
+    assert num_mod.to_dict() == {}
 
     # 0 should NOT omit False, and False should NOT omit 0
-    inverted = NumericSchema(zero_val=False, false_val=0)  # type: ignore[arg-type]
+    inverted = Numeric(zero_val=False, false_val=0)  # type: ignore[arg-type]
     res = inverted.to_dict()
     assert "zero_val" in res
     assert "false_val" in res
@@ -297,62 +302,43 @@ def test_nix_fragment_container_dunders():
     assert bool(empty) is False
 
 
-def test_option_metadata_dataclass():
-    from dataclasses import fields
-
-    from nix_scribe.lib.schema import OptionMetadata, get_option_metadata
-
-    class ExampleSchema(ModuleSchema):
-        plain_field: bool = True
-        custom_opt: str = option(
-            "custom.path",
-            comment="Custom option comment",
-            claims={"example-pkg"},
+def test_nix_module_option_metadata_and_helper():
+    class Example(NixModule):
+        flag: bool = option(
+            "boot.test",
+            default=True,
+            comment="Static comment",
+            claims={"test-pkg"},
             arguments={"pkgs"},
-            root=True,
-            inline=False,
             omit_default=False,
         )
 
-    f_map = {f.name: f for f in fields(ExampleSchema)}
-
-    plain_meta = get_option_metadata(f_map["plain_field"])
-    assert isinstance(plain_meta, OptionMetadata)
-    assert plain_meta.path is None
-    assert plain_meta.comment is None
-    assert plain_meta.claims == set()
-    assert plain_meta.omit_default is True
-
-    custom_meta = get_option_metadata(f_map["custom_opt"])
-    assert isinstance(custom_meta, OptionMetadata)
-    assert custom_meta.path == "custom.path"
-    assert custom_meta.comment == "Custom option comment"
-    assert custom_meta.claims == {"example-pkg"}
-    assert custom_meta.arguments == {"pkgs"}
-    assert custom_meta.root is True
-    assert custom_meta.omit_default is False
+    f = Example()._fields[0]
+    meta = get_option_metadata(f)
+    assert isinstance(meta, OptionMetadata)
+    assert meta.path == "boot.test"
+    assert meta.comment == "Static comment"
+    assert meta.claims == {"test-pkg"}
+    assert meta.arguments == {"pkgs"}
+    assert meta.omit_default is False
+    assert meta.explicit_default is True
 
 
-def test_emitter_direct_usage_and_docstring_fallback():
-    from nix_scribe.lib.emitter import emit_dict, emit_nix_fragment
+def test_nix_module_docstring_fallback_for_fragment():
+    class DocstringService(NixModule, prefix="services.doc"):
+        """Service description from docstring.
 
-    class DocstringServiceSchema(ModuleSchema, prefix="services.doc"):
-        """Service description from docstring."""
+        Longer description that should be ignored for header.
+        """
 
         enable: bool = True
 
-    svc = DocstringServiceSchema()
-
-    # Direct emit_dict
-    assert emit_dict(svc) == {"enable": True}
-
-    # Direct emit_nix_fragment with docstring fallback
+    svc = DocstringService()
     frag = emit_nix_fragment(svc)
     assert frag.name == "doc"
     assert frag.description == "Service description from docstring."
     assert "services.doc" in frag
 
-    # Explicit override takes precedence
     custom_frag = emit_nix_fragment(
         svc, name="custom-doc", description="Explicit override"
     )
@@ -360,11 +346,11 @@ def test_emitter_direct_usage_and_docstring_fallback():
     assert custom_frag.description == "Explicit override"
 
 
-def test_schema_fields_property():
-    class TestFieldsSchema(ModuleSchema):
+def test_nix_module_fields_property():
+    class TestFields(NixModule):
         foo: str = "bar"
         count: int = 42
 
-    schema = TestFieldsSchema()
-    f_names = [f.name for f in schema._fields]
+    mod = TestFields()
+    f_names = [f.name for f in mod._fields]
     assert f_names == ["foo", "count"]

@@ -52,7 +52,7 @@ def option(
     omit_default: bool = True,
     **kwargs: Any,
 ) -> Any:
-    """Declares a ModuleSchema field with NixOS option metadata."""
+    """Declares a NixModule field with Nix option metadata."""
     metadata = dict(kwargs.pop("metadata", {}))
     has_explicit_default = default is not MISSING or default_factory is not MISSING
     metadata["nix_option"] = OptionMetadata(
@@ -86,28 +86,28 @@ def option(
     return field(default=None, metadata=metadata, **kwargs)
 
 
-def _collect_subschemas(val: Any) -> list[ModuleSchema]:
-    """Recursively extracts all active child ModuleSchema instances from an option value."""
+def _collect_submodules(val: Any) -> list[NixModule]:
+    """Recursively extracts all active child NixModule instances from an option value."""
     if isinstance(val, NixValue):
-        return _collect_subschemas(val.value)
-    if isinstance(val, ModuleSchema):
+        return _collect_submodules(val.value)
+    if isinstance(val, NixModule):
         return [val]
     if isinstance(val, dict):
-        subschemas = []
+        submodules = []
         for v in val.values():
-            subschemas.extend(_collect_subschemas(v))
-        return subschemas
+            submodules.extend(_collect_submodules(v))
+        return submodules
     if isinstance(val, (list, tuple, set)):
-        subschemas = []
+        submodules = []
         for item in val:
-            subschemas.extend(_collect_subschemas(item))
-        return subschemas
+            submodules.extend(_collect_submodules(item))
+        return submodules
     return []
 
 
 @dataclass_transform(field_specifiers=(option, field))
-class ModuleSchema:
-    """Recursive declarative schema mapping host state to NixOS module options."""
+class NixModule:
+    """Recursive declarative schema mapping host state to Nix module options."""
 
     _declared_claims: ClassVar[frozenset[str]] = frozenset()
     _declared_arguments: ClassVar[frozenset[str]] = frozenset()
@@ -135,11 +135,11 @@ class ModuleSchema:
 
     @property
     def _fields(self) -> tuple[Field[Any], ...]:
-        """Returns the dataclass fields of this schema instance."""
+        """Returns the dataclass fields of this module instance."""
         return fields(cast(Any, self))
 
     def add_asset(self, asset: Asset) -> None:
-        """Registers a file asset with this schema."""
+        """Registers a file asset with this module."""
         assets: set[Asset] | None = getattr(self, "_registered_assets", None)
         if assets is None:
             assets = set()
@@ -147,7 +147,7 @@ class ModuleSchema:
         assets.add(asset)
 
     def add_argument(self, *args: str) -> None:
-        """Registers Nix function arguments (e.g. 'pkgs', 'lib') required by this schema."""
+        """Registers Nix function arguments (e.g. 'pkgs', 'lib') required by this module."""
         extra: set[str] | None = getattr(self, "_extra_arguments", None)
         if extra is None:
             extra = set()
@@ -155,7 +155,7 @@ class ModuleSchema:
         extra.update(args)
 
     def claim(self, *packages: str) -> None:
-        """Registers additional runtime package claims on this schema instance."""
+        """Registers additional runtime package claims on this module instance."""
         extra: set[str] | None = getattr(self, "_extra_claims", None)
         if extra is None:
             extra = set()
@@ -163,7 +163,7 @@ class ModuleSchema:
         extra.update(packages)
 
     def resolve_claims(self) -> set[str]:
-        """Recursively resolves active package claims from self and active sub-schemas."""
+        """Recursively resolves active package claims from self and active submodules."""
         active_claims: set[str] = set(self._declared_claims)
         extra: set[str] | None = getattr(self, "_extra_claims", None)
         if extra:
@@ -179,20 +179,20 @@ class ModuleSchema:
             if meta.claims:
                 active_claims.update(meta.claims)
 
-            for sub in _collect_subschemas(val):
+            for sub in _collect_submodules(val):
                 active_claims.update(sub.resolve_claims())
 
         return active_claims
 
     def resolve_assets(self) -> set[Asset]:
-        """Recursively collects explicitly registered assets from self and active sub-schemas."""
+        """Recursively collects explicitly registered assets from self and active submodules."""
         collected: set[Asset] = set(getattr(self, "_registered_assets", set()))
         for f in self._fields:
             raw_val = getattr(self, f.name)
             val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
             if isinstance(val, Asset):
                 collected.add(val)
-            for sub in _collect_subschemas(val):
+            for sub in _collect_submodules(val):
                 collected.update(sub.resolve_assets())
         return collected
 
@@ -200,7 +200,7 @@ class ModuleSchema:
         self,
         keep_defaults: bool = False,
     ) -> dict[str, Any]:
-        """Serializes active schema options into a plain dictionary without NixValue wrappers."""
+        """Serializes active module options into a plain dictionary without NixValue wrappers."""
         from nix_scribe.lib.emitter import emit_dict
 
         return emit_dict(cast(Any, self), keep_defaults=keep_defaults)
@@ -212,7 +212,7 @@ class ModuleSchema:
         prefix: str | None = None,
         keep_defaults: bool = False,
     ) -> NixFragment:
-        """Compiles this ModuleSchema into a NixFragment for layout rendering."""
+        """Compiles this NixModule into a NixFragment for layout rendering."""
         from nix_scribe.lib.emitter import emit_nix_fragment
 
         return emit_nix_fragment(

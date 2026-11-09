@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import MISSING, Field
 from typing import Any
 
-from nix_scribe.lib.option_block import NixFragment, NixValue, combined_comments
-from nix_scribe.lib.schema import (
-    ModuleSchema,
+from nix_scribe.lib.nix_module import (
+    NixModule,
     get_option_metadata,
 )
+from nix_scribe.lib.option_block import NixFragment, NixValue, combined_comments
 
 
 def should_omit(f: Field[Any], val: Any, keep_defaults: bool = False) -> bool:
-    """Determines whether a schema field should be omitted from output.
+    """Determines whether a module field should be omitted from output.
 
     None and empty collections are always omitted unless explicitly requested.
     When keep_defaults is False, fields matching their declared default are omitted.
@@ -61,7 +61,7 @@ def _serialize_value(
     root_opts: dict[str, Any] | None = None,
     collected_args: set[str] | None = None,
 ) -> Any:
-    """Serializes a schema option value recursively, handling NixValue wrappers and collections."""
+    """Serializes a module option value recursively, handling NixValue wrappers and collections."""
     if isinstance(val, NixValue):
         inner = _serialize_value(
             val.value,
@@ -76,7 +76,7 @@ def _serialize_value(
             return NixValue(value=inner, comment=val.comment)
         return inner
 
-    if isinstance(val, ModuleSchema):
+    if isinstance(val, NixModule):
         scoped, child_root, child_args = _serialize_fields(
             val,
             preserve_comments=preserve_comments,
@@ -120,27 +120,27 @@ def _serialize_value(
 
 
 def _serialize_fields(
-    schema: ModuleSchema,
+    module: NixModule,
     preserve_comments: bool = True,
     keep_defaults: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
-    """Serializes fields of a schema into scoped options, root options, and active arguments."""
+    """Serializes fields of a module into scoped options, root options, and active arguments."""
     scoped: dict[str, Any] = {}
     root_opts: dict[str, Any] = {}
-    active_args: set[str] = set(schema._declared_arguments)
-    extra_args: set[str] | None = getattr(schema, "_extra_arguments", None)
+    active_args: set[str] = set(module._declared_arguments)
+    extra_args: set[str] | None = getattr(module, "_extra_arguments", None)
     if extra_args:
         active_args.update(extra_args)
 
-    for f in schema._fields:
-        raw_val = getattr(schema, f.name)
+    for f in module._fields:
+        raw_val = getattr(module, f.name)
         dyn_comment = raw_val.comment if isinstance(raw_val, NixValue) else None
         val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
 
         if should_omit(f, val, keep_defaults=keep_defaults):
             continue
 
-        if isinstance(val, ModuleSchema):
+        if isinstance(val, NixModule):
             child_scoped, child_root, child_args = _serialize_fields(
                 val,
                 preserve_comments=preserve_comments,
@@ -191,10 +191,10 @@ def _serialize_fields(
     return scoped, root_opts, active_args
 
 
-def emit_dict(schema: ModuleSchema, keep_defaults: bool = False) -> dict[str, Any]:
-    """Serializes active schema options into a plain dictionary without NixValue wrappers."""
+def emit_dict(module: NixModule, keep_defaults: bool = False) -> dict[str, Any]:
+    """Serializes active module options into a plain dictionary without NixValue wrappers."""
     scoped, root_opts, _ = _serialize_fields(
-        schema, preserve_comments=False, keep_defaults=keep_defaults
+        module, preserve_comments=False, keep_defaults=keep_defaults
     )
     if root_opts:
         return {**scoped, **root_opts}
@@ -202,17 +202,17 @@ def emit_dict(schema: ModuleSchema, keep_defaults: bool = False) -> dict[str, An
 
 
 def emit_nix_fragment(
-    schema: ModuleSchema,
+    module: NixModule,
     name: str = "",
     description: str = "",
     prefix: str | None = None,
     keep_defaults: bool = False,
 ) -> NixFragment:
-    """Compiles a ModuleSchema into a NixFragment for layout rendering."""
+    """Compiles a NixModule into a NixFragment for layout rendering."""
     scoped, root_opts, active_args = _serialize_fields(
-        schema, preserve_comments=True, keep_defaults=keep_defaults
+        module, preserve_comments=True, keep_defaults=keep_defaults
     )
-    effective_prefix = schema.prefix if schema.prefix is not None else (prefix or "")
+    effective_prefix = module.prefix if module.prefix is not None else (prefix or "")
 
     data: dict[str, Any] = {}
     if scoped:
@@ -227,11 +227,11 @@ def emit_nix_fragment(
     fragment_name = name or (
         effective_prefix.split(".")[-1]
         if effective_prefix
-        else schema.__class__.__name__
+        else module.__class__.__name__
     )
 
     doc_description = (
-        (schema.__doc__ or "").strip().split("\n")[0] if schema.__doc__ else ""
+        (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else ""
     )
     fragment_description = description or doc_description
 
