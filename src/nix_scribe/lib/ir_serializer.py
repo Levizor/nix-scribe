@@ -71,12 +71,8 @@ class IRJSONEncoder(json.JSONEncoder):
 
 
 def dump_ir_to_dict(results: dict[str, Any]) -> dict[str, Any]:
-    """Serializes module results IR to a JSON-compatible dictionary structure."""
-    raw_ir = {
-        name: result.scan_data
-        for name, result in results.items()
-        if hasattr(result, "scan_data") and result.scan_data
-    }
+    """Serializes scanned NixModule results to a JSON-compatible dictionary structure."""
+    raw_ir = {name: mod for name, mod in results.items() if mod is not None}
     return json.loads(json.dumps(raw_ir, cls=IRJSONEncoder))
 
 

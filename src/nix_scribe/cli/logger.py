@@ -22,19 +22,18 @@ class RichColorFormatter(logging.Formatter):
 class ModuleNameFilter(logging.Filter):
     """
     Injects a short_name attribute into log records
-    Transforms 'src.nix_scribe.modules.nixo'
+    Transforms 'nix_scribe.scanners.boot.kernel' or 'nix_scribe.modules.boot.kernel' -> 'boot.kernel'
     """
 
     def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
         name = record.name
-        marker = ".modules."
+        for marker in (".scanners.", ".modules."):
+            idx = name.find(marker)
+            if idx != -1:
+                record.short_name = name[idx + len(marker) :]
+                return True
 
-        idx = name.find(marker)
-        if idx != -1:
-            record.short_name = name[idx + len(marker) :]
-        else:
-            record.short_name = name
-
+        record.short_name = name
         return True
 
 
@@ -105,12 +104,7 @@ def setup_logging(
     core_console.setFormatter(RichColorFormatter("%(message)s"))
     core_logger.addHandler(core_console)
 
-    # Modules logger
-    mod_logger = logging.getLogger("nix_scribe.modules")
-    mod_logger.setLevel(logging.DEBUG)
-    mod_logger.propagate = True
-    mod_logger.handlers.clear()
-
+    # Scanners & Modules loggers
     mod_console = RichHandler(
         console=console,
         rich_tracebacks=True,
@@ -120,12 +114,16 @@ def setup_logging(
         show_path=show_mod_debug,
     )
     mod_console.setLevel(mod_level)
-
     mod_console.addFilter(ModuleNameFilter())
     mod_console.setFormatter(
         RichColorFormatter("[grey50]%(short_name)s[/]: %(message)s")
     )
 
-    mod_logger.addHandler(mod_console)
+    for logger_name in ("nix_scribe.scanners", "nix_scribe.modules"):
+        mod_logger = logging.getLogger(logger_name)
+        mod_logger.setLevel(logging.DEBUG)
+        mod_logger.propagate = True
+        mod_logger.handlers.clear()
+        mod_logger.addHandler(mod_console)
 
     return console

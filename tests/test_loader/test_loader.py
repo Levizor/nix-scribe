@@ -4,9 +4,9 @@ from nix_scribe.lib.loader import ModuleLoader
 
 
 def test_module_loader_discovery_logic():
-    from nix_scribe.lib.registry import ModuleRegistry
+    from nix_scribe.lib.registry import ScannerRegistry
 
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     saved = dict(registry._modules)
     registry.clear()
 

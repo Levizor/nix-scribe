@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from io import StringIO
 from typing import Any, Generator
 
-from nix_scribe.arguments import args
+from nix_scribe.cli.arguments import args
 from nix_scribe.lib.asset import Asset
 
 

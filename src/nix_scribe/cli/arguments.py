@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.prompt import Confirm
 
-from .lib.modularization import ModularizationLevel
+from nix_scribe.lib.modularization import ModularizationLevel
 
 
 @dataclass

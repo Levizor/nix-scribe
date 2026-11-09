@@ -1,6 +1,6 @@
 from rich.console import Console
 
-from nix_scribe.lib.registry import Module, ModulePhase
+from nix_scribe.lib.registry import ModulePhase, Scanner
 from nix_scribe.lib.scheduler import ModuleScheduler
 from nix_scribe.nixscribe import NixScribe
 
@@ -14,13 +14,13 @@ def test_module_phase_values_and_ordering():
 
 
 def test_module_default_and_custom_phase():
-    mod_default = Module("test.default")
+    mod_default = Scanner("test.default")
     assert mod_default.phase == ModulePhase.NORMAL
 
-    mod_early = Module("test.early", phase=ModulePhase.EARLY)
+    mod_early = Scanner("test.early", phase=ModulePhase.EARLY)
     assert mod_early.phase == ModulePhase.EARLY
 
-    mod_late = Module("test.late", phase=ModulePhase.LATE)
+    mod_late = Scanner("test.late", phase=ModulePhase.LATE)
     assert mod_late.phase == ModulePhase.LATE
 
 
@@ -29,10 +29,10 @@ def test_module_scheduler_empty():
 
 
 def test_module_scheduler_phase_ordering():
-    late_mod = Module("environment.systemPackages", phase=ModulePhase.LATE)
-    normal_mod_b = Module("services.openssh", phase=ModulePhase.NORMAL)
-    normal_mod_a = Module("programs.zsh", phase=ModulePhase.NORMAL)
-    early_mod = Module("system.detection", phase=ModulePhase.EARLY)
+    late_mod = Scanner("environment.systemPackages", phase=ModulePhase.LATE)
+    normal_mod_b = Scanner("services.openssh", phase=ModulePhase.NORMAL)
+    normal_mod_a = Scanner("programs.zsh", phase=ModulePhase.NORMAL)
+    early_mod = Scanner("system.detection", phase=ModulePhase.EARLY)
 
     unordered = {
         "environment.systemPackages": late_mod,
@@ -52,9 +52,9 @@ def test_module_scheduler_phase_ordering():
 
 
 def test_nixscribe_schedules_modules_on_init():
-    late_mod = Module("environment.systemPackages", phase=ModulePhase.LATE)
-    normal_mod = Module("programs.git", phase=ModulePhase.NORMAL)
-    early_mod = Module("boot.loader", phase=ModulePhase.EARLY)
+    late_mod = Scanner("environment.systemPackages", phase=ModulePhase.LATE)
+    normal_mod = Scanner("programs.git", phase=ModulePhase.NORMAL)
+    early_mod = Scanner("boot.loader", phase=ModulePhase.EARLY)
 
     modules = {
         "environment.systemPackages": late_mod,

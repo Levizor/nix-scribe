@@ -1,23 +1,21 @@
 import pytest
 
 from nix_scribe.lib.loader import ModuleLoader
-from nix_scribe.lib.registry import ModuleRegistry
+from nix_scribe.lib.registry import ScannerRegistry
 
 
 def test_plugin_loader_single_file(tmp_path):
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     saved = dict(registry._modules)
     registry.clear()
 
     try:
         plugin_file = tmp_path / "my_custom_plugin.py"
         plugin_file.write_text(
-            "from nix_scribe.lib.registry import Module\n"
-            "mod = Module('services.custom_service')\n"
+            "from nix_scribe.lib.registry import Scanner\n"
+            "mod = Scanner('services.custom_service')\n"
             "@mod.scanner()\n"
-            "def scan(ctx): return {'enable': True}\n"
-            "@mod.mapper()\n"
-            "def map(ir): return None\n"
+            "def scan(ctx): return None\n"
         )
 
         loader = ModuleLoader(modules_package=None, path=plugin_file)
@@ -30,7 +28,7 @@ def test_plugin_loader_single_file(tmp_path):
 
 
 def test_plugin_loader_directory_without_init(tmp_path):
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
     saved = dict(registry._modules)
     registry.clear()
 
@@ -38,12 +36,10 @@ def test_plugin_loader_directory_without_init(tmp_path):
         plugin_dir = tmp_path / "plugins_dir"
         plugin_dir.mkdir()
         (plugin_dir / "plugin_one.py").write_text(
-            "from nix_scribe.lib.registry import Module\n"
-            "mod = Module('services.plugin_one')\n"
+            "from nix_scribe.lib.registry import Scanner\n"
+            "mod = Scanner('services.plugin_one')\n"
             "@mod.scanner()\n"
-            "def scan(ctx): return {'enable': True}\n"
-            "@mod.mapper()\n"
-            "def map(ir): return None\n"
+            "def scan(ctx): return None\n"
         )
 
         loader = ModuleLoader(modules_package=None, path=plugin_dir)

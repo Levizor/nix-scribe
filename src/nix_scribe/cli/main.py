@@ -4,19 +4,18 @@ from typing import Annotated
 
 import typer
 
+from nix_scribe.cli.arguments import args
+from nix_scribe.cli.logger import setup_logging
 from nix_scribe.lib.loader import ModuleLoader
+from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.registry import (
     InvalidModuleError,
     ModuleFilter,
-    ModuleRegistry,
+    ScannerRegistry,
     print_modules_table,
     print_modules_tree,
 )
-from nix_scribe.logger import setup_logging
-
-from .arguments import args
-from .lib.modularization import ModularizationLevel
-from .nixscribe import NixScribe
+from nix_scribe.nixscribe import NixScribe
 
 app = typer.Typer(
     name="nix-scribe",
@@ -202,7 +201,7 @@ def main(
         log = logging.getLogger(__name__)
         log.debug(args)
 
-        active_modules = ModuleRegistry().filter(
+        active_modules = ScannerRegistry().filter(
             modules=valid_modules, filter_spec=filter_spec
         )
 

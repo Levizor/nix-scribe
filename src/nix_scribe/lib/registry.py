@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import fnmatch
 import re
 from dataclasses import dataclass
@@ -9,14 +11,9 @@ from rich.table import Table
 from rich.tree import Tree
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.nix_module import NixModule
-from nix_scribe.lib.option_block import ConfigFragment
 
 ContextT = TypeVar("ContextT", bound=Any, default=SystemContext)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
-ScanResult = NixModule | dict[str, Any] | None
-ScannerFunc = Callable[[ContextT], ScanResult]
-MapperFunc = Callable[[dict[str, Any]], ConfigFragment | None]
 
 
 @dataclass(frozen=True)
@@ -33,7 +30,7 @@ class ModuleFilter:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
-    ) -> "ModuleFilter":
+    ) -> ModuleFilter:
         """Parses raw CLI pattern inputs ONCE into clean immutable tuples."""
         return cls(
             enable=tuple(cls._parse(enable)),
@@ -105,8 +102,7 @@ class Scanner(Generic[ContextT]):
         self.phase = phase
         self.description = description
         self.scan: Callable[..., Any] | None = None
-        self.map: MapperFunc | None = None
-        ModuleRegistry().register(self)
+        ScannerRegistry().register(self)
 
     def scanner(self) -> Callable[[FuncT], FuncT]:
         """Decorator to register the scanner function."""
@@ -117,18 +113,6 @@ class Scanner(Generic[ContextT]):
 
         return decorator
 
-    def mapper(self) -> Callable[[FuncT], FuncT]:
-        """Decorator to register the mapper function."""
-
-        def decorator(func: FuncT) -> FuncT:
-            self.map = func
-            return func
-
-        return decorator
-
-
-Module = Scanner
-
 
 class InvalidModuleError(ValueError):
     """Raised when a user-specified module pattern does not match any registered module."""
@@ -136,34 +120,34 @@ class InvalidModuleError(ValueError):
     pass
 
 
-class ModuleRegistry:
+class ScannerRegistry:
     """
-    Singleton registry managing registered modules, default blacklist/whitelist states, and CLI filtering.
+    Singleton registry managing registered scanners, default blacklist/whitelist states, and CLI filtering.
     """
 
-    _instance: ClassVar["ModuleRegistry | None"] = None
+    _instance: ClassVar[ScannerRegistry | None] = None
 
-    def __new__(cls) -> "ModuleRegistry":
+    def __new__(cls) -> ScannerRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._modules: dict[str, Module] = {}
+            cls._instance._modules: dict[str, Scanner] = {}
             cls._instance.reset()
         return cls._instance
 
     def reset(self) -> None:
-        """Resets default blacklist and filter state without wiping loaded modules."""
+        """Resets default blacklist and filter state without wiping loaded scanners."""
         self.default_blacklist: set[str] = {"boot.kernel"}
 
-    def register(self, module: Module) -> None:
-        """Registers a module in the registry."""
+    def register(self, module: Scanner) -> None:
+        """Registers a scanner in the registry."""
         self._modules[module.name] = module
 
-    def get_all(self) -> dict[str, Module]:
-        """Returns a copy of all registered modules."""
+    def get_all(self) -> dict[str, Scanner]:
+        """Returns a copy of all registered scanners."""
         return dict(self._modules)
 
     def clear(self) -> None:
-        """Clears registered modules."""
+        """Clears registered scanners."""
         self._modules.clear()
 
     @staticmethod
@@ -173,19 +157,19 @@ class ModuleRegistry:
 
     @staticmethod
     def is_match(name: str, patterns: list[str]) -> bool:
-        """Returns True if module name matches any pattern (exact or fnmatch wildcard)."""
+        """Returns True if scanner name matches any pattern (exact or fnmatch wildcard)."""
         return ModuleFilter().matches(name, patterns)
 
     def validate_patterns(
         self,
-        modules: dict[str, Module] | None = None,
+        modules: dict[str, Scanner] | None = None,
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
         filter_spec: ModuleFilter | None = None,
     ) -> None:
         """
-        Validates that all user-supplied patterns match at least one available module.
+        Validates that all user-supplied patterns match at least one available scanner.
         """
         spec = filter_spec or ModuleFilter.from_raw(
             enable=enable, disable=disable, only=only
@@ -206,14 +190,14 @@ class ModuleRegistry:
 
     def filter(
         self,
-        modules: dict[str, Module] | None = None,
+        modules: dict[str, Scanner] | None = None,
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
         filter_spec: ModuleFilter | None = None,
-    ) -> dict[str, Module]:
+    ) -> dict[str, Scanner]:
         """
-        Filters modules based on default_blacklist, --only, --enable-module (-e), and --disable-module (-d).
+        Filters scanners based on default_blacklist, --only, --enable-module (-e), and --disable-module (-d).
         """
         spec = filter_spec or ModuleFilter.from_raw(
             enable=enable, disable=disable, only=only
@@ -235,14 +219,14 @@ def _strip_markup(text: str) -> str:
 
 
 def _prepare_module_statuses(
-    modules: dict[str, Module] | None = None,
+    modules: dict[str, Scanner] | None = None,
     filter_spec: ModuleFilter | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
-) -> tuple[dict[str, Module], dict[str, str]]:
+) -> tuple[dict[str, Scanner], dict[str, str]]:
     """
-    Computes rich status strings for each valid module.
+    Computes rich status strings for each valid scanner.
     """
     if modules is None:
         from nix_scribe.lib.loader import ModuleLoader
@@ -252,7 +236,7 @@ def _prepare_module_statuses(
     else:
         target_modules = modules
 
-    registry = ModuleRegistry()
+    registry = ScannerRegistry()
 
     spec = filter_spec or ModuleFilter.from_raw(
         enable=enable, disable=disable, only=only
@@ -271,7 +255,7 @@ def _prepare_module_statuses(
 
 def print_modules_table(
     console: Console | None = None,
-    modules: dict[str, Module] | None = None,
+    modules: dict[str, Scanner] | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -317,7 +301,7 @@ def print_modules_table(
 
 def print_modules_tree(
     console: Console | None = None,
-    modules: dict[str, Module] | None = None,
+    modules: dict[str, Scanner] | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -358,6 +342,3 @@ def print_modules_tree(
         print("nix-scribe Modules Tree:")
         for name in sorted(target_modules.keys()):
             print(f"  - {name} ({_strip_markup(statuses[name])})")
-
-
-ScannerRegistry = ModuleRegistry

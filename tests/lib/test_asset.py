@@ -4,8 +4,8 @@ import pytest
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.modularization import ModularizationLevel
+from nix_scribe.lib.nix_fragment import NixFragment
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import ConfigFragment
 
 
 def test_asset_text():
@@ -51,9 +51,8 @@ def test_asset_equality_and_hash():
 
 def test_save_asset_text(tmp_path: Path):
     root = NixFile("configuration")
-    fragment = ConfigFragment("system-packages")
     asset = Asset("packages.log", "package report data")
-    fragment.add_asset(asset)
+    fragment = NixFragment("system-packages", assets={asset})
     root.add_fragment(fragment)
 
     root.save(tmp_path, ModularizationLevel.SINGLE_FILE)
@@ -65,9 +64,8 @@ def test_save_asset_text(tmp_path: Path):
 
 def test_save_asset_bytes(tmp_path: Path):
     root = NixFile("configuration")
-    fragment = ConfigFragment("system-packages")
     asset = Asset("data.bin", b"\xca\xfe\xba\xbe")
-    fragment.add_asset(asset)
+    fragment = NixFragment("system-packages", assets={asset})
     root.add_fragment(fragment)
 
     root.save(tmp_path, ModularizationLevel.SINGLE_FILE)

@@ -2,6 +2,7 @@ from typing import Any
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.emitter import emit_nix_fragment
+from nix_scribe.lib.nix_fragment import NixFragment, NixValue
 from nix_scribe.lib.nix_module import (
     NixModule,
     OptionMetadata,
@@ -10,7 +11,6 @@ from nix_scribe.lib.nix_module import (
 )
 from nix_scribe.lib.nix_writer import raw
 from nix_scribe.lib.nixfile import NixFile
-from nix_scribe.lib.option_block import NixFragment, NixValue
 
 
 class GitLfs(NixModule, claims={"git-lfs"}):
