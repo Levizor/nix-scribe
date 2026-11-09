@@ -1,6 +1,7 @@
 import importlib
 import importlib.util
 import logging
+import pkgutil
 import sys
 from pathlib import Path
 
@@ -72,9 +73,9 @@ class ModuleLoader:
                     logger.error(f"Failed to load module file {self.package_path}: {e}")
             return
 
-        targets: list[tuple[Path, str]] = [
+        targets: list[tuple[list[str], str]] = [
             (
-                self.package_path,
+                [str(self.package_path)],
                 f"{self.modules_package}." if self.modules_package else "",
             )
         ]
@@ -83,23 +84,19 @@ class ModuleLoader:
             if scanners_spec and scanners_spec.submodule_search_locations:
                 targets.append(
                     (
-                        Path(scanners_spec.submodule_search_locations[0]),
+                        [str(Path(scanners_spec.submodule_search_locations[0]))],
                         "nix_scribe.scanners.",
                     )
                 )
 
-        for root_dir, prefix in targets:
-            for py_file in sorted(root_dir.rglob("*.py")):
-                if py_file.name == "__init__.py":
-                    continue
-                rel_parts = py_file.relative_to(root_dir).with_suffix("").parts
-                mod_name = f"{prefix}{'.'.join(rel_parts)}"
-                if mod_name.startswith("nix_scribe.modules.nixos"):
+        for package_paths, prefix in targets:
+            for info in pkgutil.walk_packages(package_paths, prefix):
+                if info.ispkg or info.name.startswith("nix_scribe.modules.nixos"):
                     continue
                 try:
-                    if mod_name in sys.modules:
-                        importlib.reload(sys.modules[mod_name])
+                    if info.name in sys.modules:
+                        importlib.reload(sys.modules[info.name])
                     else:
-                        importlib.import_module(mod_name)
+                        importlib.import_module(info.name)
                 except Exception as e:
-                    logger.error(f"Failed to load module {mod_name}: {e}")
+                    logger.error(f"Failed to load module {info.name}: {e}")
