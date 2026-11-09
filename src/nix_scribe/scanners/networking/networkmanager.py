@@ -3,10 +3,13 @@ from typing import Any
 
 from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.nix_types import quote_keys_with_dots
-from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.ini import parse_bool, parse_ini
 from nix_scribe.lib.parsers.parser import ConfigReader
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
+from nix_scribe.modules.nixos.networking.networkmanager import (
+    NetworkManager,
+    NetworkManagerWifi,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +22,10 @@ VALID_DNS_MODES = {"default", "dnsmasq", "systemd-resolved", "none"}
 VALID_DHCP_BACKENDS = {"dhcpcd", "internal"}
 VALID_WIFI_BACKENDS = {"wpa_supplicant", "iwd"}
 
-networkmanager = Module("networking.networkmanager")
+networkmanager = Scanner(
+    "networking.networkmanager",
+    description="NetworkManager configuration",
+)
 
 
 def _parse_powersave(val: Any) -> bool | None:
@@ -32,44 +38,29 @@ def _parse_powersave(val: Any) -> bool | None:
 
 
 @networkmanager.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
-    ir: dict[str, Any] = {
-        "enable": False,
-        "config": {},
-    }
-
-    if context.systemctl.is_enabled("NetworkManager"):
-        ir["enable"] = True
-
-    reader = ConfigReader(context, parse_ini)
-    ir["config"] = reader.read_merge_configs_from_paths_list(
-        NETWORKMANAGER_CONFIG_PATHS
-    )
-
-    return ir
-
-
-@networkmanager.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir.get("enable"):
+def scan(context: SystemContext) -> NetworkManager | None:
+    if not context.systemctl.is_enabled("NetworkManager"):
         return None
 
-    nm_config: dict[str, Any] = {"enable": True}
-    settings = {sec: dict(opts) for sec, opts in ir.get("config", {}).items()}
+    mod = NetworkManager(enable=True)
+
+    reader = ConfigReader(context, parse_ini)
+    raw_config = reader.read_merge_configs_from_paths_list(NETWORKMANAGER_CONFIG_PATHS)
+    settings = {sec: dict(opts) for sec, opts in raw_config.items()}
 
     main = settings.get("main", {})
     if main.get("dns") in VALID_DNS_MODES:
-        nm_config["dns"] = main.pop("dns")
+        mod.dns = main.pop("dns")
     if main.get("dhcp") in VALID_DHCP_BACKENDS:
-        nm_config["dhcp"] = main.pop("dhcp")
+        mod.dhcp = main.pop("dhcp")
 
-    wifi_config: dict[str, Any] = {}
+    wifi = NetworkManagerWifi()
     conn = settings.get("connection", {})
     if (
         "wifi.powersave" in conn
         and (ps := _parse_powersave(conn["wifi.powersave"])) is not None
     ):
-        wifi_config["powersave"] = ps
+        wifi.powersave = ps
         conn.pop("wifi.powersave")
 
     device = settings.get("device", {})
@@ -77,20 +68,15 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
         "wifi.scan-rand-mac-address" in device
         and (rand := parse_bool(device["wifi.scan-rand-mac-address"])) is not None
     ):
-        wifi_config["scanRandMacAddress"] = rand
+        wifi.scanRandMacAddress = rand
         device.pop("wifi.scan-rand-mac-address")
     if device.get("wifi.backend") in VALID_WIFI_BACKENDS:
-        wifi_config["backend"] = device.pop("wifi.backend")
+        wifi.backend = device.pop("wifi.backend")
 
-    if wifi_config:
-        nm_config["wifi"] = wifi_config
+    if wifi.to_dict():
+        mod.wifi = wifi
 
     if clean_settings := {s: opts for s, opts in settings.items() if opts}:
-        nm_config["settings"] = quote_keys_with_dots(clean_settings)
+        mod.settings = quote_keys_with_dots(clean_settings)
 
-    return ConfigFragment(
-        name="networkmanager",
-        description="NetworkManager configuration",
-        data={"networking.networkmanager": nm_config},
-        claims={"networkmanager"},
-    )
+    return mod
