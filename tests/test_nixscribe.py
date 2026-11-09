@@ -13,7 +13,8 @@ def test_nixscribe_injection():
 
     assert script.modules == modules
     assert "test.dummy" in script.results
-    assert script.results["test.dummy"].module == dummy_module
+    assert script.results["test.dummy"] is None
+    assert script.fragments["test.dummy"] is None
 
 
 def test_nixscribe_scan_module_claims_packages():
@@ -47,10 +48,9 @@ def test_nixscribe_scan_module_claims_packages():
 
     assert script.context.packages.unclaimed == [git_pkg, curl_pkg]
 
-    result = script.results["programs.git"]
-    script._scan_module(result)
+    script._scan_module(mod)
 
-    assert result.map_data is not None
+    assert script.fragments["programs.git"] is not None
     assert script.context.packages.is_claimed("git")
     assert script.context.packages.claimed_by("git") == "programs.git"
     assert script.context.packages.unclaimed == [curl_pkg]
@@ -90,12 +90,12 @@ def test_nixscribe_system_packages_claims_integration():
     script.context.packages = PackageState(packages=[git_pkg, curl_pkg])
 
     # Scan phase
-    for res in script.results.values():
-        script._scan_module(res)
+    for scanner in script.modules.values():
+        script._scan_module(scanner)
 
-    sys_res = script.results["environment.system_packages"]
-    assert sys_res.map_data is not None
-    rendered_options = sys_res.map_data.options
+    sys_frag = script.fragments["environment.system_packages"]
+    assert sys_frag is not None
+    rendered_options = sys_frag.options
     assert "environment" in rendered_options
     # Only curl should be in environment.systemPackages because git was claimed during scan
     assert script.context.packages.is_claimed("git")
@@ -105,7 +105,7 @@ def test_nixscribe_system_packages_claims_integration():
     from nix_scribe.lib.nixfile import NixFile
 
     nix_file = NixFile("configuration")
-    nix_file.add_fragment(sys_res.map_data)
+    nix_file.add_fragment(sys_frag)
     writer = NixWriter()
     nix_file.render(writer)
     output = writer.gettext()
@@ -113,7 +113,7 @@ def test_nixscribe_system_packages_claims_integration():
     assert "curl" in output
     assert "git" not in output
 
-    asset = next(iter(sys_res.map_data.assets))
+    asset = next(iter(sys_frag.assets))
     assert "Claimed packages:" in asset.content
     assert "git # from debian:git (claimed by programs.git)" in asset.content
 
@@ -168,13 +168,12 @@ def test_nixscribe_scan_module_elevation_pause():
     mock_progress = MagicMock()
     script._prompt_for_sudo = MagicMock(return_value=False)
 
-    res = script.results["test.restricted"]
-    script._scan_module(res, progress=mock_progress)
+    script._scan_module(dummy_mod, progress=mock_progress)
 
     # Progress bar was stopped for prompt and resumed
     mock_progress.stop.assert_called_once()
     mock_progress.start.assert_called_once()
-    assert res.scan_data is None
+    assert script.results["test.restricted"] is None
 
 
 def test_nixscribe_run_dump_ir(tmp_path):
@@ -246,10 +245,10 @@ def test_nixscribe_print_summary(tmp_path):
     script.context.packages = PackageState(packages=[pkg])
     script.context.packages.claim("curl", by="test.configured")
 
-    script.results["test.configured"].map_data = NixFragment(
+    script.fragments["test.configured"] = NixFragment(
         name="configured", options={"configured.enable": NixValue(True)}
     )
-    script.results["test.skipped"].map_data = None
+    script.fragments["test.skipped"] = None
 
     script._print_summary(total_duration=1.23)
 
@@ -357,11 +356,12 @@ def test_nixscribe_single_stage_nix_module(tmp_path):
     try:
         script.run()
 
-        git_res = script.results["programs.git"]
-        assert isinstance(git_res.scan_data, GitModule)
-        assert isinstance(git_res.map_data, NixFragment)
-        assert git_res.map_data.description == "Git configuration"
-        assert len(git_res.map_data.assets) == 1
+        git_mod = script.results["programs.git"]
+        git_frag = script.fragments["programs.git"]
+        assert isinstance(git_mod, GitModule)
+        assert isinstance(git_frag, NixFragment)
+        assert git_frag.description == "Git configuration"
+        assert len(git_frag.assets) == 1
 
         # Claims registered immediately during scan
         assert script.context.packages.is_claimed("git")

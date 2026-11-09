@@ -13,7 +13,6 @@ from nix_scribe.lib.packages.models import (
     PackageState,
     ResolvedPackage,
 )
-from nix_scribe.nixscribe import ModuleResult
 
 
 class DummyEnum(Enum):
@@ -66,7 +65,6 @@ def test_ir_json_encoder():
 
 def test_dump_ir_to_dict_and_save_to_file(tmp_path):
     from nix_scribe.lib.nix_module import NixModule, option
-    from nix_scribe.lib.registry import Scanner
 
     class SystemdBoot(NixModule, prefix="boot.loader.systemd-boot"):
         enable: bool = option(default=False)
@@ -75,14 +73,9 @@ def test_dump_ir_to_dict_and_save_to_file(tmp_path):
     class Users(NixModule, prefix="users"):
         users: dict = option(default={})
 
-    mod1 = Scanner("boot.loader.systemd-boot")
-    mod2 = Scanner("users.users")
-    mod3 = Scanner("empty.module")
-
-    res1 = ModuleResult(module=mod1, scan_data=SystemdBoot(enable=True, timeout=5))
-    res2 = ModuleResult(
-        module=mod2,
-        scan_data=Users(
+    results = {
+        "boot.loader.systemd-boot": SystemdBoot(enable=True, timeout=5),
+        "users.users": Users(
             users={
                 "root": {
                     "hashedPassword": "$6$dummyhash",
@@ -90,13 +83,7 @@ def test_dump_ir_to_dict_and_save_to_file(tmp_path):
                 }
             }
         ),
-    )
-    res3 = ModuleResult(module=mod3, scan_data=None)
-
-    results = {
-        "boot.loader.systemd-boot": res1,
-        "users.users": res2,
-        "empty.module": res3,
+        "empty.module": None,
     }
 
     dumped = dump_ir_to_dict(results)
