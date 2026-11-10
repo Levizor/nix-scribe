@@ -10,15 +10,14 @@ from nix_scribe.lib.packages.models import (
     PackageState,
     ResolvedPackage,
 )
-from nix_scribe.lib.registry import ModulePhase, Scanner
+from nix_scribe.lib.registry import Scanner, ScannerPhase
 from nix_scribe.modules.nixos.environment.system_packages import SystemPackages
 
 logger = logging.getLogger(__name__)
 
 system_packages = Scanner(
     "environment.system_packages",
-    phase=ModulePhase.LATE,
-    description="System-wide packages",
+    phase=ScannerPhase.LATE,
 )
 
 

@@ -17,8 +17,8 @@ FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
 @dataclass(frozen=True)
-class ModuleFilter:
-    """Immutable value object holding parsed module filter rules."""
+class ScannerFilter:
+    """Immutable value object holding parsed scanner filter rules."""
 
     enable: tuple[str, ...] = ()
     disable: tuple[str, ...] = ()
@@ -30,7 +30,7 @@ class ModuleFilter:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
-    ) -> ModuleFilter:
+    ) -> ScannerFilter:
         """Parses raw CLI pattern inputs ONCE into clean immutable tuples."""
         return cls(
             enable=tuple(cls._parse(enable)),
@@ -85,7 +85,7 @@ class ModuleFilter:
             return "[yellow]disabled[/yellow]"
 
 
-class ModulePhase(IntEnum):
+class ScannerPhase(IntEnum):
     EARLY = 10
     NORMAL = 50
     LATE = 100
@@ -95,7 +95,7 @@ class Scanner(Generic[ContextT]):
     def __init__(
         self,
         name: str,
-        phase: ModulePhase = ModulePhase.NORMAL,
+        phase: ScannerPhase = ScannerPhase.NORMAL,
         description: str = "",
     ) -> None:
         self.name = name
@@ -153,12 +153,12 @@ class ScannerRegistry:
     @staticmethod
     def _parse_patterns(patterns: list[str] | None) -> list[str]:
         """Splits comma-separated or list pattern entries into a clean list of strings."""
-        return ModuleFilter._parse(patterns)
+        return ScannerFilter._parse(patterns)
 
     @staticmethod
     def is_match(name: str, patterns: list[str]) -> bool:
         """Returns True if scanner name matches any pattern (exact or fnmatch wildcard)."""
-        return ModuleFilter().matches(name, patterns)
+        return ScannerFilter().matches(name, patterns)
 
     def validate_patterns(
         self,
@@ -166,12 +166,12 @@ class ScannerRegistry:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
-        filter_spec: ModuleFilter | None = None,
+        filter_spec: ScannerFilter | None = None,
     ) -> None:
         """
         Validates that all user-supplied patterns match at least one available scanner.
         """
-        spec = filter_spec or ModuleFilter.from_raw(
+        spec = filter_spec or ScannerFilter.from_raw(
             enable=enable, disable=disable, only=only
         )
         target_modules = self._modules if modules is None else modules
@@ -194,12 +194,12 @@ class ScannerRegistry:
         enable: list[str] | None = None,
         disable: list[str] | None = None,
         only: list[str] | None = None,
-        filter_spec: ModuleFilter | None = None,
+        filter_spec: ScannerFilter | None = None,
     ) -> dict[str, Scanner]:
         """
         Filters scanners based on default_blacklist, --only, --enable-module (-e), and --disable-module (-d).
         """
-        spec = filter_spec or ModuleFilter.from_raw(
+        spec = filter_spec or ScannerFilter.from_raw(
             enable=enable, disable=disable, only=only
         )
         target_modules = self._modules if modules is None else modules
@@ -220,7 +220,7 @@ def _strip_markup(text: str) -> str:
 
 def _prepare_module_statuses(
     modules: dict[str, Scanner] | None = None,
-    filter_spec: ModuleFilter | None = None,
+    filter_spec: ScannerFilter | None = None,
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
@@ -229,16 +229,16 @@ def _prepare_module_statuses(
     Computes rich status strings for each valid scanner.
     """
     if modules is None:
-        from nix_scribe.lib.loader import ModuleLoader
+        from nix_scribe.lib.loader import ScannerLoader
 
-        loader = ModuleLoader()
+        loader = ScannerLoader()
         target_modules = loader.discover()
     else:
         target_modules = modules
 
     registry = ScannerRegistry()
 
-    spec = filter_spec or ModuleFilter.from_raw(
+    spec = filter_spec or ScannerFilter.from_raw(
         enable=enable, disable=disable, only=only
     )
     blacklist = list(registry.default_blacklist)
@@ -259,7 +259,7 @@ def print_modules_table(
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
-    filter_spec: ModuleFilter | None = None,
+    filter_spec: ScannerFilter | None = None,
 ) -> None:
     """
     Prints a formatted table of all discovered modules and their status using Rich (with fallback).
@@ -305,7 +305,7 @@ def print_modules_tree(
     enable: list[str] | None = None,
     disable: list[str] | None = None,
     only: list[str] | None = None,
-    filter_spec: ModuleFilter | None = None,
+    filter_spec: ScannerFilter | None = None,
 ) -> None:
     """
     Prints a hierarchical tree view of all discovered modules and their status using Rich (with fallback).

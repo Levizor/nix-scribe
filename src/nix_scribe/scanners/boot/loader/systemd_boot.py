@@ -8,10 +8,7 @@ from nix_scribe.modules.nixos.boot.loader.systemd_boot import SystemdBoot
 
 logger = logging.getLogger(__name__)
 
-systemd_boot = Scanner(
-    "boot.loader.systemd-boot",
-    description="systemd-boot UEFI Bootloader Configuration",
-)
+systemd_boot = Scanner("boot.loader.systemd-boot")
 
 LOADER_CONF_BOOT = "/boot/loader/loader.conf"
 LOADER_CONF_EFI = "/efi/loader/loader.conf"

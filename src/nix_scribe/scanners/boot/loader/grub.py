@@ -11,10 +11,7 @@ from nix_scribe.modules.nixos.boot.loader.grub import Grub
 
 logger = logging.getLogger(__name__)
 
-grub = Scanner(
-    "boot.loader.grub",
-    description="GRUB Bootloader Configuration",
-)
+grub = Scanner("boot.loader.grub")
 
 GRUB_DEFAULT_PATH = "/etc/default/grub"
 GRUB_CONFIG_PATH = "/boot/grub/grub.cfg"

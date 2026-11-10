@@ -8,10 +8,7 @@ from nix_scribe.modules.nixos.boot.kernel import Kernel
 
 logger = logging.getLogger(__name__)
 
-kernel = Scanner(
-    "boot.kernel",
-    description="Kernel Modules and Parameters Configuration",
-)
+kernel = Scanner("boot.kernel")
 
 MODULES_PATHS = [
     "/etc/modules",

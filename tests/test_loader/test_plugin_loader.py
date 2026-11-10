@@ -1,6 +1,6 @@
 import pytest
 
-from nix_scribe.lib.loader import ModuleLoader
+from nix_scribe.lib.loader import ScannerLoader
 from nix_scribe.lib.registry import ScannerRegistry
 
 
@@ -18,7 +18,7 @@ def test_plugin_loader_single_file(tmp_path):
             "def scan(ctx): return None\n"
         )
 
-        loader = ModuleLoader(modules_package=None, path=plugin_file)
+        loader = ScannerLoader(scanners_package=None, path=plugin_file)
         modules = loader.discover()
 
         assert "services.custom_service" in modules
@@ -42,7 +42,7 @@ def test_plugin_loader_directory_without_init(tmp_path):
             "def scan(ctx): return None\n"
         )
 
-        loader = ModuleLoader(modules_package=None, path=plugin_dir)
+        loader = ScannerLoader(scanners_package=None, path=plugin_dir)
         modules = loader.discover()
 
         assert "services.plugin_one" in modules
@@ -53,4 +53,4 @@ def test_plugin_loader_directory_without_init(tmp_path):
 def test_plugin_loader_nonexistent_path(tmp_path):
     non_existent = tmp_path / "does_not_exist"
     with pytest.raises(FileNotFoundError):
-        ModuleLoader(modules_package=None, path=non_existent)
+        ScannerLoader(scanners_package=None, path=non_existent)

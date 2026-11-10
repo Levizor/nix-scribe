@@ -6,10 +6,7 @@ from nix_scribe.modules.nixos.security.rtkit import Rtkit
 
 logger = logging.getLogger(__name__)
 
-rtkit = Scanner(
-    "security.rtkit",
-    description="RealtimeKit system service",
-)
+rtkit = Scanner("security.rtkit")
 
 
 def _parse_exec_start_args(content: str) -> list[str]:

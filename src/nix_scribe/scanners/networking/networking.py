@@ -10,10 +10,7 @@ from nix_scribe.modules.nixos.networking.networking import Networking
 
 logger = logging.getLogger(__name__)
 
-networking = Scanner(
-    "networking",
-    description="Basic networking configuration",
-)
+networking = Scanner("networking")
 
 
 def _filter_hosts(

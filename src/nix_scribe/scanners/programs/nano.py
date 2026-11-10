@@ -2,10 +2,7 @@ from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.registry import Scanner
 from nix_scribe.modules.nixos.programs.nano import Nano
 
-nano = Scanner(
-    "programs.nano",
-    description="nano editor",
-)
+nano = Scanner("programs.nano")
 
 
 def _is_default_nanorc(text: str) -> bool:

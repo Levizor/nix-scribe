@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from nix_scribe.lib.loader import ModuleLoader
+from nix_scribe.lib.loader import ScannerLoader
 
 
-def test_module_loader_discovery_logic():
+def test_scanner_loader_discovery_logic():
     from nix_scribe.lib.registry import ScannerRegistry
 
     registry = ScannerRegistry()
@@ -12,8 +12,8 @@ def test_module_loader_discovery_logic():
 
     try:
         pkg_dir = Path(__file__).parent / "test_loader_pkg"
-        loader = ModuleLoader(
-            modules_package="tests.test_loader.test_loader_pkg", path=pkg_dir
+        loader = ScannerLoader(
+            scanners_package="tests.test_loader.test_loader_pkg", path=pkg_dir
         )
         modules = loader.discover()
 
@@ -24,8 +24,8 @@ def test_module_loader_discovery_logic():
         registry._modules = saved
 
 
-def test_module_loader_real_discovery():
-    loader = ModuleLoader()
+def test_scanner_loader_real_discovery():
+    loader = ScannerLoader()
     modules = loader.discover()
 
     assert len(modules) > 0

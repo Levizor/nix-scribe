@@ -9,10 +9,7 @@ from nix_scribe.modules.nixos.programs.ssh import Ssh
 
 logger = logging.getLogger(__name__)
 
-ssh = Scanner(
-    "programs.ssh",
-    description="OpenSSH Client Configuration",
-)
+ssh = Scanner("programs.ssh")
 
 SSH_CONFIG_PATHS = [
     "/etc/ssh/ssh_config",

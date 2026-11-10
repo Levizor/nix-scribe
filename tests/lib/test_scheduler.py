@@ -1,38 +1,38 @@
 from rich.console import Console
 
-from nix_scribe.lib.registry import ModulePhase, Scanner
-from nix_scribe.lib.scheduler import ModuleScheduler
+from nix_scribe.lib.registry import Scanner, ScannerPhase
+from nix_scribe.lib.scheduler import ScannerScheduler
 from nix_scribe.nixscribe import NixScribe
 
 
-def test_module_phase_values_and_ordering():
-    assert ModulePhase.EARLY == 10
-    assert ModulePhase.NORMAL == 50
-    assert ModulePhase.LATE == 100
+def test_scanner_phase_values_and_ordering():
+    assert ScannerPhase.EARLY == 10
+    assert ScannerPhase.NORMAL == 50
+    assert ScannerPhase.LATE == 100
 
-    assert ModulePhase.EARLY < ModulePhase.NORMAL < ModulePhase.LATE
+    assert ScannerPhase.EARLY < ScannerPhase.NORMAL < ScannerPhase.LATE
 
 
-def test_module_default_and_custom_phase():
+def test_scanner_default_and_custom_phase():
     mod_default = Scanner("test.default")
-    assert mod_default.phase == ModulePhase.NORMAL
+    assert mod_default.phase == ScannerPhase.NORMAL
 
-    mod_early = Scanner("test.early", phase=ModulePhase.EARLY)
-    assert mod_early.phase == ModulePhase.EARLY
+    mod_early = Scanner("test.early", phase=ScannerPhase.EARLY)
+    assert mod_early.phase == ScannerPhase.EARLY
 
-    mod_late = Scanner("test.late", phase=ModulePhase.LATE)
-    assert mod_late.phase == ModulePhase.LATE
-
-
-def test_module_scheduler_empty():
-    assert ModuleScheduler.schedule({}) == {}
+    mod_late = Scanner("test.late", phase=ScannerPhase.LATE)
+    assert mod_late.phase == ScannerPhase.LATE
 
 
-def test_module_scheduler_phase_ordering():
-    late_mod = Scanner("environment.systemPackages", phase=ModulePhase.LATE)
-    normal_mod_b = Scanner("services.openssh", phase=ModulePhase.NORMAL)
-    normal_mod_a = Scanner("programs.zsh", phase=ModulePhase.NORMAL)
-    early_mod = Scanner("system.detection", phase=ModulePhase.EARLY)
+def test_scanner_scheduler_empty():
+    assert ScannerScheduler.schedule({}) == {}
+
+
+def test_scanner_scheduler_phase_ordering():
+    late_mod = Scanner("environment.systemPackages", phase=ScannerPhase.LATE)
+    normal_mod_b = Scanner("services.openssh", phase=ScannerPhase.NORMAL)
+    normal_mod_a = Scanner("programs.zsh", phase=ScannerPhase.NORMAL)
+    early_mod = Scanner("system.detection", phase=ScannerPhase.EARLY)
 
     unordered = {
         "environment.systemPackages": late_mod,
@@ -41,7 +41,7 @@ def test_module_scheduler_phase_ordering():
         "system.detection": early_mod,
     }
 
-    scheduled = ModuleScheduler.schedule(unordered)
+    scheduled = ScannerScheduler.schedule(unordered)
 
     assert list(scheduled.keys()) == [
         "system.detection",
@@ -52,9 +52,9 @@ def test_module_scheduler_phase_ordering():
 
 
 def test_nixscribe_schedules_modules_on_init():
-    late_mod = Scanner("environment.systemPackages", phase=ModulePhase.LATE)
-    normal_mod = Scanner("programs.git", phase=ModulePhase.NORMAL)
-    early_mod = Scanner("boot.loader", phase=ModulePhase.EARLY)
+    late_mod = Scanner("environment.systemPackages", phase=ScannerPhase.LATE)
+    normal_mod = Scanner("programs.git", phase=ScannerPhase.NORMAL)
+    early_mod = Scanner("boot.loader", phase=ScannerPhase.EARLY)
 
     modules = {
         "environment.systemPackages": late_mod,

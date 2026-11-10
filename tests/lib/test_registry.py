@@ -32,10 +32,10 @@ def test_parse_patterns():
     assert registry._parse_patterns(None) == []
 
 
-def test_module_filter_object():
-    from nix_scribe.lib.registry import ModuleFilter
+def test_scanner_filter_object():
+    from nix_scribe.lib.registry import ScannerFilter
 
-    spec = ModuleFilter.from_raw(
+    spec = ScannerFilter.from_raw(
         enable=["boot.kernel"], disable=["networking.*"], only=["boot.*"]
     )
     assert spec.enable == ("boot.kernel",)

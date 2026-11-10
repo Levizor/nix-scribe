@@ -2,10 +2,7 @@ from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.registry import Scanner
 from nix_scribe.modules.nixos.users.groups import GroupEntry, Groups
 
-groups = Scanner(
-    "users.groups",
-    description="Existing user groups",
-)
+groups = Scanner("users.groups")
 
 
 @groups.scanner()

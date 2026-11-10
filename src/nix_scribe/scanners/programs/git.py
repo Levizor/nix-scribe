@@ -7,10 +7,7 @@ from nix_scribe.modules.nixos.programs.git import Git, GitLfs
 
 logger = logging.getLogger(__name__)
 
-git = Scanner(
-    "programs.git",
-    description="Git version control system",
-)
+git = Scanner("programs.git")
 
 GITCONFIG_PATH = "/etc/gitconfig"
 
