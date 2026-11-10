@@ -9,7 +9,7 @@ class Cowsay(NixModule, prefix="environment"):
     sessionVariables: dict[str, str] = option(default={})
 
 
-cowsay = Scanner("fun.cowsay", description="Fun Cowsay Plugin Module")
+cowsay = Scanner("fun.cowsay")
 
 
 @cowsay.scanner()

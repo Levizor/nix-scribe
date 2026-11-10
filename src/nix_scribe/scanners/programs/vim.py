@@ -4,10 +4,7 @@ from nix_scribe.lib.context import SystemContext
 from nix_scribe.lib.registry import Scanner
 from nix_scribe.modules.nixos.programs.vim import Vim
 
-vim = Scanner(
-    "programs.vim",
-    description="Enable vim editor",
-)
+vim = Scanner("programs.vim")
 
 
 def _is_default_editor(context: SystemContext) -> bool:

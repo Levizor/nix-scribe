@@ -6,10 +6,7 @@ from nix_scribe.modules.nixos.services.displayManager.plasma_login_manager impor
     PlasmaLoginManager,
 )
 
-plasma_login_manager = Scanner(
-    "services.displayManager.plasma-login-manager",
-    description="Plasma Login Manager (Greeter)",
-)
+plasma_login_manager = Scanner("services.displayManager.plasma-login-manager")
 
 PLASMALOGIN_CONFIG_PATHS = [
     "/etc/plasmalogin.conf",

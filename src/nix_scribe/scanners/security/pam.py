@@ -8,10 +8,7 @@ from nix_scribe.modules.nixos.security.pam import Pam, PamService
 
 logger = logging.getLogger(__name__)
 
-pam = Scanner(
-    "security.pam",
-    description="PAM (Pluggable Authentication Modules) Configuration",
-)
+pam = Scanner("security.pam")
 
 PAM_DIR = "/etc/pam.d"
 PAM_CONF = "/etc/pam.conf"

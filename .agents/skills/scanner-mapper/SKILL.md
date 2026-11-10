@@ -39,10 +39,7 @@ from nix_scribe.modules.nixos.services.my_service import MyService
 
 logger = logging.getLogger(__name__)
 
-my_service = Scanner(
-    "services.my_service",
-    description="My Service NixOS Configuration",
-)
+my_service = Scanner("services.my_service")
 
 CONFIG_PATH = "/etc/my_service/config.conf"
 

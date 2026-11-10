@@ -6,11 +6,11 @@ import typer
 
 from nix_scribe.cli.arguments import args
 from nix_scribe.cli.logger import setup_logging
-from nix_scribe.lib.loader import ModuleLoader
+from nix_scribe.lib.loader import ScannerLoader
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.registry import (
     InvalidModuleError,
-    ModuleFilter,
+    ScannerFilter,
     ScannerRegistry,
     print_modules_table,
     print_modules_tree,
@@ -151,7 +151,7 @@ def main(
     args.enable_modules = enable_module or []
     args.disable_modules = disable_module or []
     args.only_modules = only or []
-    args.plugins = ModuleFilter._parse(plugin)
+    args.plugins = ScannerFilter._parse(plugin)
     args.dump_ir = dump_ir
     args.no_log_file = no_log_file
     args.log_file = (
@@ -160,23 +160,23 @@ def main(
 
     console = setup_logging(args.verbosity, args.mod_verbosity, log_file=None)
 
-    loader = ModuleLoader()
+    loader = ScannerLoader()
     valid_modules = loader.discover()
 
     for plugin_item in args.plugins:
         try:
             path = Path(plugin_item)
             if "/" in plugin_item or plugin_item.endswith(".py") or path.exists():
-                plugin_loader = ModuleLoader(modules_package=None, path=path)
+                plugin_loader = ScannerLoader(scanners_package=None, path=path)
             else:
-                plugin_loader = ModuleLoader(modules_package=plugin_item)
+                plugin_loader = ScannerLoader(scanners_package=plugin_item)
             valid_modules.update(plugin_loader.discover())
         except (ImportError, FileNotFoundError) as e:
             raise typer.BadParameter(
                 f"Failed to load plugin '{plugin_item}': {e}"
             ) from e
 
-    filter_spec = ModuleFilter.from_raw(
+    filter_spec = ScannerFilter.from_raw(
         enable=args.enable_modules,
         disable=args.disable_modules,
         only=args.only_modules,

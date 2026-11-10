@@ -14,7 +14,7 @@ from nix_scribe.lib.packages import (
     register_package_manager,
     set_package_resolver,
 )
-from nix_scribe.lib.registry import ModulePhase
+from nix_scribe.lib.registry import ScannerPhase
 from nix_scribe.scanners.environment.system_packages import system_packages
 from tests.mocks.mock_resolver import MockPackageResolver
 
@@ -30,7 +30,7 @@ def cleanup():
 
 def test_system_packages_module_metadata():
     assert system_packages.name == "environment.system_packages"
-    assert system_packages.phase == ModulePhase.LATE
+    assert system_packages.phase == ScannerPhase.LATE
 
 
 def test_system_packages_scanner_empty(tmp_path):

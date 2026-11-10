@@ -9,10 +9,7 @@ from nix_scribe.modules.nixos.services.displayManager.sddm import Sddm
 
 logger = logging.getLogger(__name__)
 
-sddm = Scanner(
-    "services.displayManager.sddm",
-    description="Simple Desktop Display Manager",
-)
+sddm = Scanner("services.displayManager.sddm")
 
 SDDM_CONFIG_PATHS = [
     "/etc/sddm.conf",

@@ -4,10 +4,7 @@ from nix_scribe.modules.nixos.services.displayManager.cosmic_greeter import (
     CosmicGreeter,
 )
 
-cosmic_greeter = Scanner(
-    "services.displayManager.cosmic-greeter",
-    description="cosmic-greeter displayManager",
-)
+cosmic_greeter = Scanner("services.displayManager.cosmic-greeter")
 
 
 @cosmic_greeter.scanner()

@@ -9,10 +9,7 @@ from nix_scribe.modules.nixos.security.sudo import Sudo
 
 logger = logging.getLogger(__name__)
 
-sudo = Scanner(
-    "security.sudo",
-    description="Sudo Configuration",
-)
+sudo = Scanner("security.sudo")
 
 SUDOERS_PATH = "/etc/sudoers"
 SUDOERS_DIR = "/etc/sudoers.d"

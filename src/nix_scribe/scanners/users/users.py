@@ -10,10 +10,7 @@ from nix_scribe.modules.nixos.users.users import (
     Users,
 )
 
-users_module = Scanner(
-    "users.users",
-    description="User accounts and subordinate ID ranges",
-)
+users_module = Scanner("users.users")
 
 
 def _parse_passwd_normal_users(text: str) -> dict[str, dict[str, Any]]:

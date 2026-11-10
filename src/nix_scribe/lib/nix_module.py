@@ -130,8 +130,11 @@ class NixModule:
             )
         if prefix is not None:
             cls.prefix = prefix
+        has_explicit_doc = bool(cls.__dict__.get("__doc__"))
         if "__dataclass_fields__" not in cls.__dict__:
             dataclass(cls)
+        if not has_explicit_doc:
+            cls.__doc__ = None
 
     @property
     def _fields(self) -> tuple[Field[Any], ...]:

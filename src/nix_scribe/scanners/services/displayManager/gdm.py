@@ -9,10 +9,7 @@ from nix_scribe.modules.nixos.services.displayManager.gdm import Gdm
 
 logger = logging.getLogger(__name__)
 
-gdm = Scanner(
-    "services.displayManager.gdm",
-    description="Gnome display manager",
-)
+gdm = Scanner("services.displayManager.gdm")
 
 GDM_CONFIG_PATHS = [
     "/etc/gdm/custom.conf",

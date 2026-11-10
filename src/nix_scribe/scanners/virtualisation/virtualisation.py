@@ -5,10 +5,7 @@ from nix_scribe.modules.nixos.virtualisation.virtualisation import (
     VmVariantVirtualisation,
 )
 
-virtualisation = Scanner(
-    "virtualisation",
-    description="virtualisation options for testing the machine",
-)
+virtualisation = Scanner("virtualisation")
 
 
 @virtualisation.scanner()

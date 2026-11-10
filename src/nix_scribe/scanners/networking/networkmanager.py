@@ -22,10 +22,7 @@ VALID_DNS_MODES = {"default", "dnsmasq", "systemd-resolved", "none"}
 VALID_DHCP_BACKENDS = {"dhcpcd", "internal"}
 VALID_WIFI_BACKENDS = {"wpa_supplicant", "iwd"}
 
-networkmanager = Scanner(
-    "networking.networkmanager",
-    description="NetworkManager configuration",
-)
+networkmanager = Scanner("networking.networkmanager")
 
 
 def _parse_powersave(val: Any) -> bool | None:

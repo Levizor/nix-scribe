@@ -7,10 +7,7 @@ from nix_scribe.modules.nixos.programs.bash import Bash
 
 logger = logging.getLogger(__name__)
 
-bash = Scanner(
-    "programs.bash",
-    description="Bash Shell Configuration",
-)
+bash = Scanner("programs.bash")
 
 
 def _parse_rc(content: str) -> tuple[str, dict[str, str], bool]:
