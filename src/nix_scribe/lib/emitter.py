@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import MISSING, Field
+from dataclasses import MISSING
 from typing import Any
 
 from nix_scribe.lib.nix_fragment import NixFragment, NixValue, combined_comments
@@ -10,44 +10,22 @@ from nix_scribe.lib.nix_module import (
 )
 
 
-def should_omit(f: Field[Any], val: Any, keep_defaults: bool = False) -> bool:
+def should_omit(f: Any, val: Any = MISSING) -> bool:
     """Determines whether a module field should be omitted from output.
 
-    None and empty collections are always omitted unless explicitly requested.
-    When keep_defaults is False, fields matching their declared default are omitted.
+    None and empty collections are always omitted.
     """
-    if val is None:
+    actual_val = val if val is not MISSING else f
+    if actual_val is None:
         return True
-
-    meta = get_option_metadata(f)
-    if not meta.omit_default:
-        return False
-
-    if keep_defaults:
-        return False
-
-    if isinstance(val, (list, dict, set)) and len(val) == 0:
+    if isinstance(actual_val, (list, dict, set)) and len(actual_val) == 0:
         return True
-
-    default_val = (
-        f.default
-        if f.default is not MISSING
-        else (f.default_factory() if f.default_factory is not MISSING else MISSING)
-    )
-    if default_val is not MISSING:
-        # Guard against Python treating bool as an int subclass where 0 == False and 1 == True
-        if (
-            isinstance(val, bool) == isinstance(default_val, bool)
-        ) and val == default_val:
-            return True
-
     return False
 
 
 def _serialize_value(
     val: Any,
     preserve_comments: bool,
-    keep_defaults: bool = False,
     root_opts: dict[str, Any] | None = None,
     collected_args: set[str] | None = None,
 ) -> Any:
@@ -56,7 +34,6 @@ def _serialize_value(
         inner = _serialize_value(
             val.value,
             preserve_comments,
-            keep_defaults,
             root_opts=root_opts,
             collected_args=collected_args,
         )
@@ -70,7 +47,6 @@ def _serialize_value(
         scoped, child_root, child_args = _serialize_fields(
             val,
             preserve_comments=preserve_comments,
-            keep_defaults=keep_defaults,
         )
         if root_opts is not None:
             root_opts.update(child_root)
@@ -86,7 +62,6 @@ def _serialize_value(
                 s := _serialize_value(
                     v,
                     preserve_comments,
-                    keep_defaults,
                     root_opts=root_opts,
                     collected_args=collected_args,
                 )
@@ -102,7 +77,6 @@ def _serialize_value(
                 s := _serialize_value(
                     item,
                     preserve_comments,
-                    keep_defaults,
                     root_opts=root_opts,
                     collected_args=collected_args,
                 )
@@ -116,7 +90,6 @@ def _serialize_value(
 def _serialize_fields(
     module: NixModule,
     preserve_comments: bool = True,
-    keep_defaults: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any], set[str]]:
     """Serializes fields of a module into scoped options, root options, and active arguments."""
     scoped: dict[str, Any] = {}
@@ -133,13 +106,12 @@ def _serialize_fields(
             else (None, raw_val)
         )
 
-        if should_omit(f, val, keep_defaults=keep_defaults):
+        if should_omit(f, val):
             continue
 
         serialized_val = _serialize_value(
             val,
             preserve_comments=preserve_comments,
-            keep_defaults=keep_defaults,
             root_opts=root_opts,
             collected_args=active_args,
         )
@@ -174,11 +146,9 @@ def _serialize_fields(
     return scoped, root_opts, active_args
 
 
-def emit_dict(module: NixModule, keep_defaults: bool = False) -> dict[str, Any]:
+def emit_dict(module: NixModule) -> dict[str, Any]:
     """Serializes active module options into a plain dictionary without NixValue wrappers."""
-    scoped, root_opts, _ = _serialize_fields(
-        module, preserve_comments=False, keep_defaults=keep_defaults
-    )
+    scoped, root_opts, _ = _serialize_fields(module, preserve_comments=False)
     if root_opts:
         return {**scoped, **root_opts}
     return scoped
@@ -189,12 +159,9 @@ def emit_nix_fragment(
     name: str = "",
     description: str = "",
     prefix: str | None = None,
-    keep_defaults: bool = False,
 ) -> NixFragment:
     """Compiles a NixModule into a NixFragment for layout rendering."""
-    scoped, root_opts, active_args = _serialize_fields(
-        module, preserve_comments=True, keep_defaults=keep_defaults
-    )
+    scoped, root_opts, active_args = _serialize_fields(module, preserve_comments=True)
     effective_prefix = module.prefix if module.prefix is not None else (prefix or "")
 
     data: dict[str, Any] = {}

@@ -13,7 +13,7 @@ def test_nano_scanner_basic(tmp_path):
 
     assert isinstance(mod, Nano)
     assert mod.enable is True
-    assert mod.nanorc == ""
+    assert not mod.nanorc
     assert mod.resolve_claims() == {"nano"}
 
     fragment = mod.to_nix_fragment()
@@ -58,6 +58,6 @@ def test_nano_scanner_with_commented_nanorc(tmp_path):
     mod = nano.scan(context)
 
     assert isinstance(mod, Nano)
-    assert mod.nanorc == ""
+    assert not mod.nanorc
     fragment = mod.to_nix_fragment()
     assert "nanorc" not in fragment["programs.nano"].value

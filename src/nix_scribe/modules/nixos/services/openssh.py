@@ -9,6 +9,6 @@ class OpenSSH(NixModule, prefix="services.openssh", claims={"openssh"}):
     """OpenSSH Secure Shell Service"""
 
     enable: bool = option()
-    ports: list[int] = option(default=[22], omit_default=False)
+    ports: list[int] = option()
     hostKeys: list[dict[str, Any]] = option()
     settings: dict[str, Any] = option()

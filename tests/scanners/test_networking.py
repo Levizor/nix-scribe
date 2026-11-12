@@ -52,7 +52,7 @@ def test_networking_scanner(tmp_path, monkeypatch):
 
     assert isinstance(mod, Networking)
     assert mod.hostName == "my-hostname"
-    assert mod.enableIPv6 is True
+    assert mod.enableIPv6 is None
     assert '"192.168.1.50"' in mod.hosts
     assert "server.internal" in mod.hosts['"192.168.1.50"']
     assert '"127.0.1.1"' not in mod.hosts
@@ -69,7 +69,7 @@ def test_networking_scanner(tmp_path, monkeypatch):
     assert "enableIpv6" not in data
     assert data["hosts"]['"192.168.1.50"'] == ["server.internal", "server"]
     assert data["nameservers"] == ["1.1.1.1", "8.8.8.8"]
-    assert "useDHCP" not in data
+    assert data["useDHCP"] is True
 
 
 def test_networking_scanner_disable_ipv6_sysctl(tmp_path, monkeypatch):

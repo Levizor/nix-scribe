@@ -48,13 +48,6 @@ def main(
         bool,
         typer.Option("--no-comment", help="Don't write comments to the output files"),
     ] = False,
-    keep_defaults: Annotated[
-        bool,
-        typer.Option(
-            "--keep-defaults",
-            help="Keep options even when their values match NixOS defaults",
-        ),
-    ] = False,
     confirm: Annotated[
         bool, typer.Option("--confirm", help="Don't ask for confirmation")
     ] = False,
@@ -146,7 +139,6 @@ def main(
     args.verbosity = verbosity
     args.mod_verbosity = verbosity if not mod_verbosity else mod_verbosity
     args.no_comment = no_comment
-    args.keep_defaults = keep_defaults
     args.confirm = confirm
     args.enable_modules = enable_module or []
     args.disable_modules = disable_module or []

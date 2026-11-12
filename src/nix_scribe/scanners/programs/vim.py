@@ -34,7 +34,8 @@ def scan(context: SystemContext) -> Vim | None:
     if not context.find_executable_path("vim"):
         return None
 
-    return Vim(
-        enable=True,
-        defaultEditor=_is_default_editor(context),
-    )
+    mod = Vim(enable=True)
+    if _is_default_editor(context):
+        mod.defaultEditor = True
+
+    return mod

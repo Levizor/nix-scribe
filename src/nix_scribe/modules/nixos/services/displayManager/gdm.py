@@ -9,7 +9,7 @@ class Gdm(NixModule, prefix="services.displayManager.gdm", claims={"gdm"}):
     """Gnome display manager"""
 
     enable: bool = option()
-    wayland: bool | None = option(omit_default=False)
-    autoLogin_delay: int | None = option("autoLogin.delay")
+    wayland: bool = option()
+    autoLogin_delay: int = option("autoLogin.delay")
     debug: bool = option()
     settings: dict[str, Any] = option()

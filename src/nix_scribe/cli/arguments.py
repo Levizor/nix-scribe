@@ -18,7 +18,6 @@ class CLIArguments:
     verbosity: int = 1
     mod_verbosity: int = 1
     no_comment: bool = False
-    keep_defaults: bool = False
     enable_modules: list[str] = field(default_factory=list)
     disable_modules: list[str] = field(default_factory=list)
     only_modules: list[str] = field(default_factory=list)

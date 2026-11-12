@@ -35,7 +35,7 @@ def test_nixscribe_scan_module_claims_packages():
     )
 
     class GitContract(NixModule, prefix="programs.git", claims={"git"}):
-        enable: bool = option(default=False)
+        enable: bool | None = option()
 
     mod = Scanner("programs.git")
 
@@ -127,7 +127,7 @@ def test_nixscribe_run_progress_and_debug_logging(tmp_path, caplog):
     args.output_path = tmp_path / "nix-config"
 
     class DummyContract(NixModule, prefix="programs.dummy"):
-        enable: bool = option(default=False)
+        enable: bool | None = option()
 
     dummy_mod = Scanner("test.dummy")
 
@@ -186,8 +186,8 @@ def test_nixscribe_run_dump_ir(tmp_path):
     args.dump_ir = True
 
     class DummyContract(NixModule, prefix="programs.dummy"):
-        option_val: str = option("option", default="")
-        password: str = option(default="")
+        option_val: str | None = option("option")
+        password: str | None = option()
 
     dummy_mod = Scanner("test.dummy")
 
@@ -322,8 +322,8 @@ def test_nixscribe_single_stage_nix_module(tmp_path):
     args.dump_ir = True
 
     class GitModule(NixModule, prefix="programs.git", claims={"git"}):
-        enable: bool = option(default=False)
-        lfs_enable: bool = option(default=False, path="lfs.enable", claims={"git-lfs"})
+        enable: bool | None = option()
+        lfs_enable: bool | None = option(path="lfs.enable", claims={"git-lfs"})
 
     git_scanner = Scanner("programs.git", description="Git configuration")
 

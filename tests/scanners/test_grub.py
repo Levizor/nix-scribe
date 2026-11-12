@@ -71,4 +71,4 @@ def test_grub_scanner_bios(tmp_path, monkeypatch):
 
     assert isinstance(mod, Grub)
     assert mod.enable is True
-    assert mod.efiSupport is False
+    assert not mod.efiSupport

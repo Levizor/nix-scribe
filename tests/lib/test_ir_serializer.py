@@ -67,11 +67,11 @@ def test_dump_ir_to_dict_and_save_to_file(tmp_path):
     from nix_scribe.lib.nix_module import NixModule, option
 
     class SystemdBoot(NixModule, prefix="boot.loader.systemd-boot"):
-        enable: bool = option(default=False)
+        enable: bool | None = option()
         timeout: int | None = option()
 
     class Users(NixModule, prefix="users"):
-        users: dict = option(default={})
+        users: dict = option()
 
     results = {
         "boot.loader.systemd-boot": SystemdBoot(enable=True, timeout=5),

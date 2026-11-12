@@ -276,7 +276,6 @@ class NixScribe:
                         name=mod.name.split(".")[-1],
                         description=mod.description,
                         prefix=scan_data.prefix,
-                        keep_defaults=getattr(args, "keep_defaults", False),
                     )
                     self.fragments[mod.name] = fragment if fragment else None
                 break

@@ -6,9 +6,9 @@ from nix_scribe.lib.nix_module import NixModule, option
 class Bash(NixModule, prefix="programs.bash", claims={"bash"}):
     """Bash Shell Configuration"""
 
-    enable: bool = option(default=True, omit_default=False)
+    enable: bool = option()
     interactiveShellInit: str = option()
     loginShellInit: str = option()
     logout: str = option()
-    promptInit: str | None = option()
+    promptInit: str = option()
     shellAliases: dict[str, str] = option()

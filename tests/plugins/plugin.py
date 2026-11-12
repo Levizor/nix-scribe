@@ -6,7 +6,7 @@ from nix_scribe.lib.registry import Scanner
 class Cowsay(NixModule, prefix="environment"):
     """Fun Cowsay Plugin Module"""
 
-    sessionVariables: dict[str, str] = option(default={})
+    sessionVariables: dict[str, str] = option()
 
 
 cowsay = Scanner("fun.cowsay")

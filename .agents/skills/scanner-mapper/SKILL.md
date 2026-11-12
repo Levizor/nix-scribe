@@ -22,7 +22,7 @@ class MyService(
 ):
     """My Service NixOS Configuration"""
 
-    enable: bool = option(default=False)
+    enable: bool | None = option()
     settingName: str | None = option()
 ```
 

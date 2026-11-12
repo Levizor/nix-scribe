@@ -65,7 +65,6 @@ def scan(context: SystemContext) -> Sudo | None:
     mod = Sudo(
         enable=True,
         wheelNeedsPassword=not has_wheel_nopasswd,
-        execWheelOnly=False,
         keepTerminfo=has_keep_terminfo,
     )
 

@@ -20,7 +20,7 @@ def test_vim_scanner_basic(tmp_path):
 
     assert isinstance(mod, Vim)
     assert mod.enable is True
-    assert mod.defaultEditor is False
+    assert not mod.defaultEditor
     assert mod.resolve_claims() == {"vim"}
 
     fragment = mod.to_nix_fragment()
@@ -66,4 +66,4 @@ def test_vim_scanner_default_editor_profile(tmp_path):
     assert vim.scan(context).defaultEditor is True
 
     (tmp_path / "etc/profile").write_text("export EDITOR=nano")
-    assert vim.scan(context).defaultEditor is False
+    assert not vim.scan(context).defaultEditor

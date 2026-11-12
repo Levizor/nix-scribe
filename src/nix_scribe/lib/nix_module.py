@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import inspect
 from dataclasses import MISSING, Field, dataclass, field, fields
 from typing import TYPE_CHECKING, Any, ClassVar, cast, dataclass_transform, get_origin
@@ -26,10 +25,6 @@ class OptionMetadata:
     root: bool = False
     # Inlines dictionary fields directly under the parent prefix.
     inline: bool = False
-    # Whether an explicit default or default_factory was configured.
-    explicit_default: bool = False
-    # Whether to omit the field when its value matches default.
-    omit_default: bool = True
 
 
 _DEFAULT_OPTION_METADATA = OptionMetadata()
@@ -43,19 +38,15 @@ def get_option_metadata(f: Field[Any]) -> OptionMetadata:
 def option(
     path: str | None = None,
     *,
-    default: Any = MISSING,
-    default_factory: Any = MISSING,
     comment: str | None = None,
     claims: set[str] | None = None,
     arguments: set[str] | None = None,
     root: bool = False,
     inline: bool = False,
-    omit_default: bool = True,
     **kwargs: Any,
 ) -> Any:
     """Declares a NixModule field with Nix option metadata."""
     metadata = dict(kwargs.pop("metadata", {}))
-    has_explicit_default = default is not MISSING or default_factory is not MISSING
     metadata["nix_option"] = OptionMetadata(
         path=path,
         comment=comment,
@@ -63,37 +54,12 @@ def option(
         arguments=set(arguments) if arguments else set(),
         root=root,
         inline=inline,
-        explicit_default=has_explicit_default,
-        omit_default=omit_default,
     )
-
-    if default_factory is not MISSING:
-        return field(default_factory=default_factory, metadata=metadata, **kwargs)
-    if default is not MISSING:
-        if isinstance(default, (list, dict, set)):
-            if not default:
-                return field(
-                    default_factory=type(default),
-                    metadata=metadata,
-                    **kwargs,
-                )
-            initial_val = default
-            return field(
-                default_factory=lambda: copy.deepcopy(initial_val),
-                metadata=metadata,
-                **kwargs,
-            )
-        return field(default=default, metadata=metadata, **kwargs)
     return field(default=None, metadata=metadata, **kwargs)
 
 
 def _infer_default_from_annotation(ann: Any) -> tuple[Any, Any]:
     """Returns (default, default_factory) inferred from a field's type annotation."""
-    if ann is bool or ann == "bool":
-        return False, MISSING
-    if ann is str or ann == "str":
-        return "", MISSING
-
     origin = get_origin(ann)
     if origin is list or ann is list:
         return MISSING, list
@@ -164,12 +130,9 @@ class NixModule:
         for field_name, ann in annotations.items():
             val = cls.__dict__.get(field_name, MISSING)
             if isinstance(val, Field):
-                meta = get_option_metadata(val)
-                if not meta.explicit_default:
-                    inferred_default, inferred_factory = _infer_default_from_annotation(
-                        ann
-                    )
-                    val.default = inferred_default
+                inferred_default, inferred_factory = _infer_default_from_annotation(ann)
+                if val.default is None and inferred_factory is not MISSING:
+                    val.default = MISSING
                     val.default_factory = inferred_factory
 
         has_explicit_doc = bool(cls.__dict__.get("__doc__"))
@@ -241,21 +204,17 @@ class NixModule:
                 collected.update(sub.resolve_assets())
         return collected
 
-    def to_dict(
-        self,
-        keep_defaults: bool = False,
-    ) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes active module options into a plain dictionary without NixValue wrappers."""
         from nix_scribe.lib.emitter import emit_dict
 
-        return emit_dict(cast(Any, self), keep_defaults=keep_defaults)
+        return emit_dict(cast(Any, self))
 
     def to_nix_fragment(
         self,
         name: str = "",
         description: str = "",
         prefix: str | None = None,
-        keep_defaults: bool = False,
     ) -> NixFragment:
         """Compiles this NixModule into a NixFragment for layout rendering."""
         from nix_scribe.lib.emitter import emit_nix_fragment
@@ -265,5 +224,4 @@ class NixModule:
             name=name,
             description=description,
             prefix=prefix,
-            keep_defaults=keep_defaults,
         )

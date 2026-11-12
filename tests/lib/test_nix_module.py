@@ -14,49 +14,46 @@ from nix_scribe.lib.nixfile import NixFile
 
 
 class GitLfs(NixModule, claims={"git-lfs"}):
-    enable: bool = option(default=False)
-    enablePureSSHTransfer: bool = option(default=False)
+    enable: bool | None = option()
+    enablePureSSHTransfer: bool | None = option()
 
 
 class Git(NixModule, claims={"git"}, prefix="programs.git"):
-    enable: bool = option(default=False)
-    prompt_enable: bool = option("prompt.enable", default=False)
-    config: dict[str, Any] = option(default={})
+    enable: bool | None = option()
+    prompt_enable: bool | None = option("prompt.enable")
+    config: dict[str, Any] = option()
     lfs: GitLfs | None = None
 
 
 class Sudo(NixModule, claims={"sudo"}, prefix="security.sudo"):
-    enable: bool = option(default=False)
-    execWheelOnly: bool = option(default=False)
-    wheelNeedsPassword: bool = option(
-        default=True,
+    enable: bool | None = option()
+    execWheelOnly: bool | None = option()
+    wheelNeedsPassword: bool | None = option(
         comment="Allow wheel members to run sudo without password",
     )
-    keepTerminfo: bool = option(default=False)
-    extraConfig: str = option(default="")
+    keepTerminfo: bool | None = option()
+    extraConfig: str | None = option()
 
 
 class UserEntry(NixModule):
     uid: int
-    isNormalUser: bool = option(default=False)
-    description: str = option(default="")
+    isNormalUser: bool | None = option()
+    description: str | None = option()
     home: str | None = None
-    group: str = option(default="users")
-    extraGroups: list[str] = option(default=[])
+    group: str | None = option()
+    extraGroups: list[str] = option()
     shell: Any = None
 
 
 class Users(NixModule, prefix="users.users"):
-    users: dict[str, UserEntry] = option(inline=True, default={})
-    bash_enable: bool = option(
+    users: dict[str, UserEntry] = option(inline=True)
+    bash_enable: bool | None = option(
         "programs.bash.enable",
-        default=False,
         root=True,
         arguments={"pkgs"},
     )
-    zsh_enable: bool = option(
+    zsh_enable: bool | None = option(
         "programs.zsh.enable",
-        default=False,
         root=True,
         arguments={"pkgs"},
     )
@@ -65,13 +62,6 @@ class Users(NixModule, prefix="users.users"):
 def test_nix_module_defaults_and_omission():
     sudo = Sudo(enable=True)
     assert sudo.to_dict() == {"enable": True}
-    assert sudo.to_dict(keep_defaults=True) == {
-        "enable": True,
-        "execWheelOnly": False,
-        "wheelNeedsPassword": True,
-        "keepTerminfo": False,
-        "extraConfig": "",
-    }
 
     sudo_custom = Sudo(
         enable=True,
@@ -85,22 +75,6 @@ def test_nix_module_defaults_and_omission():
         "wheelNeedsPassword": False,
         "extraConfig": "Defaults timestamp_timeout=15",
     }
-
-
-def test_nix_module_keep_defaults_and_arguments():
-    sudo = Sudo(enable=True)
-    fragment_default = sudo.to_nix_fragment(name="sudo")
-    assert "wheelNeedsPassword" not in fragment_default["security.sudo"].value
-
-    fragment_kept = sudo.to_nix_fragment(name="sudo", keep_defaults=True)
-    assert fragment_kept["security.sudo"].value["wheelNeedsPassword"].value is True
-    assert fragment_kept["security.sudo"].value["execWheelOnly"] is False
-
-    users = Users()
-    frag_default = users.to_nix_fragment()
-    assert frag_default.arguments == set()
-    frag_kept = users.to_nix_fragment(keep_defaults=True)
-    assert frag_kept.arguments == {"pkgs"}
 
 
 def test_nix_module_nested_and_claims():
@@ -129,7 +103,7 @@ def test_nix_module_nested_and_claims():
 def test_nix_module_field_level_claims():
     class Networking(NixModule, prefix="networking"):
         hostName: str | None = None
-        useDHCP: bool = option(default=False, claims={"dhcpcd"})
+        useDHCP: bool | None = option(claims={"dhcpcd"})
 
     net_inactive = Networking(hostName="nixos")
     assert net_inactive.resolve_claims() == set()
@@ -143,7 +117,7 @@ def test_nix_module_field_level_claims():
 
 def test_nix_module_assets_and_arguments():
     class Grub(NixModule, claims={"grub2"}, prefix="boot.loader.grub"):
-        enable: bool = option(default=False)
+        enable: bool | None = option()
         splashImage: Asset | None = None
 
     splash = Asset("grub-splash.png", b"PNGDATA")
@@ -231,10 +205,10 @@ def test_mutable_default_isolation():
 
 def test_nix_module_subclass_inheritance():
     class BaseService(NixModule, claims={"base-daemon"}, arguments={"pkgs"}):
-        enable: bool = option(default=False)
+        enable: bool | None = option()
 
     class ExtendedService(BaseService, claims={"extra-tool"}, arguments={"lib"}):
-        port: int = option(default=8080)
+        port: int | None = option()
 
     svc = ExtendedService(enable=True, port=9090)
     assert svc.resolve_claims() == {"base-daemon", "extra-tool"}
@@ -245,9 +219,8 @@ def test_nix_module_subclass_inheritance():
 def test_nix_module_nested_submodule_root_options():
     class Key(NixModule):
         key_id: str
-        root_flag: bool = option(
+        root_flag: bool | None = option(
             "security.globalFlag",
-            default=False,
             root=True,
             arguments={"pkgs"},
         )
@@ -267,8 +240,8 @@ def test_nix_module_nested_submodule_root_options():
 
 def test_nix_module_sets_and_tuples_serialization():
     class GroupPolicy(NixModule, prefix="security.policy"):
-        allowed_users: set[str] = option(default_factory=set)
-        dimensions: tuple[int, ...] = option(default=())
+        allowed_users: set[str] = option()
+        dimensions: tuple[int, ...] | None = option()
 
     policy = GroupPolicy(
         allowed_users={"alice", "bob"},
@@ -282,21 +255,19 @@ def test_nix_module_sets_and_tuples_serialization():
 
 def test_nix_module_int_and_bool_type_safety():
     class Numeric(NixModule, prefix="metrics"):
-        zero_val: int = option(default=0)
-        false_val: bool = option(default=False)
-        true_default: bool = option(default=True)
+        zero_val: int | None = option()
+        false_val: bool | None = option()
+        flag: bool | None = option()
 
-    num_mod = Numeric(zero_val=0, false_val=False, true_default=True)
-    assert num_mod.to_dict() == {}
+    empty = Numeric()
+    assert empty.to_dict() == {}
 
-    # False set on true_default must be emitted
-    disabled = Numeric(true_default=False)
-    assert disabled.to_dict() == {"true_default": False}
-
-    # 0 should NOT omit False, and False should NOT omit 0
-    inverted = Numeric(zero_val=False, false_val=0)  # type: ignore[arg-type]
-    res = inverted.to_dict()
-    assert res == {"zero_val": False, "false_val": 0}
+    populated = Numeric(zero_val=0, false_val=False, flag=True)
+    assert populated.to_dict() == {
+        "zero_val": 0,
+        "false_val": False,
+        "flag": True,
+    }
 
 
 def test_nix_fragment_container_dunders():
@@ -312,13 +283,11 @@ def test_nix_fragment_container_dunders():
 
 def test_nix_module_option_metadata_and_helper():
     class Example(NixModule):
-        flag: bool = option(
+        flag: bool | None = option(
             "boot.test",
-            default=True,
             comment="Static comment",
             claims={"test-pkg"},
             arguments={"pkgs"},
-            omit_default=False,
         )
 
     f = Example()._fields[0]
@@ -328,8 +297,6 @@ def test_nix_module_option_metadata_and_helper():
     assert meta.comment == "Static comment"
     assert meta.claims == {"test-pkg"}
     assert meta.arguments == {"pkgs"}
-    assert meta.omit_default is False
-    assert meta.explicit_default is True
 
 
 def test_nix_module_docstring_fallback_for_fragment():
@@ -339,7 +306,7 @@ def test_nix_module_docstring_fallback_for_fragment():
         Longer description that should be ignored for header.
         """
 
-        enable: bool = option(default=False)
+        enable: bool | None = option()
 
     svc = DocstringService(enable=True)
     frag = emit_nix_fragment(svc)
@@ -375,8 +342,8 @@ def test_nix_module_inferred_defaults_from_type_annotations():
         nullable_list: list[str] | None = option()
 
     mod = Inferred()
-    assert mod.flag is False
-    assert mod.text == ""
+    assert mod.flag is None
+    assert mod.text is None
     assert mod.items == []
     assert mod.mapping == {}
     assert mod.tags == set()

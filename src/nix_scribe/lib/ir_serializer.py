@@ -53,7 +53,7 @@ class IRJSONEncoder(json.JSONEncoder):
                 "reason": obj.reason.value,
             }
         if isinstance(obj, NixModule):
-            return obj.to_dict(keep_defaults=True)
+            return obj.to_dict()
         if is_dataclass(obj) and not isinstance(obj, type):
             return asdict(obj)
         if isinstance(obj, Enum):
