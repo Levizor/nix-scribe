@@ -6,6 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from nix_scribe.lib.nix_module import NixModule
 from nix_scribe.lib.packages.models import (
     DiscoveredPackage,
     PackageState,
@@ -51,6 +52,8 @@ class IRJSONEncoder(json.JSONEncoder):
                 "repository": obj.repository,
                 "reason": obj.reason.value,
             }
+        if isinstance(obj, NixModule):
+            return obj.to_dict()
         if is_dataclass(obj) and not isinstance(obj, type):
             return asdict(obj)
         if isinstance(obj, Enum):
@@ -68,12 +71,8 @@ class IRJSONEncoder(json.JSONEncoder):
 
 
 def dump_ir_to_dict(results: dict[str, Any]) -> dict[str, Any]:
-    """Serializes module results IR to a JSON-compatible dictionary structure."""
-    raw_ir = {
-        name: result.scan_data
-        for name, result in results.items()
-        if hasattr(result, "scan_data") and result.scan_data
-    }
+    """Serializes scanned NixModule results to a JSON-compatible dictionary structure."""
+    raw_ir = {name: mod for name, mod in results.items() if mod is not None}
     return json.loads(json.dumps(raw_ir, cls=IRJSONEncoder))
 
 

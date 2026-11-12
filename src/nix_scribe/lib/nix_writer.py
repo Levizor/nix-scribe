@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from io import StringIO
 from typing import Any, Generator
 
-from nix_scribe.arguments import args
+from nix_scribe.cli.arguments import args
 from nix_scribe.lib.asset import Asset
 
 
@@ -13,6 +13,9 @@ class raw(str):
 
     def __repr__(self):
         return str(self)
+
+
+null = raw("null")
 
 
 class comment(raw):
@@ -33,12 +36,17 @@ class comment(raw):
         return super().__new__(cls, "\n".join(lines))
 
 
-class combination(list):
-    def __new__(cls, *args):
-        return super().__new__(cls, *args)
+class combination(raw):
+    items: list[Any]
 
-    def __repr__(self):
-        return "".join(repr(item) for item in self)
+    def __new__(cls, items: list[Any]):
+        text = "".join(repr(item) for item in items)
+        instance = super().__new__(cls, text)
+        instance.items = list(items)
+        return instance
+
+    def __iter__(self):
+        return iter(self.items)
 
 
 def nix_with(with_attr: str, value) -> combination:
@@ -80,15 +88,15 @@ class NixWriter:
             if not args.no_comment:
                 self._write_raw(str(value))
 
+        elif isinstance(value, combination):
+            for inner_value in value.items:
+                self._write_value(inner_value)
+
         elif isinstance(value, (int, float, raw)):
             self._write_raw(str(value))
 
         elif isinstance(value, Asset):
             self._write_raw(str(value))
-
-        elif isinstance(value, combination):
-            for inner_value in value:
-                self._write_value(inner_value)
 
         elif isinstance(value, str):
             if "\n" in value:

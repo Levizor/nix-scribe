@@ -90,6 +90,12 @@ def test_package_state_query_and_claim():
     assert unclaimed == [font, rg]
     assert state.unclaimed == [font, rg]
 
+    assert state.claim("fira-code", "ripgrep", "nonexistent", by="bundle") is True
+    assert state.claimed == {"bat", "fira-code", "ripgrep"}
+    assert state.claimed_by("fira-code") == "bundle"
+    assert state.claimed_by("ripgrep") == "bundle"
+    assert state.unclaimed == []
+
 
 def test_package_state_empty():
     state = PackageState.empty()

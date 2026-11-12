@@ -5,15 +5,15 @@ from pathlib import Path
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.modularization import ModularizationLevel
-from nix_scribe.lib.nix_writer import NixWriter, raw
-from nix_scribe.lib.option_block import (
+from nix_scribe.lib.nix_fragment import (
     CommentNode,
-    ConfigFragment,
     EmptyLineNode,
+    NixFragment,
     NixOptionDocument,
     OptionCollisionError,
     OptionNode,
 )
+from nix_scribe.lib.nix_writer import NixWriter, raw
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,12 @@ class NixFile:
 
         self.arguments = set()
         self.assets: set[Asset] = set()
-        self.fragments: list[ConfigFragment] = []
+        self.fragments: list[NixFragment] = []
         self.imports: list[raw | NixFile] = [] if imports is None else imports
 
         self.document = NixOptionDocument()
 
-    def add_fragment(self, fragment: ConfigFragment) -> None:
+    def add_fragment(self, fragment: NixFragment) -> None:
         self.fragments.append(fragment)
         self.arguments.update(fragment.arguments)
         self.assets.update(fragment.assets)

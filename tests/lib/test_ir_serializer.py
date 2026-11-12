@@ -13,7 +13,6 @@ from nix_scribe.lib.packages.models import (
     PackageState,
     ResolvedPackage,
 )
-from nix_scribe.nixscribe import ModuleResult
 
 
 class DummyEnum(Enum):
@@ -65,30 +64,26 @@ def test_ir_json_encoder():
 
 
 def test_dump_ir_to_dict_and_save_to_file(tmp_path):
-    from nix_scribe.lib.registry import Module
+    from nix_scribe.lib.nix_module import NixModule, option
 
-    mod1 = Module("boot.loader.systemd-boot")
-    mod2 = Module("users.users")
-    mod3 = Module("empty.module")
+    class SystemdBoot(NixModule, prefix="boot.loader.systemd-boot"):
+        enable: bool | None = option()
+        timeout: int | None = option()
 
-    res1 = ModuleResult(module=mod1, scan_data={"enable": True, "timeout": 5})
-    res2 = ModuleResult(
-        module=mod2,
-        scan_data={
-            "users": {
+    class Users(NixModule, prefix="users"):
+        users: dict = option()
+
+    results = {
+        "boot.loader.systemd-boot": SystemdBoot(enable=True, timeout=5),
+        "users.users": Users(
+            users={
                 "root": {
                     "hashedPassword": "$6$dummyhash",
                     "shell": "/bin/bash",
                 }
             }
-        },
-    )
-    res3 = ModuleResult(module=mod3, scan_data={})
-
-    results = {
-        "boot.loader.systemd-boot": res1,
-        "users.users": res2,
-        "empty.module": res3,
+        ),
+        "empty.module": None,
     }
 
     dumped = dump_ir_to_dict(results)

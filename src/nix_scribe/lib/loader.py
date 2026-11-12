@@ -5,18 +5,18 @@ import pkgutil
 import sys
 from pathlib import Path
 
-from nix_scribe.lib.registry import Module, ModuleRegistry
+from nix_scribe.lib.registry import Scanner, ScannerRegistry
 
 logger = logging.getLogger(__name__)
 
 
-class ModuleLoader:
+class ScannerLoader:
     def __init__(
         self,
-        modules_package: str | None = "nix_scribe.modules",
+        scanners_package: str | None = "nix_scribe.scanners",
         path: Path | None = None,
     ):
-        self.modules_package = modules_package
+        self.scanners_package = scanners_package
         if path:
             self.package_path = Path(path)
             if not self.package_path.exists():
@@ -30,34 +30,31 @@ class ModuleLoader:
             )
             if str(search_dir) not in sys.path:
                 sys.path.insert(0, str(search_dir))
-        elif modules_package:
-            spec = importlib.util.find_spec(modules_package)
+        elif scanners_package:
+            spec = importlib.util.find_spec(scanners_package)
             if not spec or not spec.submodule_search_locations:
-                raise ImportError(f"Could not find package {modules_package}")
+                raise ImportError(f"Could not find package {scanners_package}")
             self.package_path = Path(spec.submodule_search_locations[0])
         else:
             self.package_path = None
 
-    def discover(self) -> dict[str, Module]:
-        """Loads all modules and returns a flat dictionary keyed by namespace."""
-        self._import_all_modules()
+    def discover(self) -> dict[str, Scanner]:
+        """Loads all scanners and returns a flat dictionary keyed by namespace."""
+        self._import_all_scanners()
 
-        valid_modules: dict[str, Module] = {}
+        valid_scanners: dict[str, Scanner] = {}
 
-        for full_name, module in ModuleRegistry().get_all().items():
-            if not module.scan:
-                logger.warning(f"Module '{full_name}' skipped: No scanner.")
-                continue
-            if not module.map:
-                logger.warning(f"Module '{full_name}' skipped: No mapper.")
+        for full_name, scanner in ScannerRegistry().get_all().items():
+            if not scanner.scan:
+                logger.warning(f"Scanner '{full_name}' skipped: No scan function.")
                 continue
 
-            valid_modules[full_name] = module
-            logger.debug(f"Successfully loaded module '{full_name}'")
+            valid_scanners[full_name] = scanner
+            logger.debug(f"Successfully loaded scanner '{full_name}'")
 
-        return valid_modules
+        return valid_scanners
 
-    def _import_all_modules(self) -> None:
+    def _import_all_scanners(self) -> None:
         if not self.package_path:
             return
 
@@ -73,13 +70,13 @@ class ModuleLoader:
                         sys.modules[module_name] = mod
                         spec.loader.exec_module(mod)
                 except Exception as e:
-                    logger.error(f"Failed to load module file {self.package_path}: {e}")
+                    logger.error(
+                        f"Failed to load scanner file {self.package_path}: {e}"
+                    )
             return
 
-        package_paths = [str(self.package_path)]
-        prefix = f"{self.modules_package}." if self.modules_package else ""
-
-        for info in pkgutil.walk_packages(package_paths, prefix):
+        prefix = f"{self.scanners_package}." if self.scanners_package else ""
+        for info in pkgutil.walk_packages([str(self.package_path)], prefix):
             if info.ispkg:
                 continue
             try:
@@ -88,4 +85,4 @@ class ModuleLoader:
                 else:
                     importlib.import_module(info.name)
             except Exception as e:
-                logger.error(f"Failed to load module {info.name}: {e}")
+                logger.error(f"Failed to load scanner {info.name}: {e}")

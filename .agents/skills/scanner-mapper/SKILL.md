@@ -1,31 +1,51 @@
 ---
 name: scanner-mapper
-description: Guide and patterns for implementing nix-scribe reverse-engineering modules using pure filesystem Scanner and Mapper functions.
+description: Guide and patterns for implementing nix-scribe reverse-engineering modules using declarative NixModule contracts and single-stage Scanners.
 ---
 
-# Scanner / Mapper Module Architecture Guide
+# NixModule & Scanner Architecture Guide
 
-Every `nix-scribe` module inspects a component of the target host system and outputs declarative NixOS configuration blocks.
+Every `nix-scribe` component pairs a declarative `NixModule` contract in `src/nix_scribe/modules/nixos/` with a single-stage filesystem `Scanner` in `src/nix_scribe/scanners/`.
 
-## Module Structure Template
+## 1. Declarative `NixModule` Contract (`src/nix_scribe/modules/nixos/<category>/<name>.py`)
+
+```python
+from __future__ import annotations
+
+from nix_scribe.lib.nix_module import NixModule, option
+
+
+class MyService(
+    NixModule,
+    prefix="services.myService",
+    claims={"my-service"},
+):
+    """My Service NixOS Configuration"""
+
+    enable: bool | None = option()
+    settingName: str | None = option()
+```
+
+## 2. Single-Stage Scanner (`src/nix_scribe/scanners/<category>/<name>.py`)
 
 ```python
 import logging
-from typing import Any
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import ConfigFragment
 from nix_scribe.lib.parsers.kv import parse_kv
 from nix_scribe.lib.parsers.parser import ConfigReader
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
+from nix_scribe.modules.nixos.services.my_service import MyService
 
 logger = logging.getLogger(__name__)
 
-my_module = Module("category.name")
+my_service = Scanner("services.my_service")
+
+CONFIG_PATH = "/etc/my_service/config.conf"
 
 
-@my_module.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
+@my_service.scanner()
+def scan(context: SystemContext) -> MyService | None:
     """
     100% Pure Filesystem Scanner.
     - Check file existence via context.path_exists()
@@ -33,37 +53,15 @@ def scan(context: SystemContext) -> dict[str, Any]:
     - Inspect directories via context.list_directory()
     - NEVER invoke shell commands or host binaries.
     """
-    if not context.path_exists("/etc/my_service/config.conf"):
-        return {}
-
-    reader = ConfigReader(context, parse_kv)
-    config = reader.read_config("/etc/my_service/config.conf")
-
-    return {
-        "enable": True,
-        "settingName": config.get("setting_name"),
-    }
-
-
-@my_module.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    """
-    Transforms IR into NixOS ConfigFragment.
-    - Returns None if disabled or empty.
-    - Returns ConfigFragment with NixOS option mappings.
-    """
-    if not ir or not ir.get("enable"):
+    if not context.path_exists(CONFIG_PATH):
         return None
 
-    config: dict[str, Any] = {"enable": True}
+    reader = ConfigReader(context, parse_kv)
+    config = reader.read_config(CONFIG_PATH)
 
-    if "settingName" in ir:
-        config["settingName"] = ir["settingName"]
-
-    return ConfigFragment(
-        name="my-service",
-        description="My Service NixOS Configuration",
-        data={"services.myService": config},
+    return MyService(
+        enable=True,
+        settingName=config.get("setting_name"),
     )
 ```
 
@@ -72,7 +70,7 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
 2. **Parser Selection**:
    * Equals-delimited key-value (`KEY=VALUE`): `parse_kv`
    * Space-delimited key-value (`KEY VALUE`): `parse_space_kv`
-   * INI files: `ConfigReader` with standard INI parser
+   * INI files: `ConfigReader` with `parse_ini`
    * PAM files: `parse_pam`
    * Sudoers files: `parse_sudoers`
-3. **NixOS Option Mapping**: Ensure option names match NixOS options directly (verify via `nix eval`).
+3. **NixOS Option Mapping**: Ensure `NixModule` field paths and defaults match NixOS options directly (verify via `nix eval`).
