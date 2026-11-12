@@ -24,7 +24,9 @@ MOCK_CMDLINE = "quiet splash console=ttyS0,115200"
 
 def test_kernel_scanner_empty(tmp_path):
     context = SystemContext(tmp_path)
-    assert kernel.scan(context) is None
+    mod = kernel.scan(context)
+    assert isinstance(mod, Kernel)
+    assert not mod.to_dict()
 
 
 def test_kernel_scanner_with_files(tmp_path):

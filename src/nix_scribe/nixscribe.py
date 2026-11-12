@@ -265,19 +265,29 @@ class NixScribe:
                     return
 
                 scan_data = mod.scan(self.context)
-                self.results[mod.name] = scan_data
                 logger.debug(f"Scanned {mod.name}")
                 if isinstance(scan_data, NixModule):
-                    self.context.packages.claim(
-                        *scan_data.resolve_claims(), by=mod.name
-                    )
                     fragment = emit_nix_fragment(
                         scan_data,
                         name=mod.name.split(".")[-1],
                         description=mod.description,
                         prefix=scan_data.prefix,
                     )
-                    self.fragments[mod.name] = fragment if fragment else None
+                    if not fragment:
+                        self.results[mod.name] = None
+                        self.fragments[mod.name] = None
+                        logger.debug(
+                            f"Module {mod.name} yielded no configured options; skipping."
+                        )
+                    else:
+                        self.results[mod.name] = scan_data
+                        self.fragments[mod.name] = fragment
+                        self.context.packages.claim(
+                            *scan_data.resolve_claims(), by=mod.name
+                        )
+                else:
+                    self.results[mod.name] = scan_data
+                    self.fragments[mod.name] = None
                 break
             except ElevationRequest as e:
                 logger.warning(f"Permission denied: {e.description}")

@@ -372,3 +372,39 @@ def test_nixscribe_single_stage_nix_module(tmp_path):
         assert ir_data["programs.git"] == {"enable": True, "lfs.enable": True}
     finally:
         args.dump_ir = False
+
+
+def test_nixscribe_empty_module_discarded_by_engine():
+    from nix_scribe.lib.nix_module import NixModule, option
+    from nix_scribe.lib.packages import (
+        DiscoveredPackage,
+        InstallReason,
+        PackageState,
+        ResolvedPackage,
+    )
+
+    console = Console(quiet=True)
+    git_pkg = ResolvedPackage(
+        "git", DiscoveredPackage("git", "debian", InstallReason.EXPLICIT)
+    )
+
+    class EmptyContract(NixModule, prefix="programs.empty", claims={"git"}):
+        enable: bool = option()
+        unconfigured: str = option()
+
+    empty_mod = Scanner("programs.empty")
+
+    @empty_mod.scanner()
+    def scan(context) -> EmptyContract:
+        # Scanner returns contract instance without populating options
+        return EmptyContract()
+
+    script = NixScribe(console=console, modules={"programs.empty": empty_mod})
+    script.context.packages = PackageState(packages=[git_pkg])
+
+    script._scan_module(empty_mod)
+
+    # Empty module should be cleanly discarded and not claim packages
+    assert script.results["programs.empty"] is None
+    assert script.fragments["programs.empty"] is None
+    assert not script.context.packages.is_claimed("git")

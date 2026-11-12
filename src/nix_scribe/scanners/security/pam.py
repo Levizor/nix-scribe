@@ -70,7 +70,4 @@ def scan(context: SystemContext) -> Pam | None:
         if conf_config.get("has_howdy"):
             mod.howdy_enable = True
 
-    if not mod.to_dict():
-        return None
-
     return mod

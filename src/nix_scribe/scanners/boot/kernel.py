@@ -49,7 +49,4 @@ def scan(context: SystemContext) -> Kernel | None:
         if content:
             mod.kernelParams = content.split()
 
-    if not mod.to_dict():
-        return None
-
     return mod

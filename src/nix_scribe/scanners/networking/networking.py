@@ -80,7 +80,4 @@ def scan(context: SystemContext) -> Networking | None:
         except Exception as e:
             logger.warning(f"Failed to parse /etc/systemd/timesyncd.conf: {e}")
 
-    if not mod.to_dict():
-        return None
-
     return mod
