@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import inspect
 from dataclasses import MISSING, Field, dataclass, field, fields
 from typing import TYPE_CHECKING, Any, ClassVar, cast, dataclass_transform, get_origin
 
@@ -159,7 +160,7 @@ class NixModule:
         if prefix is not None:
             cls.prefix = prefix
 
-        annotations = cls.__dict__.get("__annotations__", {})
+        annotations = inspect.get_annotations(cls)
         for field_name, ann in annotations.items():
             val = cls.__dict__.get(field_name, MISSING)
             if isinstance(val, Field):
