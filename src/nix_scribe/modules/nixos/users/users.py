@@ -6,13 +6,13 @@ from nix_scribe.lib.nix_module import NixModule, option
 
 
 class SubUidRange(NixModule):
-    startUid: int
-    count: int
+    startUid: int | None = option()
+    count: int | None = option()
 
 
 class SubGidRange(NixModule):
-    startGid: int
-    count: int
+    startGid: int | None = option()
+    count: int | None = option()
 
 
 class UserEntry(NixModule):

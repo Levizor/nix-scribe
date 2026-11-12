@@ -4,7 +4,7 @@ from nix_scribe.lib.nix_module import NixModule, option
 
 
 class GroupEntry(NixModule):
-    gid: int
+    gid: int | None = option()
     members: list[str] = option(default=[])
 
 

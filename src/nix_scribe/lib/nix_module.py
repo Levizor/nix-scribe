@@ -105,7 +105,7 @@ def _collect_submodules(val: Any) -> list[NixModule]:
     return []
 
 
-@dataclass_transform(field_specifiers=(option, field))
+@dataclass_transform()
 class NixModule:
     """Recursive declarative schema mapping host state to Nix module options."""
 
