@@ -16,8 +16,8 @@ class NetworkManager(
 ):
     """NetworkManager configuration"""
 
-    enable: bool = option(default=False)
+    enable: bool = option()
     dns: str | None = option()
     dhcp: str | None = option()
     wifi: NetworkManagerWifi | None = option()
-    settings: dict[str, Any] = option(default={})
+    settings: dict[str, Any] = option()

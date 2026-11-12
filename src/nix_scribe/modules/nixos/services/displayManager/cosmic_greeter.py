@@ -10,4 +10,4 @@ class CosmicGreeter(
 ):
     """cosmic-greeter displayManager"""
 
-    enable: bool = option(default=False)
+    enable: bool = option()

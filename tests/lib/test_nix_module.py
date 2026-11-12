@@ -362,3 +362,28 @@ def test_nix_module_fields_property():
     mod = TestFields()
     f_names = [f.name for f in mod._fields]
     assert f_names == ["foo", "count"]
+
+
+def test_nix_module_inferred_defaults_from_type_annotations():
+    class Inferred(NixModule, prefix="test.inferred"):
+        flag: bool = option()
+        text: str = option()
+        items: list[str] = option()
+        mapping: dict[str, int] = option()
+        tags: set[str] = option()
+        nullable_text: str | None = option()
+        nullable_list: list[str] | None = option()
+
+    mod = Inferred()
+    assert mod.flag is False
+    assert mod.text == ""
+    assert mod.items == []
+    assert mod.mapping == {}
+    assert mod.tags == set()
+    assert mod.nullable_text is None
+    assert mod.nullable_list is None
+    assert mod.to_dict() == {}
+
+    # Ensure mutable defaults are isolated per instance
+    mod.items.append("a")
+    assert Inferred().items == []

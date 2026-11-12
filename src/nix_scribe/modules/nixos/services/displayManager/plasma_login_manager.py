@@ -12,5 +12,5 @@ class PlasmaLoginManager(
 ):
     """Plasma Login Manager (Greeter)"""
 
-    enable: bool = option(default=False)
-    settings: dict[str, Any] = option(default={})
+    enable: bool = option()
+    settings: dict[str, Any] = option()

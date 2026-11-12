@@ -46,4 +46,4 @@ class Cosmic(
 ):
     """Cosmic desktop environment"""
 
-    enable: bool = option(default=False)
+    enable: bool = option()

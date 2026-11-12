@@ -65,4 +65,4 @@ class Gnome(
 ):
     """Gnome desktop environment"""
 
-    enable: bool = option(default=False)
+    enable: bool = option()

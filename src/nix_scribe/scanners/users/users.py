@@ -135,13 +135,10 @@ def scan(context: SystemContext) -> Users | None:
         shell_path = info.get("shell", "")
         if "bash" in shell_path:
             shell_val = raw("pkgs.bash")
-            mod.bash_enable = True
         elif "zsh" in shell_path:
             shell_val = raw("pkgs.zsh")
-            mod.zsh_enable = True
         elif "fish" in shell_path:
             shell_val = raw("pkgs.fish")
-            mod.fish_enable = True
 
         auth_keys: list[str] = []
         ssh_keys_path = f"{info['home']}/.ssh/authorized_keys"

@@ -30,7 +30,10 @@ NTP=0.nixos.pool.ntp.org 1.nixos.pool.ntp.org
 def test_networking_scanner_empty(tmp_path, monkeypatch):
     context = SystemContext(tmp_path)
     monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
-    assert networking.scan(context) is None
+    mod = networking.scan(context)
+    assert isinstance(mod, Networking)
+    assert mod.useDHCP is False
+    assert mod.to_dict() == {"useDHCP": False}
 
 
 def test_networking_scanner(tmp_path, monkeypatch):
@@ -66,7 +69,7 @@ def test_networking_scanner(tmp_path, monkeypatch):
     assert "enableIpv6" not in data
     assert data["hosts"]['"192.168.1.50"'] == ["server.internal", "server"]
     assert data["nameservers"] == ["1.1.1.1", "8.8.8.8"]
-    assert data["useDHCP"] is True
+    assert "useDHCP" not in data
 
 
 def test_networking_scanner_disable_ipv6_sysctl(tmp_path, monkeypatch):
@@ -94,4 +97,7 @@ def test_networking_scanner_dynamic_resolv(tmp_path, monkeypatch):
     context = SystemContext(tmp_path)
     monkeypatch.setattr(context.systemctl, "is_enabled", lambda _: False)
 
-    assert networking.scan(context) is None
+    mod = networking.scan(context)
+    assert isinstance(mod, Networking)
+    assert mod.nameservers == []
+    assert mod.to_dict() == {"useDHCP": False}

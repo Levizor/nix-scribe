@@ -64,8 +64,7 @@ def scan(context: SystemContext) -> Networking | None:
             mod.search = dns_data["search"]
             mod.domain = dns_data["domain"]
 
-    if context.systemctl.is_enabled("dhcpcd"):
-        mod.useDHCP = True
+    mod.useDHCP = context.systemctl.is_enabled("dhcpcd")
 
     if context.systemctl.is_enabled("systemd-networkd"):
         mod.useNetworkd = True

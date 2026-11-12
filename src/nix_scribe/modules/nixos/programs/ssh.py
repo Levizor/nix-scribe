@@ -7,5 +7,5 @@ class Ssh(NixModule, prefix="programs.ssh", claims={"openssh"}):
     """OpenSSH Client Configuration"""
 
     forwardX11: bool | None = option()
-    startAgent: bool = option(default=False)
-    extraConfig: str = option(default="")
+    startAgent: bool = option()
+    extraConfig: str = option()

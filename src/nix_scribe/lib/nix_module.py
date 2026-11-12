@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import MISSING, Field, dataclass, field, fields
-from typing import TYPE_CHECKING, Any, ClassVar, cast, dataclass_transform
+from typing import TYPE_CHECKING, Any, ClassVar, cast, dataclass_transform, get_origin
 
 from nix_scribe.lib.asset import Asset
 from nix_scribe.lib.nix_fragment import NixValue
@@ -86,6 +86,34 @@ def option(
     return field(default=None, metadata=metadata, **kwargs)
 
 
+def _infer_default_from_annotation(ann: Any) -> tuple[Any, Any]:
+    """Returns (default, default_factory) inferred from a field's type annotation."""
+    if ann is bool or ann == "bool":
+        return False, MISSING
+    if ann is str or ann == "str":
+        return "", MISSING
+
+    origin = get_origin(ann)
+    if origin is list or ann is list:
+        return MISSING, list
+    if origin is dict or ann is dict:
+        return MISSING, dict
+    if origin is set or ann is set:
+        return MISSING, set
+
+    if isinstance(ann, str):
+        stripped = ann.strip()
+        if "|" not in stripped and not stripped.startswith(("Optional[", "Union[")):
+            if stripped == "list" or stripped.startswith("list["):
+                return MISSING, list
+            if stripped == "dict" or stripped.startswith("dict["):
+                return MISSING, dict
+            if stripped == "set" or stripped.startswith("set["):
+                return MISSING, set
+
+    return None, MISSING
+
+
 def _collect_submodules(val: Any) -> list[NixModule]:
     """Recursively extracts all active child NixModule instances from an option value."""
     if isinstance(val, NixValue):
@@ -130,6 +158,19 @@ class NixModule:
             )
         if prefix is not None:
             cls.prefix = prefix
+
+        annotations = cls.__dict__.get("__annotations__", {})
+        for field_name, ann in annotations.items():
+            val = cls.__dict__.get(field_name, MISSING)
+            if isinstance(val, Field):
+                meta = get_option_metadata(val)
+                if not meta.explicit_default:
+                    inferred_default, inferred_factory = _infer_default_from_annotation(
+                        ann
+                    )
+                    val.default = inferred_default
+                    val.default_factory = inferred_factory
+
         has_explicit_doc = bool(cls.__dict__.get("__doc__"))
         if "__dataclass_fields__" not in cls.__dict__:
             dataclass(cls)

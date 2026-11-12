@@ -7,7 +7,7 @@ class VmVariantVirtualisation(NixModule):
     cores: int = option(default=1)
     memorySize: int = option(default=1024)
     diskSize: int | None = option()
-    qemu_options: list[str] = option("qemu.options", default=[])
+    qemu_options: list[str] = option("qemu.options")
 
 
 class Virtualisation(NixModule, prefix="virtualisation.vmVariant"):

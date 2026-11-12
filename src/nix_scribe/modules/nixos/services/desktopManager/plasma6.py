@@ -74,4 +74,4 @@ class Plasma6(
 ):
     """KDE Plasma 6 Desktop Environment"""
 
-    enable: bool = option(default=False)
+    enable: bool = option()

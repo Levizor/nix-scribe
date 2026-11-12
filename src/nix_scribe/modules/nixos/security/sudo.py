@@ -7,7 +7,7 @@ class Sudo(NixModule, prefix="security.sudo", claims={"sudo"}):
     """Sudo Configuration"""
 
     enable: bool = option(default=True)
-    execWheelOnly: bool = option(default=False)
+    execWheelOnly: bool = option()
     wheelNeedsPassword: bool = option(default=True)
-    keepTerminfo: bool = option(default=False)
-    extraConfig: str = option(default="")
+    keepTerminfo: bool = option(default=True)
+    extraConfig: str = option()

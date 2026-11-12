@@ -49,8 +49,9 @@ def test_sudo_scanner_filesystem(tmp_path):
     data = fragment["security.sudo"].value
     assert "enable" not in data
     assert data["wheelNeedsPassword"] is False
-    assert data["keepTerminfo"] is True
+    assert "keepTerminfo" not in data
     assert "execWheelOnly" not in data
+    assert "TERMINFO" not in data["extraConfig"]
     assert "alice ALL=(ALL) NOPASSWD" in data["extraConfig"]
 
 
@@ -70,3 +71,7 @@ def test_sudo_scanner_exec_wheel_only(tmp_path):
 
     assert isinstance(mod, Sudo)
     assert mod.execWheelOnly is True
+    assert mod.keepTerminfo is False
+
+    fragment = mod.to_nix_fragment()
+    assert fragment["security.sudo"].value["keepTerminfo"] is False

@@ -12,8 +12,8 @@ class Sddm(
 ):
     """Simple Desktop Display Manager"""
 
-    enable: bool = option(default=False)
+    enable: bool = option()
     wayland_enable: bool | None = option("wayland.enable", omit_default=False)
     autoNumlock: bool | None = option(omit_default=False)
     theme: str | None = option()
-    settings: dict[str, Any] = option(default={})
+    settings: dict[str, Any] = option()

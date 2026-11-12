@@ -52,13 +52,8 @@ def test_users_scanner(tmp_path):
     assert str(bob.shell) == "pkgs.zsh"
     assert bob.hashedPassword is None
 
-    assert mod.bash_enable is True
-    assert mod.zsh_enable is True
-
     fragment = mod.to_nix_fragment()
     assert "pkgs" in fragment.arguments
-    assert fragment["programs.bash.enable"].value is True
-    assert fragment["programs.zsh.enable"].value is True
     alice_conf = fragment["users.users"].value["alice"]
     assert alice_conf["isNormalUser"] is True
     assert alice_conf["uid"] == 1000
