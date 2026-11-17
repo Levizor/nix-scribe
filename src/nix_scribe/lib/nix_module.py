@@ -81,16 +81,12 @@ def _infer_default_from_annotation(ann: Any) -> tuple[Any, Any]:
     return None, MISSING
 
 
-def is_configured(val: Any) -> bool:
-    """Determines whether an option value has been configured.
+def is_configured(f: Field[Any], instance: NixModule) -> bool:
+    """Determines whether a field object has been configured on a module instance.
 
     None and empty collections are unconfigured (omitted).
     """
-    if val is None:
-        return False
-    if isinstance(val, (list, dict, set)) and len(val) == 0:
-        return False
-    return True
+    return instance.is_configured(f)
 
 
 def _collect_submodules(val: Any) -> list[NixModule]:
@@ -182,13 +178,24 @@ class NixModule:
             object.__setattr__(self, "_extra_claims", extra)
         extra.update(packages)
 
+    def is_configured(self, field: Field[Any] | str) -> bool:
+        """Determines whether a field has been configured on this module instance."""
+        name = field.name if isinstance(field, Field) else field
+        raw_val = getattr(self, name)
+        val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
+        if val is None:
+            return False
+        if isinstance(val, (list, dict, set)) and len(val) == 0:
+            return False
+        return True
+
     def configured_fields(self) -> list[tuple[Field[Any], Any]]:
         """Returns configured fields and their unwrapped values."""
         configured: list[tuple[Field[Any], Any]] = []
         for f in self._fields:
-            raw_val = getattr(self, f.name)
-            val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
-            if is_configured(val):
+            if self.is_configured(f):
+                raw_val = getattr(self, f.name)
+                val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
                 configured.append((f, val))
         return configured
 

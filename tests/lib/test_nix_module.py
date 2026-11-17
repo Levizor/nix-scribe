@@ -386,13 +386,40 @@ def test_nix_module_inferred_defaults_from_type_annotations():
 
 
 def test_is_configured_helper():
-    assert is_configured(None) is False
-    assert is_configured([]) is False
-    assert is_configured({}) is False
-    assert is_configured(set()) is False
-    assert is_configured(False) is True
-    assert is_configured(True) is True
-    assert is_configured(0) is True
-    assert is_configured("") is True
-    assert is_configured("hello") is True
-    assert is_configured(["a"]) is True
+    class Sample(NixModule):
+        unconfigured_none: str = option()
+        unconfigured_list: list[str] = option()
+        unconfigured_dict: dict[str, int] = option()
+        unconfigured_set: set[str] = option()
+        configured_false: bool = option()
+        configured_true: bool = option()
+        configured_zero: int = option()
+        configured_empty_str: str = option()
+        configured_text: str = option()
+
+    sample = Sample(
+        configured_false=False,
+        configured_true=True,
+        configured_zero=0,
+        configured_empty_str="",
+        configured_text="active",
+    )
+
+    fields_by_name = {f.name: f for f in sample._fields}
+
+    assert is_configured(fields_by_name["unconfigured_none"], sample) is False
+    assert is_configured(fields_by_name["unconfigured_list"], sample) is False
+    assert is_configured(fields_by_name["unconfigured_dict"], sample) is False
+    assert is_configured(fields_by_name["unconfigured_set"], sample) is False
+
+    assert sample.is_configured("unconfigured_none") is False
+    assert sample.is_configured("unconfigured_list") is False
+
+    assert is_configured(fields_by_name["configured_false"], sample) is True
+    assert is_configured(fields_by_name["configured_true"], sample) is True
+    assert is_configured(fields_by_name["configured_zero"], sample) is True
+    assert is_configured(fields_by_name["configured_empty_str"], sample) is True
+    assert is_configured(fields_by_name["configured_text"], sample) is True
+
+    assert sample.is_configured("configured_false") is True
+    assert sample.is_configured("configured_zero") is True
