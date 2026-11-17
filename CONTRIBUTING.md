@@ -77,10 +77,6 @@ Scanners can set an execution phase when instantiated:
 ```python
 system_packages = Scanner("environment.system_packages", phase=ScannerPhase.LATE)
 ```
-        "networking.networkmanager.plugins": [raw("pkgs.networkmanager-openvpn")],
-    },
-)
-```
 
 Values can use helper types:
 - `raw("pkgs.foo")`: Emits raw Nix identifiers.
