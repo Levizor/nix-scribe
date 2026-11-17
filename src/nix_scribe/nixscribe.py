@@ -23,7 +23,6 @@ from rich.tree import Tree
 from nix_scribe.cli.arguments import args, confirm
 from nix_scribe.lib.context import ElevationRequest, SystemContext
 from nix_scribe.lib.emitter import emit_nix_fragment
-from nix_scribe.lib.ir_serializer import save_ir_to_file
 from nix_scribe.lib.modularization import ModularizationLevel
 from nix_scribe.lib.nix_fragment import NixFragment
 from nix_scribe.lib.nix_module import NixModule
@@ -87,10 +86,6 @@ class NixScribe:
         logger.info("Writing configuration...")
         self._assemble_config(mod_level=args.modularization)
         self.root_file.save(args.output_path, args.modularization)
-
-        if args.dump_ir:
-            ir_file = save_ir_to_file(self.results, args.output_path)
-            logger.info("Saved scanned IR to %s", ir_file)
 
         logger.info(f"Done. Saved configuration to {args.output_path}")
         self._print_summary(total_duration=time.perf_counter() - overall_start)

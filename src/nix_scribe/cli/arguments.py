@@ -24,7 +24,6 @@ class CLIArguments:
     plugins: list[str] = field(default_factory=list)
     log_file: Path | None = None
     no_log_file: bool = False
-    dump_ir: bool = False
 
     def check(self):
         output = self.output_path
