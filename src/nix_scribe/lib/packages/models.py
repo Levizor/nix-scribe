@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -106,21 +108,26 @@ class PackageState:
         """Module API: check if a package exists on the system."""
         return attribute_name in self.by_attribute
 
-    def claim(self, attribute_name: str, by: str | None = None) -> bool:
-        """Claims a package if present so it won't be emitted in systemPackages.
+    def claim(self, *attribute_names: str, by: str | None = None) -> bool:
+        """Claims one or more packages if present so they won't be emitted in systemPackages.
 
-        Returns True if the package was present and claimed, False otherwise.
+        Returns True if at least one package was present and claimed, False otherwise.
         """
-        if self.has(attribute_name):
-            self._claimed[attribute_name] = by
-            logger.debug("Package '%s' claimed by %s", attribute_name, by or "unknown")
-            return True
-        logger.debug(
-            "Package '%s' not present on system; ignoring claim from %s",
-            attribute_name,
-            by or "unknown",
-        )
-        return False
+        any_claimed = False
+        for attribute_name in attribute_names:
+            if self.has(attribute_name):
+                self._claimed[attribute_name] = by
+                logger.debug(
+                    "Package '%s' claimed by %s", attribute_name, by or "unknown"
+                )
+                any_claimed = True
+            else:
+                logger.debug(
+                    "Package '%s' not present on system; ignoring claim from %s",
+                    attribute_name,
+                    by or "unknown",
+                )
+        return any_claimed
 
     def claimed_by(self, attribute_name: str) -> str | None:
         """Returns the module that claimed the package, if known."""
@@ -134,5 +141,5 @@ class PackageState:
         return self.unclaimed
 
     @classmethod
-    def empty(cls) -> "PackageState":
+    def empty(cls) -> PackageState:
         return cls(packages=[], unmapped=[])

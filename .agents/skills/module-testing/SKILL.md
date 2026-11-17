@@ -13,12 +13,12 @@ All `nix-scribe` tests must be filesystem-backed using `pytest`'s `tmp_path` fix
 3. **Allowed Mocks**: Only mock non-filesystem interactions (e.g. `context.systemctl.is_enabled`).
 4. **Fast Execution**: Unit tests must run in <0.5 seconds total.
 
-## Unit Test Template (`tests/modules/test_my_module.py`)
+## Unit Test Template (`tests/scanners/test_my_service.py`)
 
 ```python
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import ConfigFragment
-from nix_scribe.modules.category.my_module import my_module
+from nix_scribe.lib.nix_fragment import NixFragment
+from nix_scribe.scanners.services.my_service import my_service
 
 MOCK_CONFIG = """
 # /etc/my_service/config.conf
@@ -26,38 +26,29 @@ setting_name = my_value
 """
 
 
-def test_my_module_scanner_empty(tmp_path):
+def test_my_service_scanner_empty(tmp_path):
     context = SystemContext(tmp_path)
-    ir = my_module.scan(context)
-    assert ir == {}
+    assert my_service.scan(context) is None
 
 
-def test_my_module_scanner_with_files(tmp_path):
+def test_my_service_scanner_with_files(tmp_path):
     conf_dir = tmp_path / "etc/my_service"
     conf_dir.mkdir(parents=True)
     (conf_dir / "config.conf").write_text(MOCK_CONFIG)
 
     context = SystemContext(tmp_path)
-    ir = my_module.scan(context)
+    mod = my_service.scan(context)
 
-    assert ir["enable"] is True
-    assert ir["settingName"] == "my_value"
+    assert mod is not None
+    assert mod.enable is True
+    assert mod.settingName == "my_value"
+    assert mod.resolve_claims() == {"my-service"}
 
-
-def test_my_module_mapper():
-    assert my_module.map
-    mock_ir = {"enable": True, "settingName": "custom_val"}
-
-    block = my_module.map(mock_ir)
-    assert isinstance(block, ConfigFragment)
+    block = mod.to_nix_fragment()
+    assert isinstance(block, NixFragment)
     data = block["services.myService"]
     assert data["enable"] is True
-    assert data["settingName"] == "custom_val"
-
-
-def test_my_module_mapper_empty():
-    assert my_module.map(None) is None
-    assert my_module.map({}) is None
+    assert data["settingName"] == "my_value"
 ```
 
 ## Running Verification Commands
