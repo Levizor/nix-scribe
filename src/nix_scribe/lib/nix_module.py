@@ -81,6 +81,18 @@ def _infer_default_from_annotation(ann: Any) -> tuple[Any, Any]:
     return None, MISSING
 
 
+def is_configured(val: Any) -> bool:
+    """Determines whether an option value has been configured.
+
+    None and empty collections are unconfigured (omitted).
+    """
+    if val is None:
+        return False
+    if isinstance(val, (list, dict, set)) and len(val) == 0:
+        return False
+    return True
+
+
 def _collect_submodules(val: Any) -> list[NixModule]:
     """Recursively extracts all active child NixModule instances from an option value."""
     if isinstance(val, NixValue):
@@ -170,6 +182,16 @@ class NixModule:
             object.__setattr__(self, "_extra_claims", extra)
         extra.update(packages)
 
+    def configured_fields(self) -> list[tuple[Field[Any], Any]]:
+        """Returns configured fields and their unwrapped values."""
+        configured: list[tuple[Field[Any], Any]] = []
+        for f in self._fields:
+            raw_val = getattr(self, f.name)
+            val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
+            if is_configured(val):
+                configured.append((f, val))
+        return configured
+
     def resolve_claims(self) -> set[str]:
         """Recursively resolves active package claims from self and active submodules."""
         active_claims: set[str] = set(self._declared_claims)
@@ -177,12 +199,7 @@ class NixModule:
         if extra:
             active_claims.update(extra)
 
-        for f in self._fields:
-            raw_val = getattr(self, f.name)
-            val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
-            if not val:
-                continue
-
+        for f, val in self.configured_fields():
             meta = get_option_metadata(f)
             if meta.claims:
                 active_claims.update(meta.claims)
@@ -195,9 +212,7 @@ class NixModule:
     def resolve_assets(self) -> set[Asset]:
         """Recursively collects explicitly registered assets from self and active submodules."""
         collected: set[Asset] = set(getattr(self, "_registered_assets", set()))
-        for f in self._fields:
-            raw_val = getattr(self, f.name)
-            val = raw_val.value if isinstance(raw_val, NixValue) else raw_val
+        for _, val in self.configured_fields():
             if isinstance(val, Asset):
                 collected.add(val)
             for sub in _collect_submodules(val):

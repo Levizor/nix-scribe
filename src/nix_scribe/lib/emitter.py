@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import MISSING
 from typing import Any
 
 from nix_scribe.lib.nix_fragment import NixFragment, NixValue, combined_comments
@@ -8,19 +7,6 @@ from nix_scribe.lib.nix_module import (
     NixModule,
     get_option_metadata,
 )
-
-
-def should_omit(f: Any, val: Any = MISSING) -> bool:
-    """Determines whether a module field should be omitted from output.
-
-    None and empty collections are always omitted.
-    """
-    actual_val = val if val is not MISSING else f
-    if actual_val is None:
-        return True
-    if isinstance(actual_val, (list, dict, set)) and len(actual_val) == 0:
-        return True
-    return False
 
 
 def _serialize_value(
@@ -98,16 +84,9 @@ def _serialize_fields(
         getattr(module, "_extra_arguments", ())
     )
 
-    for f in module._fields:
+    for f, val in module.configured_fields():
         raw_val = getattr(module, f.name)
-        dyn_comment, val = (
-            (raw_val.comment, raw_val.value)
-            if isinstance(raw_val, NixValue)
-            else (None, raw_val)
-        )
-
-        if should_omit(f, val):
-            continue
+        dyn_comment = raw_val.comment if isinstance(raw_val, NixValue) else None
 
         serialized_val = _serialize_value(
             val,

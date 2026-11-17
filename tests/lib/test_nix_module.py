@@ -7,6 +7,7 @@ from nix_scribe.lib.nix_module import (
     NixModule,
     OptionMetadata,
     get_option_metadata,
+    is_configured,
     option,
 )
 from nix_scribe.lib.nix_writer import raw
@@ -113,6 +114,34 @@ def test_nix_module_field_level_claims():
 
     net_dhcp.claim("iproute2")
     assert net_dhcp.resolve_claims() == {"dhcpcd", "iproute2"}
+
+
+def test_nix_module_omitted_option_omits_claims_and_arguments():
+    class FeatureModule(NixModule, prefix="programs.feature"):
+        enable: bool = option()
+        extra_tool: bool = option(arguments={"pkgs"}, claims={"extra-tool"})
+
+    # When option is unconfigured / omitted
+    mod_omitted = FeatureModule(enable=True)
+    frag_omitted = mod_omitted.to_nix_fragment()
+
+    assert "extra_tool" not in frag_omitted.options
+    assert frag_omitted.arguments == set()
+    assert mod_omitted.resolve_claims() == set()
+
+    # When option is configured / active
+    mod_active = FeatureModule(enable=True, extra_tool=True)
+    frag_active = mod_active.to_nix_fragment()
+
+    assert "extra_tool" in frag_active["programs.feature"].value
+    assert frag_active.arguments == {"pkgs"}
+    assert mod_active.resolve_claims() == {"extra-tool"}
+
+    # When option is explicitly configured to False (active, not omitted)
+    mod_false = FeatureModule(enable=True, extra_tool=False)
+    active_names = [f.name for f, _ in mod_false.configured_fields()]
+    assert "extra_tool" in active_names
+    assert mod_false.resolve_claims() == {"extra-tool"}
 
 
 def test_nix_module_assets_and_arguments():
@@ -354,3 +383,16 @@ def test_nix_module_inferred_defaults_from_type_annotations():
     # Ensure mutable defaults are isolated per instance
     mod.items.append("a")
     assert Inferred().items == []
+
+
+def test_is_configured_helper():
+    assert is_configured(None) is False
+    assert is_configured([]) is False
+    assert is_configured({}) is False
+    assert is_configured(set()) is False
+    assert is_configured(False) is True
+    assert is_configured(True) is True
+    assert is_configured(0) is True
+    assert is_configured("") is True
+    assert is_configured("hello") is True
+    assert is_configured(["a"]) is True
