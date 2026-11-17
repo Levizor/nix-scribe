@@ -85,12 +85,19 @@ class NixScribe:
 
         logger.info("Writing configuration...")
         self._assemble_config(mod_level=args.modularization)
-        self.root_file.save(args.output_path, args.modularization)
+        written_files = self.root_file.save(args.output_path, args.modularization)
 
         logger.info(f"Done. Saved configuration to {args.output_path}")
-        self._print_summary(total_duration=time.perf_counter() - overall_start)
+        self._print_summary(
+            total_duration=time.perf_counter() - overall_start,
+            written_paths=written_files,
+        )
 
-    def _print_summary(self, total_duration: float) -> None:
+    def _print_summary(
+        self,
+        total_duration: float,
+        written_paths: list[Path] | None = None,
+    ) -> None:
         """Renders end-of-run execution summary panel."""
         grid = Table.grid(padding=(0, 2))
         grid.add_column(style="bold cyan")
@@ -145,15 +152,22 @@ class NixScribe:
             grid.add_row("Packages:", pkg_summary)
 
         artifacts: list[str] = []
-        if args.output_path.exists():
-            for p in sorted(args.output_path.rglob("*")):
-                if p.is_file():
+        if written_paths:
+            for p in sorted(written_paths):
+                try:
                     artifacts.append(str(p.relative_to(args.output_path)))
+                except ValueError:
+                    artifacts.append(str(p))
+
         if args.log_file and args.log_file.exists():
             try:
-                args.log_file.relative_to(args.output_path)
+                log_rel = str(args.log_file.relative_to(args.output_path))
+                if log_rel not in artifacts:
+                    artifacts.append(log_rel)
             except ValueError:
-                artifacts.append(str(args.log_file))
+                log_str = str(args.log_file)
+                if log_str not in artifacts:
+                    artifacts.append(log_str)
 
         if artifacts:
             grid.add_row("", "")

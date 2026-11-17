@@ -35,11 +35,14 @@ def test_save_single_file():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.SINGLE_FILE)
+        written = root.save(tmp_path, ModularizationLevel.SINGLE_FILE)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "firewall.conf").exists()
         assert (tmp_path / "firewall.conf").read_text() == "# firewall configuration\n"
+        assert sorted(written) == sorted(
+            [tmp_path / "configuration.nix", tmp_path / "firewall.conf"]
+        )
 
 
 def test_save_high_level():
@@ -51,12 +54,19 @@ def test_save_high_level():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.HIGH_LEVEL)
+        written = root.save(tmp_path, ModularizationLevel.HIGH_LEVEL)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "networking.nix").exists()
         assert (tmp_path / "firewall.conf").exists()
         assert (tmp_path / "firewall.conf").read_text() == "# firewall configuration\n"
+        assert sorted(written) == sorted(
+            [
+                tmp_path / "configuration.nix",
+                tmp_path / "networking.nix",
+                tmp_path / "firewall.conf",
+            ]
+        )
 
 
 def test_save_component_level():
@@ -68,7 +78,7 @@ def test_save_component_level():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL)
+        written = root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "networking" / "default.nix").exists()
@@ -78,6 +88,15 @@ def test_save_component_level():
         assert (
             tmp_path / "networking" / "firewall.conf"
         ).read_text() == "# firewall configuration\n"
+        assert sorted(written) == sorted(
+            [
+                tmp_path / "configuration.nix",
+                tmp_path / "networking" / "default.nix",
+                tmp_path / "networking" / "firewall.nix",
+                tmp_path / "networking" / "networkmanager.nix",
+                tmp_path / "networking" / "firewall.conf",
+            ]
+        )
 
 
 def test_save_content_asset_modularized():
@@ -90,9 +109,16 @@ def test_save_content_asset_modularized():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL)
+        written = root.save(tmp_path, ModularizationLevel.COMPONENT_LEVEL)
 
         assert (tmp_path / "configuration.nix").exists()
         assert (tmp_path / "packages.nix").exists()
         assert (tmp_path / "packages.log").exists()
         assert (tmp_path / "packages.log").read_text() == "audit report"
+        assert sorted(written) == sorted(
+            [
+                tmp_path / "configuration.nix",
+                tmp_path / "packages.nix",
+                tmp_path / "packages.log",
+            ]
+        )

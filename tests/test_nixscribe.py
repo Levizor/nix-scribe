@@ -192,6 +192,9 @@ def test_nixscribe_print_summary(tmp_path):
     args.log_file = tmp_path / "nix-config" / "nix-scribe.log"
     args.log_file.parent.mkdir(parents=True, exist_ok=True)
     args.log_file.write_text("log content", encoding="utf-8")
+    (args.output_path / "pre_existing_stale.txt").write_text(
+        "stale artifact", encoding="utf-8"
+    )
 
     mod1 = Scanner("test.configured")
     mod2 = Scanner("test.skipped")
@@ -215,7 +218,10 @@ def test_nixscribe_print_summary(tmp_path):
     )
     script.fragments["test.skipped"] = None
 
-    script._print_summary(total_duration=1.23)
+    script._print_summary(
+        total_duration=1.23,
+        written_paths=[args.output_path / "configuration.nix"],
+    )
 
     output = string_io.getvalue()
     assert "nix-scribe generation complete" in output
@@ -228,7 +234,9 @@ def test_nixscribe_print_summary(tmp_path):
     assert "1 resolved" in output
     assert "1 claimed" in output
     assert "Artifacts:" in output
+    assert "configuration.nix" in output
     assert "nix-scribe.log" in output
+    assert "pre_existing_stale.txt" not in output
 
 
 def test_nixscribe_build_modules_tree():
