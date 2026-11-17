@@ -6,6 +6,6 @@ from nix_scribe.lib.nix_module import NixModule, option
 class Ssh(NixModule, prefix="programs.ssh", claims={"openssh"}):
     """OpenSSH Client Configuration"""
 
-    forwardX11: bool | None = option()
+    forwardX11: bool = option()
     startAgent: bool = option()
     extraConfig: str = option()

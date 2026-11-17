@@ -22,8 +22,8 @@ class MyService(
 ):
     """My Service NixOS Configuration"""
 
-    enable: bool | None = option()
-    settingName: str | None = option()
+    enable: bool = option()
+    settingName: str = option()
 ```
 
 ## 2. Single-Stage Scanner (`src/nix_scribe/scanners/<category>/<name>.py`)
@@ -74,3 +74,4 @@ def scan(context: SystemContext) -> MyService | None:
    * PAM files: `parse_pam`
    * Sudoers files: `parse_sudoers`
 3. **NixOS Option Mapping**: Ensure `NixModule` field paths and defaults match NixOS options directly (verify via `nix eval`).
+4. **Option Annotations**: Use natural types (`enable: bool = option()`, `port: int = option()`). Do not use `| None` in option type annotations — all options are presence-driven and default implicitly to unconfigured (`None` / empty collection) state.

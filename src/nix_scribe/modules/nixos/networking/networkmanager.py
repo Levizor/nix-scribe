@@ -6,9 +6,9 @@ from nix_scribe.lib.nix_module import NixModule, option
 
 
 class NetworkManagerWifi(NixModule):
-    powersave: bool | None = option()
-    scanRandMacAddress: bool | None = option()
-    backend: str | None = option()
+    powersave: bool = option()
+    scanRandMacAddress: bool = option()
+    backend: str = option()
 
 
 class NetworkManager(
@@ -17,7 +17,7 @@ class NetworkManager(
     """NetworkManager configuration"""
 
     enable: bool = option()
-    dns: str | None = option()
-    dhcp: str | None = option()
-    wifi: NetworkManagerWifi | None = option()
+    dns: str = option()
+    dhcp: str = option()
+    wifi: NetworkManagerWifi = option()
     settings: dict[str, Any] = option()

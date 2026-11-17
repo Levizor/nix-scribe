@@ -7,7 +7,7 @@ class SystemdBoot(NixModule, prefix="boot.loader.systemd-boot"):
     """systemd-boot UEFI Bootloader Configuration"""
 
     enable: bool = option()
-    consoleMode: str | None = option()
-    editor: bool | None = option()
-    sortKey: str | None = option()
-    xbootldrMountPoint: str | None = option()
+    consoleMode: str = option()
+    editor: bool = option()
+    sortKey: str = option()
+    xbootldrMountPoint: str = option()

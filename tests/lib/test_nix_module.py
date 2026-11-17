@@ -14,45 +14,45 @@ from nix_scribe.lib.nixfile import NixFile
 
 
 class GitLfs(NixModule, claims={"git-lfs"}):
-    enable: bool | None = option()
-    enablePureSSHTransfer: bool | None = option()
+    enable: bool = option()
+    enablePureSSHTransfer: bool = option()
 
 
 class Git(NixModule, claims={"git"}, prefix="programs.git"):
-    enable: bool | None = option()
-    prompt_enable: bool | None = option("prompt.enable")
+    enable: bool = option()
+    prompt_enable: bool = option("prompt.enable")
     config: dict[str, Any] = option()
     lfs: GitLfs | None = None
 
 
 class Sudo(NixModule, claims={"sudo"}, prefix="security.sudo"):
-    enable: bool | None = option()
-    execWheelOnly: bool | None = option()
-    wheelNeedsPassword: bool | None = option(
+    enable: bool = option()
+    execWheelOnly: bool = option()
+    wheelNeedsPassword: bool = option(
         comment="Allow wheel members to run sudo without password",
     )
-    keepTerminfo: bool | None = option()
-    extraConfig: str | None = option()
+    keepTerminfo: bool = option()
+    extraConfig: str = option()
 
 
 class UserEntry(NixModule):
     uid: int
-    isNormalUser: bool | None = option()
-    description: str | None = option()
+    isNormalUser: bool = option()
+    description: str = option()
     home: str | None = None
-    group: str | None = option()
+    group: str = option()
     extraGroups: list[str] = option()
     shell: Any = None
 
 
 class Users(NixModule, prefix="users.users"):
     users: dict[str, UserEntry] = option(inline=True)
-    bash_enable: bool | None = option(
+    bash_enable: bool = option(
         "programs.bash.enable",
         root=True,
         arguments={"pkgs"},
     )
-    zsh_enable: bool | None = option(
+    zsh_enable: bool = option(
         "programs.zsh.enable",
         root=True,
         arguments={"pkgs"},
@@ -103,7 +103,7 @@ def test_nix_module_nested_and_claims():
 def test_nix_module_field_level_claims():
     class Networking(NixModule, prefix="networking"):
         hostName: str | None = None
-        useDHCP: bool | None = option(claims={"dhcpcd"})
+        useDHCP: bool = option(claims={"dhcpcd"})
 
     net_inactive = Networking(hostName="nixos")
     assert net_inactive.resolve_claims() == set()
@@ -117,7 +117,7 @@ def test_nix_module_field_level_claims():
 
 def test_nix_module_assets_and_arguments():
     class Grub(NixModule, claims={"grub2"}, prefix="boot.loader.grub"):
-        enable: bool | None = option()
+        enable: bool = option()
         splashImage: Asset | None = None
 
     splash = Asset("grub-splash.png", b"PNGDATA")
@@ -205,10 +205,10 @@ def test_mutable_default_isolation():
 
 def test_nix_module_subclass_inheritance():
     class BaseService(NixModule, claims={"base-daemon"}, arguments={"pkgs"}):
-        enable: bool | None = option()
+        enable: bool = option()
 
     class ExtendedService(BaseService, claims={"extra-tool"}, arguments={"lib"}):
-        port: int | None = option()
+        port: int = option()
 
     svc = ExtendedService(enable=True, port=9090)
     assert svc.resolve_claims() == {"base-daemon", "extra-tool"}
@@ -219,7 +219,7 @@ def test_nix_module_subclass_inheritance():
 def test_nix_module_nested_submodule_root_options():
     class Key(NixModule):
         key_id: str
-        root_flag: bool | None = option(
+        root_flag: bool = option(
             "security.globalFlag",
             root=True,
             arguments={"pkgs"},
@@ -241,7 +241,7 @@ def test_nix_module_nested_submodule_root_options():
 def test_nix_module_sets_and_tuples_serialization():
     class GroupPolicy(NixModule, prefix="security.policy"):
         allowed_users: set[str] = option()
-        dimensions: tuple[int, ...] | None = option()
+        dimensions: tuple[int, ...] = option()
 
     policy = GroupPolicy(
         allowed_users={"alice", "bob"},
@@ -255,9 +255,9 @@ def test_nix_module_sets_and_tuples_serialization():
 
 def test_nix_module_int_and_bool_type_safety():
     class Numeric(NixModule, prefix="metrics"):
-        zero_val: int | None = option()
-        false_val: bool | None = option()
-        flag: bool | None = option()
+        zero_val: int = option()
+        false_val: bool = option()
+        flag: bool = option()
 
     empty = Numeric()
     assert empty.to_dict() == {}
@@ -283,7 +283,7 @@ def test_nix_fragment_container_dunders():
 
 def test_nix_module_option_metadata_and_helper():
     class Example(NixModule):
-        flag: bool | None = option(
+        flag: bool = option(
             "boot.test",
             comment="Static comment",
             claims={"test-pkg"},
@@ -306,7 +306,7 @@ def test_nix_module_docstring_fallback_for_fragment():
         Longer description that should be ignored for header.
         """
 
-        enable: bool | None = option()
+        enable: bool = option()
 
     svc = DocstringService(enable=True)
     frag = emit_nix_fragment(svc)

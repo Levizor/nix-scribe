@@ -14,4 +14,4 @@ class Grub(NixModule, prefix="boot.loader.grub", claims={"grub2"}):
     timeoutStyle: str = option()
     useOSProber: bool = option()
     enableCryptodisk: bool = option()
-    splashImage: Asset | None = option()
+    splashImage: Asset = option()

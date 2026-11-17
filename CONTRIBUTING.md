@@ -4,40 +4,40 @@ Contributions are welcome! While there are no strict rules regarding how to writ
 
 ## How to Add a Module
 
-Create a file inside `src/nix_scribe/modules/<category>/`. For example, a module for `git` lives in `src/nix_scribe/modules/programs/git.py`. The category generally should follow the NixOs option the module defines.
+A module in `nix-scribe` consists of two parts:
+1. **Declarative Contract (`NixModule`)**: Lives in `src/nix_scribe/modules/nixos/<category>/<name>.py`. Defines the schema and options matching NixOS options directly.
+2. **Scanner (`Scanner`)**: Lives in `src/nix_scribe/scanners/<category>/<name>.py`. Pure filesystem inspection that populates the declarative contract.
 
-A module instantiates `Module`, defines a scanner with `@<mod>.scanner()`, and defines a mapper with `@<mod>.mapper()`.
-
-### Example Module
+### Example Contract & Scanner
 
 ```python
-# src/nix_scribe/modules/programs/hyprland.py
+# src/nix_scribe/modules/nixos/programs/hyprland.py
 
-from typing import Any
+from nix_scribe.lib.nix_module import NixModule, option
+
+
+class Hyprland(NixModule, prefix="programs.hyprland", claims={"hyprland"}):
+    """Hyprland compositor configuration"""
+
+    enable: bool = option()
+```
+
+```python
+# src/nix_scribe/scanners/programs/hyprland.py
 
 from nix_scribe.lib.context import SystemContext
-from nix_scribe.lib.option_block import ConfigFragment
-from nix_scribe.lib.registry import Module
+from nix_scribe.lib.registry import Scanner
+from nix_scribe.modules.nixos.programs.hyprland import Hyprland
 
-hyprland = Module("programs.hyprland")
+hyprland = Scanner("programs.hyprland")
 
 
 @hyprland.scanner()
-def scan(context: SystemContext) -> dict[str, Any]:
-    # Check if binary exists on target filesystem
-    return {"enable": bool(context.find_executable_path("Hyprland"))}
-
-
-@hyprland.mapper()
-def map(ir: dict[str, Any]) -> ConfigFragment | None:
-    if not ir.get("enable"):
+def scan(context: SystemContext) -> Hyprland | None:
+    if not context.find_executable_path("Hyprland"):
         return None
 
-    return ConfigFragment(
-        name="hyprland",
-        description="Hyprland compositor",
-        data={"programs.hyprland.enable": True},
-    )
+    return Hyprland(enable=True)
 ```
 
 ---
@@ -47,67 +47,36 @@ def map(ir: dict[str, Any]) -> ConfigFragment | None:
 `nix-scribe` scans system state and generates corresponding NixOS configuration. The entry point is in [src/nix_scribe/nixscribe.py](./src/nix_scribe/nixscribe.py).
 
 The execution flow:
-1. **Module Discovery**: `ModuleLoader` imports all modules from `src/nix_scribe/modules/` and any external plugins passed via `--plugin`.
-2. **Scheduling**: `ModuleScheduler` sorts active modules by `ModulePhase` (`EARLY`, `NORMAL`, `LATE`) and name.
-3. **Scanning**: Scanners inspect the target filesystem through `SystemContext` and return an Intermediate Representation (IR) dict.
-4. **Mapping**: Mappers convert IR dicts into `ConfigFragment` instances.
-5. **Assembly & Writing**: `NixFile` and `NixWriter` format options into `.nix` files based on the requested modularization level.
+1. **Module Discovery**: `ScannerLoader` imports all scanners from `src/nix_scribe/scanners/` and any external plugins passed via `--plugin`.
+2. **Scheduling**: `ScannerScheduler` sorts active scanners by `ScannerPhase` (`EARLY`, `NORMAL`, `LATE`) and name.
+3. **Scanning**: Scanners inspect the target filesystem through `SystemContext` and return populated `NixModule` contract instances or `None`.
+4. **Assembly & Writing**: `NixFile` and `NixWriter` format active options into `.nix` files based on the requested modularization level.
 
 ### The Scanner & SystemContext
 
-Scanners collect state from the target system into an IR dictionary.
+Scanners collect state from the target system and return populated `NixModule` instances.
 
 - **Filesystem-only scanning**: Never invoke host shell binaries (`mount`, `systemctl`, `stat`). Read files and directories via `context.path_exists()`, `context.read_file()`, `context.read_file_bytes()`, `context.list_directory()`, and `context.find_executable_path()`. This keeps scanning safe on mounted offline root directories.
-- **Path constants**: Define paths at the top of the module file (e.g. `CONFIG_PATH = "/etc/example.conf"`).
+- **Path constants**: Define paths at the top of the scanner file (e.g. `CONFIG_PATH = "/etc/example.conf"`).
 - **Reusable parsers**: Place parse functions in `src/nix_scribe/lib/parsers/<name>.py`.
 - **Merged configs**: When configs are split across files and drop-in directories (like `/etc/sudoers` and `/etc/sudoers.d/`), instantiate `ConfigReader(context, parse_func)` and call `read_merge_configs_from_paths_list([FILE_PATH, DIR_PATH])`. It automatically reads all files and handles merging internally.
 
-### Package Managers & Package Claiming
+### Declarative Contracts (`NixModule`)
 
-`nix-scribe` detects installed packages on the target system (e.g. Debian/Ubuntu APT) through `PackageManager` implementations.
-
-- **Package State**: Access discovered packages via `context.packages`.
-- **Declarative Package Claiming**: If your module configures a package (for example, `programs.git` configuring git), declare it in the returned `ConfigFragment`:
-  ```python
-  ConfigFragment(
-      name="git",
-      data={"programs.git.enable": True},
-      claims={"git"},
-  )
-  ```
-  During the mapping phase, `NixScribe` marks claimed packages in `context.packages`.
-- **Unclaimed Packages**: Modules running in `ModulePhase.LATE` (specifically `environment.system_packages`) inspect `context.packages.unclaimed` at map time and emit all remaining user-installed packages into `environment.systemPackages`. Claiming prevents duplicate package definitions. If a module returns `None`, it claims nothing, and the package safely stays in `systemPackages`.
-
-To add support for another package manager (like pacman or dnf):
-1. Subclass `PackageManager` in `src/nix_scribe/lib/packages/managers/<name>.py`.
-2. Implement `detect(context)` and `discover_packages(context)`.
-3. Register it with `register_package_manager(YourManager)`.
+- **Option Definitions**: Declare options via `option(...)` with their natural Python types (`enable: bool = option()`, `port: int = option()`, `servers: list[str] = option()`).
+- **Never use `| None` in option typehints**: All options are presence-driven and implicitly default to unconfigured (`None` for scalars, empty collection factories for lists/dicts/sets).
+- **Package Claiming**: Declare claimed packages statically on `NixModule(..., claims={"pkg"})`, on individual options `option(..., claims={"pkg"})`, or dynamically via `mod.claim("pkg")`. Claimed packages are automatically excluded from `environment.systemPackages`.
 
 ### Execution Phases
 
-Modules can set an execution phase when instantiated:
-- `ModulePhase.EARLY` (10): Runs before standard modules.
-- `ModulePhase.NORMAL` (50): Default. Standard modules run here and emit fragments.
-- `ModulePhase.LATE` (100): Runs after standard modules. Used by `environment.system_packages` to collect unclaimed packages after all earlier modules have mapped.
+Scanners can set an execution phase when instantiated:
+- `ScannerPhase.EARLY` (10): Runs before standard scanners.
+- `ScannerPhase.NORMAL` (50): Default. Standard scanners run here.
+- `ScannerPhase.LATE` (100): Runs after standard scanners. Used by aggregators like `environment.system_packages` to collect unclaimed packages after all earlier scanners have executed.
 
 ```python
-system_packages = Module("environment.system_packages", phase=ModulePhase.LATE)
+system_packages = Scanner("environment.system_packages", phase=ScannerPhase.LATE)
 ```
-
-### The Mapper & ConfigFragment
-
-Mappers take the IR dictionary and return a `ConfigFragment` or `None`.
-
-```python
-from nix_scribe.lib.nix_writer import raw
-from nix_scribe.lib.option_block import ConfigFragment
-
-ConfigFragment(
-    name="networkmanager",
-    description="NetworkManager configuration",
-    claims={"networkmanager"},
-    data={
-        "networking.networkmanager.enable": True,
         "networking.networkmanager.plugins": [raw("pkgs.networkmanager-openvpn")],
     },
 )

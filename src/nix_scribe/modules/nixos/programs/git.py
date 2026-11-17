@@ -16,4 +16,4 @@ class Git(NixModule, prefix="programs.git", claims={"git"}):
     enable: bool = option()
     prompt_enable: bool = option("prompt.enable")
     config: dict[str, Any] = option()
-    lfs: GitLfs | None = option()
+    lfs: GitLfs = option()
