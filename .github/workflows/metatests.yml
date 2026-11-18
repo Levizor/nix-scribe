@@ -1,0 +1,40 @@
+name: Nixpkgs Contract Metatests
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  pull_request:
+    paths:
+      - "src/nix_scribe/modules/nixos/**"
+  workflow_dispatch:
+
+jobs:
+  metatests:
+    name: Validate NixModule Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv & Python environment
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Detect changed contracts (PR only)
+        id: changed
+        if: github.event_name == 'pull_request'
+        run: |
+          FILES=$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- "src/nix_scribe/modules/nixos/*.py" "src/nix_scribe/modules/nixos/**/*.py" | grep -v "__init__.py" | tr '\n' ',')
+          echo "files=${FILES%,}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Contract Metatests
+        if: github.event_name != 'pull_request' || steps.changed.outputs.files != ''
+        run: uv run pytest -m meta -v
+        env:
+          NIX_SCRIBE_NIXPKGS_CHANNEL: nixos-unstable
+          NIX_SCRIBE_FORCE_REFRESH: "1"
+          NIX_SCRIBE_META_MODULES: ${{ steps.changed.outputs.files }}
