@@ -21,7 +21,12 @@ Issues = "https://github.com/Levizor/nix-scribe/issues"
 "nix-scribe" = "nix_scribe.cli.main:app"
 
 [dependency-groups]
-dev = ["pytest>=8.4.2,<9.0.0", "ruff>=0.14.3,<0.15.0", "pre-commit"]
+dev = [
+    "pytest>=8.4.2,<9.0.0",
+    "ruff>=0.14.3,<0.15.0",
+    "pre-commit",
+    "brotli>=1.2.1",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.0,<0.10.0"]
@@ -39,3 +44,7 @@ combine-as-imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["third_party"]
+markers = [
+    "meta: metatests validating NixModule contracts against upstream nixpkgs artifacts",
+]
+addopts = "-m 'not meta'"
